@@ -3,8 +3,10 @@ import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import TaskModal from './components/TaskModal';
 import DashboardView from './views/DashboardView';
 import MembersView from './views/MembersView';
-import { CalendarDays, RefreshCw, CheckCircle2, AlertCircle, LogIn } from 'lucide-react';
+import { CalendarDays, RefreshCw, CheckCircle2, AlertCircle, LogIn, Sun, Moon } from 'lucide-react';
 import { useGoogleDrive } from './hooks/useGoogleDrive';
+import { Button } from './components/ui';
+import { cn } from './lib/utils';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 
@@ -14,6 +16,16 @@ const DEFAULT_MEMBERS = [
 ];
 
 function AppInner() {
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark' ||
+      (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
   const [tasks, setTasks] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('capacity-tasks');
@@ -81,39 +93,39 @@ function AppInner() {
     syncStatus === 'error' ? 'Erro ao sincronizar' : '';
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 print:hidden">
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      <header className="bg-card border-b border-border sticky top-0 z-10 print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <CalendarDays className="w-5 h-5 text-white" />
+            <div className="bg-primary p-2 rounded-lg">
+              <CalendarDays className="w-5 h-5 text-primary-foreground" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">Capacity Dashboard</h1>
+            <h1 className="text-xl font-bold text-foreground">Capacity Dashboard</h1>
           </div>
 
           <div className="flex items-center gap-4">
+            <button onClick={() => setDarkMode(d => !d)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="Alternar tema">
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             {token ? (
               <div className="flex items-center gap-2 text-sm">
-                {syncStatus === 'syncing' && <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />}
+                {syncStatus === 'syncing' && <RefreshCw className="w-4 h-4 text-primary animate-spin" />}
                 {syncStatus === 'success' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                {syncStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
-                <span className="hidden sm:inline-block text-slate-500">{syncLabel}</span>
+                {syncStatus === 'error' && <AlertCircle className="w-4 h-4 text-destructive" />}
+                <span className="hidden sm:inline-block text-muted-foreground">{syncLabel}</span>
               </div>
             ) : (
-              <button
-                onClick={() => googleLogin()}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
+              <Button size="sm" onClick={() => googleLogin()}>
                 <LogIn className="w-4 h-4" />
                 Conectar Drive
-              </button>
+              </Button>
             )}
 
-            <div className="h-6 w-px bg-slate-200"></div>
+            <div className="h-6 w-px bg-border"></div>
 
-            <div className="flex bg-slate-100 rounded-lg p-1">
-              <button onClick={() => setView('dashboard')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${view === 'dashboard' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-600 hover:text-slate-900'}`}>Calendário</button>
-              <button onClick={() => setView('members')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${view === 'members' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-600 hover:text-slate-900'}`}>Membros</button>
+            <div className="flex bg-muted rounded-lg p-1">
+              <button onClick={() => setView('dashboard')} className={cn('px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'dashboard' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground')}>Calendário</button>
+              <button onClick={() => setView('members')} className={cn('px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'members' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground')}>Membros</button>
             </div>
           </div>
         </div>

@@ -5,17 +5,17 @@ import { Save, Clock, Play, AlertTriangle, CheckCircle2, ExternalLink } from 'lu
 
 const PHASES_ORDER = ['design', 'approval', 'dev', 'qa'] as const;
 const PHASE_META = {
-  design:   { label: 'Design',        color: 'bg-blue-100 text-blue-700 border-blue-200',   dot: 'bg-blue-500'   },
-  approval: { label: 'Aprovação',     color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500'  },
-  dev:      { label: 'Dev',           color: 'bg-violet-100 text-violet-700 border-violet-200', dot: 'bg-violet-500' },
-  qa:       { label: 'QA',            color: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  design:   { label: 'Design',    color: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-700',     dot: 'bg-blue-500'    },
+  approval: { label: 'Aprovação', color: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-700', dot: 'bg-amber-500'   },
+  dev:      { label: 'Dev',       color: 'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-700', dot: 'bg-violet-500' },
+  qa:       { label: 'QA',        color: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-700', dot: 'bg-emerald-500' },
 };
 
 const STATUS_OPTIONS = [
-  { value: 'backlog',      label: 'Backlog',       desc: 'Aguardando início',      icon: Clock,         cls: 'border-slate-300 text-slate-600 bg-slate-50',        activeCls: 'border-slate-500 bg-slate-100 text-slate-800 ring-1 ring-slate-400'  },
-  { value: 'em andamento', label: 'Em Andamento',  desc: 'Em progresso',           icon: Play,          cls: 'border-blue-200 text-blue-600 bg-blue-50',           activeCls: 'border-blue-500 bg-blue-100 text-blue-800 ring-1 ring-blue-400'    },
-  { value: 'bloqueado',    label: 'Bloqueado',     desc: 'Impedido de avançar',    icon: AlertTriangle, cls: 'border-red-200 text-red-600 bg-red-50',              activeCls: 'border-red-500 bg-red-100 text-red-800 ring-1 ring-red-400'       },
-  { value: 'concluído',   label: 'Concluído',     desc: 'Entregue',               icon: CheckCircle2,  cls: 'border-green-200 text-green-600 bg-green-50',        activeCls: 'border-green-500 bg-green-100 text-green-800 ring-1 ring-green-400' },
+  { value: 'backlog',      label: 'Backlog',      desc: 'Aguardando início',   icon: Clock,         cls: 'border-slate-300 text-slate-700 bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:bg-slate-800',        activeCls: 'border-slate-600 bg-slate-200 text-slate-900 ring-1 ring-slate-500 dark:border-slate-400 dark:bg-slate-700 dark:text-white'        },
+  { value: 'em andamento', label: 'Em Andamento', desc: 'Em progresso',        icon: Play,          cls: 'border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-700 dark:text-blue-200 dark:bg-blue-950',             activeCls: 'border-blue-600 bg-blue-100 text-blue-900 ring-1 ring-blue-500 dark:border-blue-500 dark:bg-blue-900 dark:text-blue-100'          },
+  { value: 'bloqueado',    label: 'Bloqueado',    desc: 'Impedido de avançar', icon: AlertTriangle, cls: 'border-red-300 text-red-700 bg-red-50 dark:border-red-700 dark:text-red-200 dark:bg-red-950',                  activeCls: 'border-red-600 bg-red-100 text-red-900 ring-1 ring-red-500 dark:border-red-500 dark:bg-red-900 dark:text-red-100'              },
+  { value: 'concluído',    label: 'Concluído',    desc: 'Entregue',            icon: CheckCircle2,  cls: 'border-green-300 text-green-700 bg-green-50 dark:border-green-700 dark:text-green-200 dark:bg-green-950',        activeCls: 'border-green-600 bg-green-100 text-green-900 ring-1 ring-green-500 dark:border-green-500 dark:bg-green-900 dark:text-green-100'    },
 ];
 
 const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
@@ -72,13 +72,13 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
   const designers = members.filter((m: any) => m.role === 'Designer');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-hidden flex flex-col">
 
         {/* Header */}
-        <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-semibold text-slate-900">{task ? 'Editar Demanda' : 'Nova Demanda'}</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">✕</button>
+        <div className="flex justify-between items-center px-6 py-5 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">{task ? 'Editar Demanda' : 'Nova Demanda'}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">✕</button>
         </div>
 
         <div className="px-6 py-5 overflow-y-auto flex-1 space-y-6 custom-scrollbar">
@@ -101,7 +101,7 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
               <div className="space-y-1.5">
                 <Label htmlFor="clickup" className="flex items-center gap-1">
                   Link ClickUp
-                  <span className="text-slate-400 font-normal text-xs">(opcional)</span>
+                  <span className="text-muted-foreground font-normal text-xs">(opcional)</span>
                 </Label>
                 <div className="relative">
                   <Input
@@ -134,11 +134,11 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
                         onClick={() => setFormData((p: any) => ({ ...p, assignee: m.id }))}
                         className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
                           selected
-                            ? 'border-blue-500 bg-blue-50 text-blue-800'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                            ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200'
+                            : 'border-border bg-card text-muted-foreground hover:border-border/80'
                         }`}
                       >
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${selected ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${selected ? 'bg-blue-500 text-white' : 'bg-muted text-muted-foreground'}`}>
                           {m.avatar}
                         </div>
                         {m.name}
@@ -178,7 +178,7 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label>Fases de Entrega</Label>
-                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Datas se ajustam automaticamente</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Datas se ajustam automaticamente</span>
                 </div>
                 <div className="space-y-2">
                   {PHASES_ORDER.map((phaseId, idx) => {
@@ -227,7 +227,7 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/80 flex justify-end gap-2">
+        <div className="px-6 py-4 border-t border-border bg-muted/50 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} type="button">Cancelar</Button>
           <Button type="submit" form="task-form">
             <Save className="w-4 h-4 mr-1.5" />

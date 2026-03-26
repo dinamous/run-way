@@ -8,18 +8,18 @@ import { formatDate } from '../utils/dateUtils';
 const PHASE_IDS = ['design', 'approval', 'dev', 'qa'] as const;
 type PhaseId = typeof PHASE_IDS[number];
 
-const PHASE_META: Record<PhaseId, { label: string; bar: string; dot: string; handle: string }> = {
-  design:   { label: 'Design',    bar: 'bg-violet-500 text-white',   dot: 'bg-violet-500',   handle: 'bg-violet-700'   },
-  approval: { label: 'Aprovação', bar: 'bg-orange-400 text-white',   dot: 'bg-orange-400',   handle: 'bg-orange-600'   },
-  dev:      { label: 'Dev',       bar: 'bg-sky-500 text-white',      dot: 'bg-sky-500',      handle: 'bg-sky-700'      },
-  qa:       { label: 'QA',        bar: 'bg-emerald-500 text-white',  dot: 'bg-emerald-500',  handle: 'bg-emerald-700'  },
+const PHASE_META: Record<PhaseId, { label: string; tag: string; bar: string; dot: string; handle: string; tagBg: string }> = {
+  design:   { label: 'Design',    tag: 'UX',  bar: 'bg-violet-100 text-violet-900 border border-violet-300 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-700',  dot: 'bg-violet-500',   handle: 'bg-violet-400 dark:bg-violet-600',  tagBg: 'bg-violet-500 text-white'  },
+  approval: { label: 'Aprovação', tag: 'APR', bar: 'bg-orange-100 text-orange-900 border border-orange-300 dark:bg-orange-950 dark:text-orange-200 dark:border-orange-700',  dot: 'bg-orange-400',   handle: 'bg-orange-400 dark:bg-orange-600',  tagBg: 'bg-orange-500 text-white'  },
+  dev:      { label: 'Dev',       tag: 'DEV', bar: 'bg-sky-100 text-sky-900 border border-sky-300 dark:bg-sky-950 dark:text-sky-200 dark:border-sky-700',                    dot: 'bg-sky-500',      handle: 'bg-sky-400 dark:bg-sky-600',        tagBg: 'bg-sky-600 text-white'     },
+  qa:       { label: 'QA',        tag: 'QA',  bar: 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-700', dot: 'bg-emerald-500', handle: 'bg-emerald-400 dark:bg-emerald-600', tagBg: 'bg-emerald-600 text-white' },
 };
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
-  'backlog':       { label: 'Backlog',       cls: 'bg-slate-100 text-slate-600' },
-  'em andamento':  { label: 'Em andamento',  cls: 'bg-blue-100 text-blue-700'   },
-  'bloqueado':     { label: 'Bloqueado',     cls: 'bg-red-100 text-red-700'     },
-  'concluído':     { label: 'Concluído',     cls: 'bg-green-100 text-green-700' },
+  'backlog':       { label: 'Backlog',       cls: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100' },
+  'em andamento':  { label: 'Em andamento',  cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100'    },
+  'bloqueado':     { label: 'Bloqueado',     cls: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'        },
+  'concluído':     { label: 'Concluído',     cls: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' },
 };
 
 const PT_MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -164,18 +164,18 @@ const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) =>
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
       <div style={{ minWidth: 900 }}>
-        <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
-          <div className="w-56 shrink-0 p-3 text-xs font-semibold text-slate-500 border-r border-slate-200">Demanda</div>
+        <div className="flex border-b border-border bg-muted sticky top-0 z-10">
+          <div className="w-56 shrink-0 p-3 text-xs font-semibold text-muted-foreground border-r border-border">Demanda</div>
           <div className="flex-1 flex">
             {days.map((d, i) => {
               const isToday = d.getTime() === today.getTime();
               const isWeekend = d.getDay() === 0 || d.getDay() === 6;
               return (
-                <div key={i} className={`flex-1 min-w-[20px] border-r border-slate-100 py-1.5 text-center ${isWeekend ? 'bg-slate-100/60' : ''}`}>
-                  <div className={`text-[10px] font-bold mx-auto w-5 h-5 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>{d.getDate()}</div>
-                  <div className="text-[9px] text-slate-400">{['D','S','T','Q','Q','S','S'][d.getDay()]}</div>
+                <div key={i} className={`flex-1 min-w-[20px] border-r border-border/50 py-1.5 text-center ${isWeekend ? 'bg-muted/60' : ''}`}>
+                  <div className={`text-[10px] font-bold mx-auto w-5 h-5 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : 'text-foreground'}`}>{d.getDate()}</div>
+                  <div className="text-[9px] text-muted-foreground">{['D','S','T','Q','Q','S','S'][d.getDay()]}</div>
                 </div>
               );
             })}
@@ -183,29 +183,29 @@ const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) =>
         </div>
 
         {tasks.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-sm">Nenhuma demanda. Clique em "Nova Demanda" para começar.</div>
+          <div className="p-12 text-center text-muted-foreground text-sm">Nenhuma demanda. Clique em "Nova Demanda" para começar.</div>
         ) : tasks.map((task: any) => {
           const assignee = members.find((m: any) => m.id === task.assignee);
           const status = STATUS_META[task.status] ?? STATUS_META['backlog'];
           return (
-            <div key={task.id} className="flex border-b border-slate-100 hover:bg-slate-50/60 transition-colors group">
-              <div className="w-56 shrink-0 px-3 py-2.5 border-r border-slate-200 flex flex-col justify-center gap-1">
-                <div className="font-medium text-sm text-slate-900 truncate">{task.title}</div>
+            <div key={task.id} className="flex border-b border-border/50 hover:bg-muted/30 transition-colors group">
+              <div className="w-56 shrink-0 px-3 py-2.5 border-r border-border flex flex-col justify-center gap-1">
+                <div className="font-medium text-sm text-foreground truncate">{task.title}</div>
                 <div className="flex items-center gap-1.5">
                   {assignee && (
-                    <div className="w-4 h-4 rounded-full bg-slate-200 text-[8px] font-bold flex items-center justify-center text-slate-600 shrink-0">{assignee.avatar}</div>
+                    <div className="w-4 h-4 rounded-full bg-muted text-[8px] font-bold flex items-center justify-center text-muted-foreground shrink-0">{assignee.avatar}</div>
                   )}
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${status.cls}`}>{status.label}</span>
                 </div>
                 <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex gap-0.5 print:hidden">
-                  <button onClick={() => onEdit(task)} className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50"><Edit2 className="w-3 h-3" /></button>
-                  <button onClick={() => onDelete(task.id)} className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-50"><Trash2 className="w-3 h-3" /></button>
+                  <button onClick={() => onEdit(task)} className="p-1 text-muted-foreground hover:text-blue-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30"><Edit2 className="w-3 h-3" /></button>
+                  <button onClick={() => onDelete(task.id)} className="p-1 text-muted-foreground hover:text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="w-3 h-3" /></button>
                 </div>
               </div>
               <div className="flex-1 relative" style={{ height: 52 }}>
                 <div className="absolute inset-0 flex pointer-events-none">
                   {days.map((d, i) => (
-                    <div key={i} className={`flex-1 border-r border-slate-100/50 ${d.getDay() === 0 || d.getDay() === 6 ? 'bg-slate-100/30' : ''}`} />
+                    <div key={i} className={`flex-1 border-r border-border/30 ${d.getDay() === 0 || d.getDay() === 6 ? 'bg-muted/30' : ''}`} />
                   ))}
                 </div>
                 {PHASE_IDS.map(pid => renderBar(task.phases?.[pid], pid, task))}
@@ -315,25 +315,25 @@ const CalendarView: React.FC<{
   }, []);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
       {/* Month nav */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/50">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted/50">
         <div className="flex items-center gap-3">
-          <h3 className="text-base font-semibold text-slate-900">
+          <h3 className="text-base font-semibold text-foreground">
             {PT_MONTHS[monthDate.getMonth()]} {monthDate.getFullYear()}
           </h3>
-          <button onClick={goToday} className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:bg-white transition-colors">Hoje</button>
+          <button onClick={goToday} className="text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-card transition-colors">Hoje</button>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-200/60 text-slate-500 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
-          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-200/60 text-slate-500 transition-colors"><ChevronRight className="w-4 h-4" /></button>
+          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><ChevronRight className="w-4 h-4" /></button>
         </div>
       </div>
 
       {/* Day headers */}
-      <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50">
+      <div className="grid grid-cols-7 border-b border-border bg-muted">
         {PT_DAYS_SHORT.map((d, i) => (
-          <div key={d} className={`py-2 text-center text-[11px] font-semibold uppercase tracking-wide ${i >= 5 ? 'text-slate-400' : 'text-slate-500'}`}>{d}</div>
+          <div key={d} className={`py-2 text-center text-[11px] font-semibold uppercase tracking-wide ${i >= 5 ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}>{d}</div>
         ))}
       </div>
 
@@ -352,7 +352,7 @@ const CalendarView: React.FC<{
             <div
               key={wi}
               data-week-row
-              className="relative grid grid-cols-7 border-b border-slate-100 last:border-b-0"
+              className="relative grid grid-cols-7 border-b border-border last:border-b-0"
               style={{ height: rowHeight }}
             >
               {/* Day cells */}
@@ -364,24 +364,24 @@ const CalendarView: React.FC<{
                 return (
                   <div
                     key={di}
-                    className={`border-r border-slate-100 last:border-r-0 flex flex-col select-none ${
-                      !isThisMonth ? 'bg-slate-50/70' :
-                      isWeekend    ? 'bg-slate-50/40' :
-                      'bg-white'
+                    className={`border-r border-border last:border-r-0 flex flex-col select-none ${
+                      !isThisMonth ? 'bg-muted/60' :
+                      isWeekend    ? 'bg-muted/30' :
+                      'bg-card'
                     }`}
                     style={{ height: rowHeight }}
                   >
                     <div className="flex items-center justify-center" style={{ height: DAY_HEADER_H }}>
                       <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${
                         isToday      ? 'bg-blue-600 text-white font-bold' :
-                        !isThisMonth ? 'text-slate-300' :
-                        isWeekend    ? 'text-slate-400' :
-                        'text-slate-700'
+                        !isThisMonth ? 'text-muted-foreground/40' :
+                        isWeekend    ? 'text-muted-foreground' :
+                        'text-foreground'
                       }`}>{day.getDate()}</span>
                     </div>
                     {hasOverflow && (
                       <div className="mt-auto mb-1 text-center">
-                        <span className="text-[9px] text-slate-400 font-medium">+{overflow[di]}</span>
+                        <span className="text-[9px] text-muted-foreground font-medium">+{overflow[di]}</span>
                       </div>
                     )}
                   </div>
@@ -442,7 +442,10 @@ const CalendarView: React.FC<{
                     )}
 
                     {startsHere && (
-                      <span className="px-2 truncate leading-none pointer-events-none">{task?.title}</span>
+                      <span className="flex items-center gap-1 px-1.5 truncate leading-none pointer-events-none min-w-0">
+                        <span className={`shrink-0 text-[9px] font-bold px-1 py-0.5 rounded ${meta.tagBg}`}>{meta.tag}</span>
+                        <span className="truncate text-[11px]">{task?.title}</span>
+                      </span>
                     )}
 
                     {/* Right resize handle */}
@@ -473,20 +476,20 @@ const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpda
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 print:hidden">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Visão Geral</h2>
-          <p className="text-slate-500 text-sm">Gestão das entregas criativas e de desenvolvimento.</p>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">Visão Geral</h2>
+          <p className="text-muted-foreground text-sm">Gestão das entregas criativas e de desenvolvimento.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+          <div className="flex bg-muted rounded-lg p-1 gap-1">
             <button
               onClick={() => setCalView('calendar')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calView === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calView === 'calendar' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <CalendarDays className="w-3.5 h-3.5" /> Calendário
             </button>
             <button
               onClick={() => setCalView('timeline')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calView === 'timeline' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calView === 'timeline' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <AlignLeft className="w-3.5 h-3.5" /> Linha do Tempo
             </button>
@@ -498,7 +501,7 @@ const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpda
 
       {/* Aviso Drive desconectado */}
       {!isConnected && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm print:hidden">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300 text-sm print:hidden">
           <WifiOff className="w-4 h-4 shrink-0" />
           <span>Não conectado ao Google Drive. As alterações são guardadas localmente e sincronizadas ao conectar.</span>
         </div>
@@ -511,7 +514,7 @@ const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpda
       }
 
       {/* Legend */}
-      <div className="flex gap-4 flex-wrap text-xs text-slate-500 print:hidden">
+      <div className="flex gap-4 flex-wrap text-xs text-muted-foreground print:hidden">
         {PHASE_IDS.map(id => (
           <div key={id} className="flex items-center gap-1.5">
             <span className={`w-2.5 h-2.5 rounded-full ${PHASE_META[id].dot}`} />
