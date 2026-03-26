@@ -5,7 +5,8 @@
       "Bash(echo '@import \"\"tailwindcss\"\";')",
       "Bash(npm run:*)",
       "Bash(npx shadcn@latest init --yes)",
-      "Bash(printf \"0\\\\n0\\\\n\")"
+      "Bash(printf \"0\\\\n0\\\\n\")",
+      "Bash(npx tsc:*)"
     ]
   },
   "hooks": {

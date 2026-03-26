@@ -140,7 +140,7 @@ function AppInner() {
       </main>
 
       {isModalOpen && (
-        <TaskModal task={editingTask} members={members} onClose={() => setIsModalOpen(false)} onSave={(taskData: { id: string }) => {
+        <TaskModal task={editingTask} members={members} onClose={() => setIsModalOpen(false)} onDelete={(id: string) => { if (confirm('Tem a certeza que deseja eliminar esta demanda?')) { handleSave(tasks.filter((t: { id: string }) => t.id !== id)); setIsModalOpen(false); } }} onSave={(taskData: { id: string }) => {
           const newTasks = editingTask
             ? tasks.map((t: { id: string }) => t.id === taskData.id ? taskData : t)
             : [...tasks, { ...taskData, id: crypto.randomUUID(), createdAt: new Date().toISOString() }];

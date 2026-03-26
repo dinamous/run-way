@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { cascadePhases, addBusinessDays, nextBusinessDay, businessDaysBetween } from '../utils/dateUtils';
 import { Input, Label, Button } from './ui';
-import { Save, Clock, Play, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Save, Clock, Play, AlertTriangle, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
 
 const PHASES_ORDER = ['design', 'approval', 'dev', 'qa'] as const;
 const PHASE_META = {
-  design:   { label: 'Design',    color: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-700',     dot: 'bg-blue-500'    },
-  approval: { label: 'Aprovação', color: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-700', dot: 'bg-amber-500'   },
-  dev:      { label: 'Dev',       color: 'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-700', dot: 'bg-violet-500' },
-  qa:       { label: 'QA',        color: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-700', dot: 'bg-emerald-500' },
+  design:   { label: 'Design',    color: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-700',     dot: 'bg-blue-500',    role: 'Designer'  as const },
+  approval: { label: 'Aprovação', color: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-700', dot: 'bg-amber-500',   role: 'Designer'  as const },
+  dev:      { label: 'Dev',       color: 'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-700', dot: 'bg-violet-500', role: 'Developer' as const },
+  qa:       { label: 'QA',        color: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-700', dot: 'bg-emerald-500', role: 'Designer' as const },
 };
 
 const STATUS_OPTIONS = [
@@ -18,13 +18,21 @@ const STATUS_OPTIONS = [
   { value: 'concluído',    label: 'Concluído',    desc: 'Entregue',            icon: CheckCircle2,  cls: 'border-green-300 text-green-700 bg-green-50 dark:border-green-700 dark:text-green-200 dark:bg-green-950',        activeCls: 'border-green-600 bg-green-100 text-green-900 ring-1 ring-green-500 dark:border-green-500 dark:bg-green-900 dark:text-green-100'    },
 ];
 
-const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
+const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) => {
+  const firstDesigner  = members.find((m: any) => m.role === 'Designer')?.id  || '';
+  const firstDeveloper = members.find((m: any) => m.role === 'Developer')?.id || '';
+
   const [formData, setFormData] = useState<any>({
     title: task?.title || '',
     clickupLink: task?.clickupLink || '',
-    assignee: task?.assignee || '',
     status: task?.status || 'backlog',
     phases: task?.phases || cascadePhases(new Date()),
+    phaseAssignees: task?.phaseAssignees || {
+      design:   task?.assignee || firstDesigner,
+      approval: task?.assignee || firstDesigner,
+      dev:      firstDeveloper,
+      qa:       task?.assignee || firstDesigner,
+    },
   });
   const [errors, setErrors] = useState<any>({});
 
@@ -32,7 +40,6 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
     const e: any = {};
     if (!formData.title || formData.title.length < 3) e.title = 'Título obrigatório (mín. 3 caracteres).';
     if (formData.clickupLink && !formData.clickupLink.startsWith('http')) e.clickupLink = 'Insira um link válido.';
-    if (!formData.assignee) e.assignee = 'Selecione um responsável.';
     PHASES_ORDER.forEach(p => {
       if (formData.phases[p].end < formData.phases[p].start) e[`${p}End`] = 'Fim anterior ao início.';
     });
@@ -42,7 +49,7 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
 
   const handleSubmit = (e: any) => {
     e.preventDefault();
-    if (validate()) onSave({ ...task, ...formData });
+    if (validate()) onSave({ ...task, ...formData, assignee: formData.phaseAssignees.design });
   };
 
   // Smart cascade: any change propagates forward keeping each phase's duration
@@ -57,7 +64,7 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
       newPhases[phase] = { ...newPhases[phase], end: value };
     }
 
-    // Cascade all subsequent phases
+    // Cascade all subsequent phases; QA always starts 1 business day after dev ends
     for (let i = idx + 1; i < PHASES_ORDER.length; i++) {
       const prev = PHASES_ORDER[i - 1];
       const curr = PHASES_ORDER[i];
@@ -65,11 +72,21 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
       const newStart = nextBusinessDay(newPhases[prev].end);
       newPhases[curr] = { start: newStart, end: addBusinessDays(newStart, dur) };
     }
+    // Enforce: each phase must start at least nextBusinessDay after the previous phase ends
+    // approval >= nextBusinessDay(design.end)
+    // dev      >= nextBusinessDay(approval.end)
+    // qa       >= nextBusinessDay(dev.end)
+    const chain: Array<[string, string]> = [['design', 'approval'], ['approval', 'dev'], ['dev', 'qa']];
+    for (const [prev, curr] of chain) {
+      const minStart = nextBusinessDay(newPhases[prev].end);
+      if (newPhases[curr].start < minStart) {
+        const dur = businessDaysBetween(newPhases[curr].start, newPhases[curr].end);
+        newPhases[curr] = { start: minStart, end: addBusinessDays(minStart, dur) };
+      }
+    }
 
     setFormData((p: any) => ({ ...p, phases: newPhases }));
   };
-
-  const designers = members.filter((m: any) => m.role === 'Designer');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -121,34 +138,6 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
                 {errors.clickupLink && <p className="text-xs text-red-500">{errors.clickupLink}</p>}
               </div>
 
-              {/* Responsável */}
-              <div className="space-y-2">
-                <Label>Designer Responsável</Label>
-                <div className="flex flex-wrap gap-2">
-                  {designers.map((m: any) => {
-                    const selected = formData.assignee === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setFormData((p: any) => ({ ...p, assignee: m.id }))}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
-                          selected
-                            ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200'
-                            : 'border-border bg-card text-muted-foreground hover:border-border/80'
-                        }`}
-                      >
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${selected ? 'bg-blue-500 text-white' : 'bg-muted text-muted-foreground'}`}>
-                          {m.avatar}
-                        </div>
-                        {m.name}
-                      </button>
-                    );
-                  })}
-                </div>
-                {errors.assignee && <p className="text-xs text-red-500">{errors.assignee}</p>}
-              </div>
-
               {/* Status */}
               <div className="space-y-2">
                 <Label>Estado</Label>
@@ -186,6 +175,9 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
                     const phase = formData.phases[phaseId];
                     const dur = businessDaysBetween(phase.start, phase.end);
                     const hasError = errors[`${phaseId}End`];
+                    const roleMembers = members.filter((m: any) => m.role === meta.role);
+                    const currentAssignee = formData.phaseAssignees[phaseId];
+                    const isQa = phaseId === 'qa';
                     return (
                       <div key={phaseId} className={`rounded-xl border p-3 space-y-2.5 ${meta.color}`}>
                         <div className="flex items-center justify-between">
@@ -195,6 +187,29 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
                           </div>
                           <span className="text-[10px] opacity-60">{dur} dia{dur !== 1 ? 's' : ''} útil{dur !== 1 ? 'eis' : ''}</span>
                         </div>
+                        {/* Responsável pela fase */}
+                        <div className="flex gap-1.5 flex-wrap">
+                          {roleMembers.map((m: any) => {
+                            const sel = currentAssignee === m.id;
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => setFormData((p: any) => ({ ...p, phaseAssignees: { ...p.phaseAssignees, [phaseId]: m.id } }))}
+                                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all ${
+                                  sel
+                                    ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200'
+                                    : 'border-transparent bg-white/50 text-inherit hover:bg-white/80'
+                                }`}
+                              >
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${sel ? 'bg-blue-500 text-white' : 'bg-black/10 text-inherit'}`}>
+                                  {m.avatar}
+                                </div>
+                                {m.name}
+                              </button>
+                            );
+                          })}
+                        </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <span className="text-[10px] opacity-70">Início</span>
@@ -202,7 +217,9 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
                               type="date"
                               value={phase.start}
                               onChange={e => handlePhaseChange(phaseId, 'start', e.target.value)}
-                              className="h-8 text-xs bg-white/70 border-0 focus:ring-1"
+                              className={`h-8 text-xs bg-white/70 border-0 focus:ring-1 ${isQa ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              readOnly={isQa}
+                              title={isQa ? 'QA começa automaticamente 1 dia após o fim do Dev' : undefined}
                             />
                           </div>
                           <div className="space-y-1">
@@ -227,12 +244,22 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border bg-muted/50 flex justify-end gap-2">
+        <div className="px-6 py-4 border-t border-border bg-muted/50 flex justify-between items-center">
+          <div>
+            {task && onDelete && (
+              <Button variant="destructive" type="button" onClick={() => onDelete(task.id)}>
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Apagar
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
           <Button variant="outline" onClick={onClose} type="button">Cancelar</Button>
           <Button type="submit" form="task-form">
             <Save className="w-4 h-4 mr-1.5" />
             {task ? 'Salvar Alterações' : 'Criar Demanda'}
           </Button>
+          </div>
         </div>
 
       </div>

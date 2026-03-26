@@ -31,17 +31,20 @@ GoogleOAuthProvider (App.tsx)
     │   │   ├── Barras de fases com drag-and-drop
     │   │   └── Handles de resize nas extremidades
     │   └── TimelineView
-    │       ├── 60 dias a partir de hoje
-    │       ├── Coluna esquerda: detalhes da tarefa
-    │       └── Barras estáticas de fases
+    │       ├── Range configurável: 14 / 30 / 60 / 90 dias (padrão 60)
+    │       ├── Colunas de largura fixa (36 px/dia) com scroll horizontal
+    │       ├── Layout em degraus — cada fase numa sub-linha própria
+    │       ├── Drag-and-drop e resize por fase (igual ao CalendarView)
+    │       └── Botões editar/apagar por tarefa (aparecem no hover)
     │
     ├── MembersView
     │   └── Props: tasks, members
     │
     └── TaskModal (condicional)
-        ├── Props: task?, members, onClose, onSave
+        ├── Props: task?, members, onClose, onSave, onDelete?
         ├── Formulário com validação
-        └── Cascata automática de datas
+        ├── Cascata automática de datas
+        └── Botão "Apagar" (visível apenas ao editar)
 ```
 
 ## Persistência de Dados

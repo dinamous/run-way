@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Button } from '../components/ui';
-import { Plus, Edit2, Trash2, Download, ChevronLeft, ChevronRight, CalendarDays, AlignLeft, WifiOff } from 'lucide-react';
+import { Plus, Edit2, Trash2, Download, ChevronLeft, ChevronRight, CalendarDays, AlignLeft, WifiOff, X } from 'lucide-react';
 import { formatDate } from '../utils/dateUtils';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
 };
 
 const PT_MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const PT_DAYS_SHORT = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+const PT_DAYS_SHORT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 const MAX_SLOTS = 3;
 const SLOT_HEIGHT = 28;
@@ -49,11 +49,12 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
+
 function getMonthWeeks(year: number, month: number): Date[][] {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startDow = firstDay.getDay();
-  const offset = startDow === 0 ? -6 : 1 - startDow;
+  const offset = -startDow;
   const gridStart = new Date(firstDay);
   gridStart.setDate(gridStart.getDate() + offset);
 
@@ -134,46 +135,155 @@ interface DragPreview {
 
 // ─── Timeline (Gantt) View ───────────────────────────────────────────────────
 
-const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) => void; onDelete: (id: string) => void }> = ({ tasks, members, onEdit, onDelete }) => {
+const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) => void; onDelete: (id: string) => void; onUpdateTask: (updatedTask: any) => void }> = ({ tasks, members, onEdit, onDelete, onUpdateTask }) => {
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
-  const days = useMemo(() => Array.from({ length: 60 }).map((_, i) => { const d = new Date(today); d.setDate(d.getDate() + i); return d; }), [today]);
+  const [daysRange, setDaysRange] = useState(60);
+  const DAY_COL_W = 36;
+  const days = useMemo(() => Array.from({ length: daysRange }).map((_, i) => { const d = new Date(today); d.setDate(d.getDate() + i); return d; }), [today, daysRange]);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef<{ type: 'move' | 'resize-start' | 'resize-end'; taskId: string; phaseId: PhaseId; originalStart: Date; originalEnd: Date; startX: number; colWidth: number } | null>(null);
+  const didDragRef = useRef(false);
+  const [dragPreview, setDragPreview] = useState<{ taskId: string; phaseId: PhaseId; deltaDays: number; type: string } | null>(null);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const ds = dragStateRef.current;
+      if (!ds) return;
+      const delta = Math.round((e.clientX - ds.startX) / ds.colWidth);
+      if (delta !== 0) didDragRef.current = true;
+      setDragPreview({ taskId: ds.taskId, phaseId: ds.phaseId, deltaDays: delta, type: ds.type });
+    };
+    const onUp = (e: MouseEvent) => {
+      const ds = dragStateRef.current;
+      if (!ds) return;
+      const delta = Math.round((e.clientX - ds.startX) / ds.colWidth);
+      if (delta !== 0) {
+        const task = tasks.find((t: any) => t.id === ds.taskId);
+        if (task) {
+          let newStart = new Date(ds.originalStart);
+          let newEnd   = new Date(ds.originalEnd);
+          if (ds.type === 'move') {
+            newStart = addDays(ds.originalStart, delta);
+            newEnd   = addDays(ds.originalEnd,   delta);
+          } else if (ds.type === 'resize-start') {
+            newStart = addDays(ds.originalStart, delta);
+            if (newStart >= newEnd) newStart = addDays(newEnd, -1);
+          } else {
+            newEnd = addDays(ds.originalEnd, delta);
+            if (newEnd <= newStart) newEnd = addDays(newStart, 1);
+          }
+          onUpdateTask({
+            ...task,
+            phases: { ...task.phases, [ds.phaseId]: { ...task.phases[ds.phaseId], start: toDateStr(newStart), end: toDateStr(newEnd) } },
+          });
+        }
+      }
+      dragStateRef.current = null;
+      setDragPreview(null);
+      setTimeout(() => { didDragRef.current = false; }, 0);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+  }, [tasks, onUpdateTask]);
+
+  const startDrag = useCallback((e: React.MouseEvent, taskId: string, phaseId: PhaseId, type: 'move' | 'resize-start' | 'resize-end', task: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const colWidth = DAY_COL_W;
+    const phase = task.phases[phaseId];
+    dragStateRef.current = { type, taskId, phaseId, originalStart: toLocalDate(phase.start), originalEnd: toLocalDate(phase.end), startX: e.clientX, colWidth };
+    didDragRef.current = false;
+  }, [daysRange]);
 
   const renderBar = (phaseObj: any, phaseId: PhaseId, task: any) => {
     if (!phaseObj?.start || !phaseObj?.end) return null;
     const pStart = toLocalDate(phaseObj.start);
     const pEnd   = toLocalDate(phaseObj.end);
-    const tStart = days[0]; const tEnd = days[days.length - 1];
+    const tStart = days[0];
+    const tEnd   = days[days.length - 1];
     if (pEnd < tStart || pStart > tEnd) return null;
+
     let s = Math.round((pStart.getTime() - tStart.getTime()) / 86400000);
     let e = Math.round((pEnd.getTime()   - tStart.getTime()) / 86400000);
-    if (s < 0) s = 0; if (e >= days.length) e = days.length - 1;
-    const left  = (s / days.length) * 100;
-    const width = ((e - s + 1) / days.length) * 100;
-    const meta = PHASE_META[phaseId];
+
+    // Apply drag preview
+    const dp = dragPreview;
+    if (dp && dp.taskId === task.id && dp.phaseId === phaseId) {
+      if (dp.type === 'move') { s += dp.deltaDays; e += dp.deltaDays; }
+      else if (dp.type === 'resize-start') { s = Math.min(s + dp.deltaDays, e); }
+      else { e = Math.max(e + dp.deltaDays, s); }
+    }
+
+    const sC = Math.max(0, s); const eC = Math.min(days.length - 1, e);
+    if (eC < 0 || sC >= days.length) return null;
+
+    const left  = (sC / days.length) * 100;
+    const width = ((eC - sC + 1) / days.length) * 100;
+    const meta  = PHASE_META[phaseId];
+    const isDragging = dp?.taskId === task.id && dp?.phaseId === phaseId;
+    const startsHere = s >= 0;
+    const endsHere   = e < days.length;
+
     return (
       <div
         key={phaseId}
-        onClick={() => onEdit(task)}
-        className={`absolute top-2 bottom-2 rounded-md ${meta.bar} text-[11px] font-semibold px-2 flex items-center overflow-hidden cursor-pointer hover:brightness-110 transition-all`}
-        style={{ left: `${left}%`, width: `${width}%` }}
+        className={`absolute top-1.5 bottom-1.5 ${meta.bar} text-[11px] font-semibold flex items-center overflow-hidden select-none ${isDragging ? 'shadow-lg z-20' : 'hover:brightness-110 z-10'}`}
+        style={{
+          left: `${left}%`, width: `${width}%`,
+          borderRadius: `${startsHere ? 5 : 0}px ${endsHere ? 5 : 0}px ${endsHere ? 5 : 0}px ${startsHere ? 5 : 0}px`,
+          cursor: isDragging ? 'grabbing' : 'grab',
+          transition: isDragging ? 'none' : 'filter 0.1s',
+        }}
         title={`${meta.label}: ${formatDate(pStart)} → ${formatDate(pEnd)}`}
+        onMouseDown={e => startDrag(e, task.id, phaseId, 'move', task)}
+        onClick={() => { if (!didDragRef.current) onEdit(task); }}
       >
-        <span className="truncate">{meta.label}</span>
+        {startsHere && (
+          <div
+            className={`absolute left-0 top-0 bottom-0 w-2 ${meta.handle} cursor-ew-resize z-20`}
+            style={{ borderRadius: '5px 0 0 5px' }}
+            onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, phaseId, 'resize-start', task); }}
+          />
+        )}
+        {startsHere && <span className="truncate px-2 pointer-events-none">{meta.label}</span>}
+        {endsHere && (
+          <div
+            className={`absolute right-0 top-0 bottom-0 w-2 ${meta.handle} cursor-ew-resize z-20`}
+            style={{ borderRadius: '0 5px 5px 0' }}
+            onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, phaseId, 'resize-end', task); }}
+          />
+        )}
       </div>
     );
   };
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-      <div style={{ minWidth: 900 }}>
+      <div style={{ minWidth: 224 + daysRange * DAY_COL_W }}>
+        {/* Header with day range selector */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted">
+          <span className="text-xs font-semibold text-muted-foreground">Linha do Tempo — próximos {daysRange} dias</span>
+          <div className="flex items-center gap-1">
+            {[14, 30, 60, 90].map(n => (
+              <button
+                key={n}
+                onClick={() => setDaysRange(n)}
+                className={`text-xs px-2 py-0.5 rounded border transition-colors ${daysRange === n ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-card'}`}
+              >{n}d</button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex border-b border-border bg-muted sticky top-0 z-10">
           <div className="w-56 shrink-0 p-3 text-xs font-semibold text-muted-foreground border-r border-border">Demanda</div>
-          <div className="flex-1 flex">
+          <div ref={containerRef} className="flex">
             {days.map((d, i) => {
               const isToday = d.getTime() === today.getTime();
               const isWeekend = d.getDay() === 0 || d.getDay() === 6;
               return (
-                <div key={i} className={`flex-1 min-w-[20px] border-r border-border/50 py-1.5 text-center ${isWeekend ? 'bg-muted/60' : ''}`}>
+                <div key={i} className={`shrink-0 border-r border-border py-1.5 text-center ${isWeekend ? 'bg-muted' : ''}`} style={{ width: DAY_COL_W }}>
                   <div className={`text-[10px] font-bold mx-auto w-5 h-5 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : 'text-foreground'}`}>{d.getDate()}</div>
                   <div className="text-[9px] text-muted-foreground">{['D','S','T','Q','Q','S','S'][d.getDay()]}</div>
                 </div>
@@ -187,28 +297,39 @@ const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) =>
         ) : tasks.map((task: any) => {
           const assignee = members.find((m: any) => m.id === task.assignee);
           const status = STATUS_META[task.status] ?? STATUS_META['backlog'];
+          const PHASE_ROW_H = 28;
+          const totalH = PHASE_IDS.length * PHASE_ROW_H;
           return (
-            <div key={task.id} className="flex border-b border-border/50 hover:bg-muted/30 transition-colors group">
-              <div className="w-56 shrink-0 px-3 py-2.5 border-r border-border flex flex-col justify-center gap-1">
-                <div className="font-medium text-sm text-foreground truncate">{task.title}</div>
+            <div key={task.id} className="flex border-b border-border group hover:bg-muted/30 transition-colors">
+              {/* Left: task info */}
+              <div className="w-56 shrink-0 border-r border-border relative flex flex-col justify-center px-3 py-2 gap-1" style={{ minHeight: totalH }}>
+                <div className="font-medium text-sm text-foreground truncate pr-12">{task.title}</div>
                 <div className="flex items-center gap-1.5">
                   {assignee && (
                     <div className="w-4 h-4 rounded-full bg-muted text-[8px] font-bold flex items-center justify-center text-muted-foreground shrink-0">{assignee.avatar}</div>
                   )}
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${status.cls}`}>{status.label}</span>
                 </div>
-                <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex gap-0.5 print:hidden">
-                  <button onClick={() => onEdit(task)} className="p-1 text-muted-foreground hover:text-blue-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30"><Edit2 className="w-3 h-3" /></button>
-                  <button onClick={() => onDelete(task.id)} className="p-1 text-muted-foreground hover:text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="w-3 h-3" /></button>
+                {/* Edit/delete — inside relative container, properly anchored */}
+                <div className="absolute right-1.5 top-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 print:hidden transition-opacity">
+                  <button onClick={() => onEdit(task)} className="p-1 text-muted-foreground hover:text-blue-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900"><Edit2 className="w-3 h-3" /></button>
+                  <button onClick={() => onDelete(task.id)} className="p-1 text-muted-foreground hover:text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-900"><Trash2 className="w-3 h-3" /></button>
                 </div>
               </div>
-              <div className="flex-1 relative" style={{ height: 52 }}>
-                <div className="absolute inset-0 flex pointer-events-none">
-                  {days.map((d, i) => (
-                    <div key={i} className={`flex-1 border-r border-border/30 ${d.getDay() === 0 || d.getDay() === 6 ? 'bg-muted/30' : ''}`} />
-                  ))}
-                </div>
-                {PHASE_IDS.map(pid => renderBar(task.phases?.[pid], pid, task))}
+
+              {/* Right: staircase phase rows */}
+              <div className="flex flex-col" style={{ width: daysRange * DAY_COL_W }}>
+                {PHASE_IDS.map((pid) => (
+                  <div key={pid} className="relative overflow-hidden" style={{ height: PHASE_ROW_H, width: daysRange * DAY_COL_W }}>
+                    {/* Grid background */}
+                    <div className="absolute inset-0 flex pointer-events-none">
+                      {days.map((d, i) => (
+                        <div key={i} className={`shrink-0 border-r border-border/50 ${d.getDay() === 0 || d.getDay() === 6 ? 'bg-muted/60' : ''}`} style={{ width: DAY_COL_W }} />
+                      ))}
+                    </div>
+                    {renderBar(task.phases?.[pid], pid, task)}
+                  </div>
+                ))}
               </div>
             </div>
           );
@@ -317,7 +438,7 @@ const CalendarView: React.FC<{
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
       {/* Month nav */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted/50">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted">
         <div className="flex items-center gap-3">
           <h3 className="text-base font-semibold text-foreground">
             {PT_MONTHS[monthDate.getMonth()]} {monthDate.getFullYear()}
@@ -333,7 +454,7 @@ const CalendarView: React.FC<{
       {/* Day headers */}
       <div className="grid grid-cols-7 border-b border-border bg-muted">
         {PT_DAYS_SHORT.map((d, i) => (
-          <div key={d} className={`py-2 text-center text-[11px] font-semibold uppercase tracking-wide ${i >= 5 ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}>{d}</div>
+          <div key={d} className={`py-2 text-center text-[11px] font-semibold uppercase tracking-wide ${i === 0 || i === 6 ? 'text-muted-foreground' : 'text-foreground'}`}>{d}</div>
         ))}
       </div>
 
@@ -353,7 +474,7 @@ const CalendarView: React.FC<{
               key={wi}
               data-week-row
               className="relative grid grid-cols-7 border-b border-border last:border-b-0"
-              style={{ height: rowHeight }}
+              style={{ height: rowHeight, overflow: 'hidden' }}
             >
               {/* Day cells */}
               {week.map((day, di) => {
@@ -365,8 +486,8 @@ const CalendarView: React.FC<{
                   <div
                     key={di}
                     className={`border-r border-border last:border-r-0 flex flex-col select-none ${
-                      !isThisMonth ? 'bg-muted/60' :
-                      isWeekend    ? 'bg-muted/30' :
+                      !isThisMonth ? 'bg-muted' :
+                      isWeekend    ? 'bg-muted' :
                       'bg-card'
                     }`}
                     style={{ height: rowHeight }}
@@ -374,7 +495,7 @@ const CalendarView: React.FC<{
                     <div className="flex items-center justify-center" style={{ height: DAY_HEADER_H }}>
                       <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${
                         isToday      ? 'bg-blue-600 text-white font-bold' :
-                        !isThisMonth ? 'text-muted-foreground/40' :
+                        !isThisMonth ? 'text-muted-foreground' :
                         isWeekend    ? 'text-muted-foreground' :
                         'text-foreground'
                       }`}>{day.getDate()}</span>
@@ -409,8 +530,11 @@ const CalendarView: React.FC<{
                   }
                 }
 
-                const left  = adjStart * colW;
-                const width = (adjEnd - adjStart + 1) * colW;
+                // Clamp to visible week for preview rendering
+                const clampedStart = Math.max(0, Math.min(6, adjStart));
+                const clampedEnd   = Math.max(0, Math.min(6, adjEnd));
+                const left  = clampedStart * colW;
+                const width = (clampedEnd - clampedStart + 1) * colW;
                 const top   = DAY_HEADER_H + bar.slot * SLOT_HEIGHT + 3;
                 const startsHere = bar.startCol >= 0;
                 const endsHere   = bar.endCol <= 6;
@@ -419,7 +543,7 @@ const CalendarView: React.FC<{
                 return (
                   <div
                     key={`${bar.taskId}-${bar.phaseId}-${bi}`}
-                    className={`absolute ${meta.bar} text-[11px] font-semibold flex items-center overflow-hidden z-10 group/bar select-none ${isDragging ? 'opacity-90 shadow-lg' : 'hover:brightness-110'}`}
+                    className={`absolute ${meta.bar} text-[11px] font-semibold flex items-center overflow-hidden z-10 group/bar select-none ${isDragging ? 'shadow-lg' : 'hover:brightness-110'}`}
                     style={{
                       top,
                       height: SLOT_HEIGHT - 4,
@@ -436,7 +560,7 @@ const CalendarView: React.FC<{
                     {/* Left resize handle */}
                     {startsHere && (
                       <div
-                        className={`absolute left-0 top-0 bottom-0 w-2 ${meta.handle} opacity-0 group-hover/bar:opacity-60 hover:!opacity-100 rounded-l-[5px] cursor-ew-resize z-20 flex items-center justify-center`}
+                        className={`absolute left-0 top-0 bottom-0 w-2 ${meta.handle} rounded-l-[5px] cursor-ew-resize z-20 flex items-center justify-center`}
                         onMouseDown={e => { e.stopPropagation(); task && startDrag(e, bar, 'resize-start', task); }}
                       />
                     )}
@@ -451,7 +575,7 @@ const CalendarView: React.FC<{
                     {/* Right resize handle */}
                     {endsHere && (
                       <div
-                        className={`absolute right-0 top-0 bottom-0 w-2 ${meta.handle} opacity-0 group-hover/bar:opacity-60 hover:!opacity-100 rounded-r-[5px] cursor-ew-resize z-20`}
+                        className={`absolute right-0 top-0 bottom-0 w-2 ${meta.handle} rounded-r-[5px] cursor-ew-resize z-20`}
                         onMouseDown={e => { e.stopPropagation(); task && startDrag(e, bar, 'resize-end', task); }}
                       />
                     )}
@@ -470,6 +594,37 @@ const CalendarView: React.FC<{
 
 const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, isConnected }) => {
   const [calView, setCalView] = useState<'calendar' | 'timeline'>('calendar');
+  const [filterAssignee, setFilterAssignee] = useState('');
+  const [filterStatus, setFilterStatus]     = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo]     = useState('');
+
+  const hasActiveFilters = filterAssignee || filterStatus || filterDateFrom || filterDateTo;
+
+  const clearFilters = () => { setFilterAssignee(''); setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo(''); };
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task: any) => {
+      if (filterAssignee) {
+        const pa = task.phaseAssignees;
+        const inPhase = pa && Object.values(pa).some((id: any) => id === filterAssignee);
+        const legacy = !pa && task.assignee === filterAssignee;
+        if (!inPhase && !legacy) return false;
+      }
+      if (filterStatus   && task.status   !== filterStatus)   return false;
+      if (filterDateFrom || filterDateTo) {
+        const from = filterDateFrom ? toLocalDate(filterDateFrom) : null;
+        const to   = filterDateTo   ? toLocalDate(filterDateTo)   : null;
+        const taskStart = task.phases?.design?.start ? toLocalDate(task.phases.design.start) : null;
+        const taskEnd   = task.phases?.qa?.end       ? toLocalDate(task.phases.qa.end)       : null;
+        if (from && taskEnd   && taskEnd   < from) return false;
+        if (to   && taskStart && taskStart > to)   return false;
+      }
+      return true;
+    });
+  }, [tasks, filterAssignee, filterStatus, filterDateFrom, filterDateTo]);
+
+  const selectCls = 'text-sm rounded-lg border border-border bg-card px-2 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary w-full';
 
   return (
     <div className="space-y-5">
@@ -499,19 +654,73 @@ const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpda
         </div>
       </div>
 
+      {/* Filtros sempre visíveis */}
+      <div className="p-3 rounded-xl border border-border bg-muted print:hidden">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground">Responsável</label>
+            <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} className={selectCls}>
+              <option value="">Todos</option>
+              {members.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground">Status</label>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={selectCls}>
+              <option value="">Todos</option>
+              {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground">Data de</label>
+            <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className={selectCls} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground">Data até</label>
+            <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className={selectCls} />
+          </div>
+        </div>
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <span className="text-xs text-muted-foreground">{filteredTasks.length} de {tasks.length} demanda{tasks.length !== 1 ? 's' : ''}</span>
+            <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
+              <X className="w-3 h-3" /> Limpar filtros
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Métricas do time */}
+      {tasks.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
+          {[
+            { label: 'Total',        value: tasks.length,                                              cls: 'text-foreground',   bg: 'bg-card border border-border' },
+            { label: 'Em andamento', value: tasks.filter((t: any) => t.status === 'em andamento').length, cls: 'text-blue-600 dark:text-blue-400',  bg: 'bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800' },
+            { label: 'Bloqueadas',   value: tasks.filter((t: any) => t.status === 'bloqueado').length,    cls: 'text-red-600 dark:text-red-400',   bg: 'bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-800' },
+            { label: 'Concluídas',   value: tasks.filter((t: any) => t.status === 'concluído').length,    cls: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 border border-green-200 dark:bg-green-950 dark:border-green-800' },
+          ].map(({ label, value, cls, bg }) => (
+            <div key={label} className={`rounded-xl px-4 py-3 flex flex-col gap-0.5 ${bg}`}>
+              <span className="text-xs text-muted-foreground font-medium">{label}</span>
+              <span className={`text-2xl font-bold tabular-nums ${cls}`}>{value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Aviso Drive desconectado */}
       {!isConnected && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300 text-sm print:hidden">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-300 text-sm print:hidden">
           <WifiOff className="w-4 h-4 shrink-0" />
           <span>Não conectado ao Google Drive. As alterações são guardadas localmente e sincronizadas ao conectar.</span>
         </div>
       )}
 
       {/* View */}
-      {calView === 'calendar'
-        ? <CalendarView tasks={tasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} />
-        : <TimelineView tasks={tasks} members={members} onEdit={onEdit} onDelete={onDelete} />
-      }
+      {calView === 'calendar' ? (
+        <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} />
+      ) : (
+        <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} />
+      )}
 
       {/* Legend */}
       <div className="flex gap-4 flex-wrap text-xs text-muted-foreground print:hidden">

@@ -129,10 +129,25 @@ Ficheiro `.env` na raiz. **Nunca commitar o `.env`** (já está no `.gitignore`)
 ## Lógica Crítica
 
 ### Cascata de Fases (`TaskModal.tsx`)
-Ao alterar o **início** de uma fase, a sua duração é preservada e todas as fases seguintes avançam. Ao alterar o **fim**, só essa fase muda (sem cascata para trás).
+Ao alterar o **início** de uma fase, a sua duração é preservada e todas as fases seguintes avançam. Ao alterar o **fim**, todas as fases seguintes são também arrastadas (cascata bidirecional). Restrições garantidas após cada alteração:
+- `approval.start` ≥ `nextBusinessDay(design.end)`
+- `dev.start` ≥ `nextBusinessDay(approval.end)`
+- `qa.start` ≥ `nextBusinessDay(dev.end)`
 
-### Slot Algorithm (`DashboardView.tsx`)
+### Apagar Demanda
+- Botão "Apagar" no footer do `TaskModal` (só visível ao editar)
+- Ícone de lixo nas linhas do CalendarView e TimelineView (hover)
+- Confirmação via `confirm()` antes de eliminar
+
+### Slot Algorithm (`DashboardView.tsx` — CalendarView)
 Cada célula de dia no calendário suporta até `MAX_SLOTS = 3` barras de fases sobrepostas. O algoritmo aloca slots por ordem de início. Quando há mais de 3, mostra indicador de overflow.
+
+### Timeline/Gantt (`DashboardView.tsx` — TimelineView)
+- Colunas de largura fixa `DAY_COL_W = 36px`; o wrapper tem `minWidth = 224 + daysRange * 36` e scrolla horizontalmente
+- Layout em degraus: 4 sub-linhas por tarefa (uma por fase), cada uma com `height = 28px`
+- Range de dias configurável: 14 / 30 / 60 / 90 (botões no header)
+- Drag-and-drop: `colWidth` fixo = `DAY_COL_W` (não precisa de medir o DOM)
+- Filtro de datas sem valor por defeito — todas as demandas são visíveis ao carregar
 
 ### Capacidade de Membros (`MembersView.tsx`)
 - **Verde (Livre):** 0-2 tarefas ativas
@@ -144,6 +159,7 @@ Cada célula de dia no calendário suporta até `MAX_SLOTS = 3` barras de fases 
 ## Documentação Adicional
 
 - [docs/architecture.md](docs/architecture.md) — diagrama de componentes e fluxo de dados
+- [docs/views.md](docs/views.md) — detalhe das views e lógica de drag-drop
 - [docs/google-drive.md](docs/google-drive.md) — detalhe da integração Google Drive
 - [docs/date-utils.md](docs/date-utils.md) — referência das funções de datas úteis
 - [docs/ui-components.md](docs/ui-components.md) — guia do design system

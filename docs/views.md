@@ -13,6 +13,7 @@
   onUpdateTask: (task: Task) => void;  // usado pelo drag-drop
   onOpenNew: () => void;
   onExport: () => void;                // window.print()
+  isConnected: boolean;               // mostra aviso Drive desconectado
 }
 ```
 
@@ -30,10 +31,12 @@ Toggle no canto superior direito da view:
 - "Hoje" tem fundo azul claro
 - Navegação: `<` mês anterior, `>` mês seguinte, `Hoje` volta ao mês atual
 
-**Timeline (`TimelineView`)**
-- 60 dias a partir de hoje
-- Coluna esquerda fixa: título da tarefa, responsável, status, link ClickUp
-- Barras estáticas (sem interação) representando cada fase
+**Timeline/Gantt (`TimelineView`)**
+- Range configurável: botões `14d / 30d / 60d / 90d` no header (padrão: 60 dias)
+- Colunas de largura fixa `36px` por dia — o container scrollável expande; não há compressão a qualquer range
+- **Layout em degraus**: cada tarefa abre 4 sub-linhas (Design → Approval → Dev → QA), uma por fase; como as fases avançam no tempo, as barras formam uma escadaria natural
+- **Drag-and-drop e resize** por fase — mesma mecânica do CalendarView (arrastar = mover, handles laterais = resize)
+- Botões editar/apagar por tarefa — visíveis no hover, dentro do container (posicionamento correcto)
 - Fim de semana tem coluna destacada
 
 ### Lógica de Slots
@@ -61,7 +64,9 @@ dragState.current = {
 }
 ```
 
-O movimento em pixels é convertido para dias com base na largura de cada célula (`cellWidth = containerWidth / 7`).
+**CalendarView** — largura da célula medida do DOM: `containerWidth / 7`.
+
+**TimelineView** — largura fixa: `DAY_COL_W = 36` (constante; não precisa de medir o DOM).
 
 A actualização chama `onUpdateTask` a cada `mousemove` (live preview), confirmando ao `mouseup`.
 
