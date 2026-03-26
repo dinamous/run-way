@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Button } from '../components/ui';
-import { Plus, Edit2, Trash2, Download, ChevronLeft, ChevronRight, CalendarDays, AlignLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, Download, ChevronLeft, ChevronRight, CalendarDays, AlignLeft, WifiOff } from 'lucide-react';
 import { formatDate } from '../utils/dateUtils';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -465,7 +465,7 @@ const CalendarView: React.FC<{
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
-const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport }) => {
+const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, isConnected }) => {
   const [calView, setCalView] = useState<'calendar' | 'timeline'>('calendar');
 
   return (
@@ -495,6 +495,14 @@ const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpda
           <Button onClick={onOpenNew}><Plus className="w-4 h-4 mr-1.5" /> Nova Demanda</Button>
         </div>
       </div>
+
+      {/* Aviso Drive desconectado */}
+      {!isConnected && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm print:hidden">
+          <WifiOff className="w-4 h-4 shrink-0" />
+          <span>Não conectado ao Google Drive. As alterações são guardadas localmente e sincronizadas ao conectar.</span>
+        </div>
+      )}
 
       {/* View */}
       {calView === 'calendar'

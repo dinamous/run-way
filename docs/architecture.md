@@ -24,7 +24,7 @@ GoogleOAuthProvider (App.tsx)
     │   └── Toggle Calendário / Membros
     │
     ├── DashboardView
-    │   ├── Props: tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport
+    │   ├── Props: tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, isConnected
     │   ├── CalendarView (padrão)
     │   │   ├── Navegação de mês
     │   │   ├── Grid semanas × dias
@@ -48,7 +48,9 @@ GoogleOAuthProvider (App.tsx)
 
 ```
 React State (memória)
-      ↕  (ao guardar/carregar)
+      ↕  (a cada handleSave)
+localStorage → 'capacity-tasks'
+      ↕  (ao conectar ao Drive)
 useGoogleDrive hook
       ↕  (Google Drive API v3)
 capacity-tasks.json
@@ -56,7 +58,7 @@ capacity-tasks.json
   em: Projeto web/dados/
 ```
 
-Os dados **não são** persistidos em localStorage ou cookies. Ao recarregar a página sem estar autenticado, o estado fica vazio.
+As tasks são guardadas em `localStorage` a cada alteração, garantindo que os dados persistem entre recargas mesmo sem autenticação. Ao conectar ao Drive, os dados remotos substituem o estado local (Drive é a fonte de verdade). O token OAuth continua apenas em memória (não persiste em localStorage).
 
 ## Componentes e Responsabilidades
 
@@ -74,5 +76,5 @@ Os dados **não são** persistidos em localStorage ou cookies. Ao recarregar a p
 
 - **Sem router:** a navegação entre views é feita com um `useState` simples, pois há apenas 2 views
 - **Sem state manager externo:** volume de estado não justifica Redux/Zustand
-- **Token OAuth em memória:** decisão de segurança — não persiste em localStorage
+- **Token OAuth em memória:** decisão de segurança — não persiste em localStorage; as tasks sim (ver Persistência acima)
 - **`any` intencional:** `tasks` e `editingTask` são `any` porque o schema vem do Drive sem validação de tipos em runtime

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import TaskModal from './components/TaskModal';
 import DashboardView from './views/DashboardView';
@@ -14,7 +14,14 @@ const DEFAULT_MEMBERS = [
 ];
 
 function AppInner() {
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('capacity-tasks');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [members] = useState(DEFAULT_MEMBERS);
   const [view, setView] = useState<'dashboard' | 'members'>('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,19 +29,37 @@ function AppInner() {
 
   const { token, syncStatus, login, load, save } = useGoogleDrive();
 
+  const handleLoginSuccess = async (accessToken: string) => {
+    login(accessToken);
+    const data = await load(accessToken) as { tasks?: unknown[] } | null;
+    if (data?.tasks) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tasks = data.tasks as any[];
+      setTasks(tasks);
+      localStorage.setItem('capacity-tasks', JSON.stringify(tasks));
+    }
+  };
+
   const googleLogin = useGoogleLogin({
     scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email',
-    onSuccess: async (res) => {
-      login(res.access_token);
-      const data = await load(res.access_token) as { tasks?: unknown[] } | null;
-      if (data?.tasks) {
-        setTasks(data.tasks);
-      }
-    },
+    onSuccess: (res) => handleLoginSuccess(res.access_token),
   });
+
+  const googleLoginSilent = useGoogleLogin({
+    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email',
+    prompt: 'none',
+    onSuccess: (res) => handleLoginSuccess(res.access_token),
+    onError: () => { /* sem sessão ativa, mostra o botão */ },
+  });
+
+  useEffect(() => {
+    googleLoginSilent();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSave = async (newTasks: any[]) => {
     setTasks(newTasks);
+    localStorage.setItem('capacity-tasks', JSON.stringify(newTasks));
     if (token) {
       await save({ tasks: newTasks, members, lastSync: new Date().toISOString() });
     }
@@ -96,7 +121,7 @@ function AppInner() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {view === 'dashboard' ? (
-          <DashboardView tasks={tasks} members={members} onEdit={(t: unknown) => { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDelete} onUpdateTask={handleUpdateTask} onOpenNew={() => { setEditingTask(null); setIsModalOpen(true); }} onExport={() => window.print()} />
+          <DashboardView tasks={tasks} members={members} onEdit={(t: unknown) => { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDelete} onUpdateTask={handleUpdateTask} onOpenNew={() => { setEditingTask(null); setIsModalOpen(true); }} onExport={() => window.print()} isConnected={!!token} />
         ) : (
           <MembersView tasks={tasks} members={members} />
         )}
