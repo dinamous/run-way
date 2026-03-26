@@ -1,7 +1,22 @@
 import React, { useState } from 'react';
-import { cascadePhases } from '../utils/dateUtils';
+import { cascadePhases, addBusinessDays, nextBusinessDay, businessDaysBetween } from '../utils/dateUtils';
 import { Input, Label, Button } from './ui';
-import { AlertCircle, Save } from 'lucide-react';
+import { Save, Clock, Play, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
+
+const PHASES_ORDER = ['design', 'approval', 'dev', 'qa'] as const;
+const PHASE_META = {
+  design:   { label: 'Design',        color: 'bg-blue-100 text-blue-700 border-blue-200',   dot: 'bg-blue-500'   },
+  approval: { label: 'Aprovação',     color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500'  },
+  dev:      { label: 'Dev',           color: 'bg-violet-100 text-violet-700 border-violet-200', dot: 'bg-violet-500' },
+  qa:       { label: 'QA',            color: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+};
+
+const STATUS_OPTIONS = [
+  { value: 'backlog',      label: 'Backlog',       desc: 'Aguardando início',      icon: Clock,         cls: 'border-slate-300 text-slate-600 bg-slate-50',        activeCls: 'border-slate-500 bg-slate-100 text-slate-800 ring-1 ring-slate-400'  },
+  { value: 'em andamento', label: 'Em Andamento',  desc: 'Em progresso',           icon: Play,          cls: 'border-blue-200 text-blue-600 bg-blue-50',           activeCls: 'border-blue-500 bg-blue-100 text-blue-800 ring-1 ring-blue-400'    },
+  { value: 'bloqueado',    label: 'Bloqueado',     desc: 'Impedido de avançar',    icon: AlertTriangle, cls: 'border-red-200 text-red-600 bg-red-50',              activeCls: 'border-red-500 bg-red-100 text-red-800 ring-1 ring-red-400'       },
+  { value: 'concluído',   label: 'Concluído',     desc: 'Entregue',               icon: CheckCircle2,  cls: 'border-green-200 text-green-600 bg-green-50',        activeCls: 'border-green-500 bg-green-100 text-green-800 ring-1 ring-green-400' },
+];
 
 const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
   const [formData, setFormData] = useState<any>({
@@ -9,22 +24,20 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
     clickupLink: task?.clickupLink || '',
     assignee: task?.assignee || '',
     status: task?.status || 'backlog',
-    isManual: task?.isManual || false,
-    phases: task?.phases || cascadePhases(new Date())
+    phases: task?.phases || cascadePhases(new Date()),
   });
-
   const [errors, setErrors] = useState<any>({});
 
   const validate = () => {
-    const newErrors:any = {};
-    if (!formData.title || formData.title.length < 3) newErrors.title = "Título é obrigatório (mín. 3 caracteres).";
-    if (formData.clickupLink && !formData.clickupLink.startsWith('http')) newErrors.clickupLink = "Insira um link válido do ClickUp.";
-    if (!formData.assignee) newErrors.assignee = "Selecione um responsável.";
-    ['design','approval','dev','qa'].forEach(phase => {
-      if (formData.phases[phase].end < formData.phases[phase].start) newErrors[`${phase}End`] = "O fim deve ser igual ou posterior ao início.";
+    const e: any = {};
+    if (!formData.title || formData.title.length < 3) e.title = 'Título obrigatório (mín. 3 caracteres).';
+    if (formData.clickupLink && !formData.clickupLink.startsWith('http')) e.clickupLink = 'Insira um link válido.';
+    if (!formData.assignee) e.assignee = 'Selecione um responsável.';
+    PHASES_ORDER.forEach(p => {
+      if (formData.phases[p].end < formData.phases[p].start) e[`${p}End`] = 'Fim anterior ao início.';
     });
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSubmit = (e: any) => {
@@ -32,116 +45,196 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave }) => {
     if (validate()) onSave({ ...task, ...formData });
   };
 
-  const handlePhaseChange = (phase: string, field: string, value: string) => {
-    const newPhases = { ...formData.phases, [phase]: { ...formData.phases[phase], [field]: value } };
-    if (!formData.isManual && phase === 'design' && field === 'start') {
-      const cascaded = cascadePhases(new Date(value));
-      setFormData((prev:any) => ({ ...prev, phases: cascaded }));
-      return;
+  // Smart cascade: any change propagates forward keeping each phase's duration
+  const handlePhaseChange = (phase: string, field: 'start' | 'end', value: string) => {
+    const idx = PHASES_ORDER.indexOf(phase as any);
+    let newPhases = { ...formData.phases };
+
+    if (field === 'start') {
+      const dur = businessDaysBetween(newPhases[phase].start, newPhases[phase].end);
+      newPhases[phase] = { start: value, end: addBusinessDays(value, dur) };
+    } else {
+      newPhases[phase] = { ...newPhases[phase], end: value };
     }
-    setFormData((prev:any) => ({ ...prev, phases: newPhases }));
+
+    // Cascade all subsequent phases
+    for (let i = idx + 1; i < PHASES_ORDER.length; i++) {
+      const prev = PHASES_ORDER[i - 1];
+      const curr = PHASES_ORDER[i];
+      const dur = businessDaysBetween(newPhases[curr].start, newPhases[curr].end);
+      const newStart = nextBusinessDay(newPhases[prev].end);
+      newPhases[curr] = { start: newStart, end: addBusinessDays(newStart, dur) };
+    }
+
+    setFormData((p: any) => ({ ...p, phases: newPhases }));
   };
 
-  const resetToAuto = () => {
-    const cascaded = cascadePhases(new Date(formData.phases.design.start));
-    setFormData((prev:any) => ({ ...prev, isManual: false, phases: cascaded }));
-  };
+  const designers = members.filter((m: any) => m.role === 'Designer');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex justify-between items-center p-6 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-800">{task ? 'Editar Demanda' : 'Nova Demanda'}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-hidden flex flex-col">
+
+        {/* Header */}
+        <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-900">{task ? 'Editar Demanda' : 'Nova Demanda'}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">✕</button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
-          <form id="task-form" onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider border-b pb-2">Informações Gerais</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="title">Título da Demanda</Label>
-                  <Input id="title" value={formData.title} onChange={e=>setFormData((p:any)=>({...p,title:e.target.value}))} placeholder="Ex: Landing Page Black Friday" />
-                  {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
-                </div>
+        <div className="px-6 py-5 overflow-y-auto flex-1 space-y-6 custom-scrollbar">
+          <form id="task-form" onSubmit={handleSubmit}>
+            <div className="space-y-6">
 
-                <div className="space-y-2">
-                  <Label htmlFor="clickup">Link do ClickUp (Opcional)</Label>
-                  <Input id="clickup" type="url" value={formData.clickupLink} onChange={e=>setFormData((p:any)=>({...p,clickupLink:e.target.value}))} placeholder="https://app.clickup.com/t/..." />
-                  {errors.clickupLink && <p className="text-xs text-red-500">{errors.clickupLink}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="assignee">Designer Responsável</Label>
-                  <select id="assignee" value={formData.assignee} onChange={e=>setFormData((p:any)=>({...p,assignee:e.target.value}))} className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
-                    <option value="">Selecione...</option>
-                    {members.filter((m:any)=>m.role==='Designer').map((m:any)=> (<option key={m.id} value={m.id}>{m.name}</option>))}
-                  </select>
-                  {errors.assignee && <p className="text-xs text-red-500">{errors.assignee}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="status">Estado</Label>
-                  <select id="status" value={formData.status} onChange={e=>setFormData((p:any)=>({...p,status:e.target.value}))} className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
-                    <option value="backlog">Backlog</option>
-                    <option value="em andamento">Em Andamento</option>
-                    <option value="bloqueado">Bloqueado</option>
-                    <option value="concluído">Concluído</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 pt-4">
-              <div className="flex justify-between items-center border-b pb-2">
-                <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Janelas de Entrega (Fases)</h3>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="manual-mode" className="text-xs text-slate-500 cursor-pointer">Modo Manual</Label>
-                  <button type="button" role="switch" aria-checked={formData.isManual} onClick={()=>{ if(formData.isManual) resetToAuto(); else setFormData((p:any)=>({...p,isManual:true})); }} className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-transparent transition-colors ${formData.isManual ? 'bg-blue-600' : 'bg-slate-200'}`}>
-                    <span className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-lg ring-0 transition-transform ${formData.isManual ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                </div>
+              {/* Título */}
+              <div className="space-y-1.5">
+                <Label htmlFor="title">Título</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={e => setFormData((p: any) => ({ ...p, title: e.target.value }))}
+                  placeholder="Ex: Landing Page Black Friday"
+                />
+                {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
               </div>
 
-              {!formData.isManual && (
-                <div className="bg-blue-50 text-blue-800 text-xs p-3 rounded-md flex items-start gap-2 border border-blue-100">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <p>Modo cascata ativado. Altere a data de início do <strong>Design</strong> e as fases seguintes serão calculadas automaticamente (ignorando fins de semana).</p>
+              {/* Link ClickUp */}
+              <div className="space-y-1.5">
+                <Label htmlFor="clickup" className="flex items-center gap-1">
+                  Link ClickUp
+                  <span className="text-slate-400 font-normal text-xs">(opcional)</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="clickup"
+                    type="url"
+                    value={formData.clickupLink}
+                    onChange={e => setFormData((p: any) => ({ ...p, clickupLink: e.target.value }))}
+                    placeholder="https://app.clickup.com/t/..."
+                    className="pr-9"
+                  />
+                  {formData.clickupLink && (
+                    <a href={formData.clickupLink} target="_blank" rel="noreferrer" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition-colors">
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
                 </div>
-              )}
+                {errors.clickupLink && <p className="text-xs text-red-500">{errors.clickupLink}</p>}
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { id: 'design', label: '1. Design', color: 'text-blue-700' },
-                  { id: 'approval', label: '2. Aprovação', color: 'text-yellow-700' },
-                  { id: 'dev', label: '3. Desenvolvimento', color: 'text-purple-700' },
-                  { id: 'qa', label: '4. QA', color: 'text-green-700' }
-                ].map((phase)=> (
-                  <div key={phase.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
-                    <Label className={`font-semibold ${phase.color}`}>{phase.label}</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-slate-500">Início</Label>
-                        <Input type="date" value={formData.phases[phase.id].start} onChange={(e)=>handlePhaseChange(phase.id,'start',e.target.value)} disabled={!formData.isManual && phase.id !== 'design'} className={`h-8 text-xs ${!formData.isManual && phase.id !== 'design' ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
+              {/* Responsável */}
+              <div className="space-y-2">
+                <Label>Designer Responsável</Label>
+                <div className="flex flex-wrap gap-2">
+                  {designers.map((m: any) => {
+                    const selected = formData.assignee === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setFormData((p: any) => ({ ...p, assignee: m.id }))}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
+                          selected
+                            ? 'border-blue-500 bg-blue-50 text-blue-800'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${selected ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          {m.avatar}
+                        </div>
+                        {m.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                {errors.assignee && <p className="text-xs text-red-500">{errors.assignee}</p>}
+              </div>
+
+              {/* Status */}
+              <div className="space-y-2">
+                <Label>Estado</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {STATUS_OPTIONS.map(opt => {
+                    const Icon = opt.icon;
+                    const selected = formData.status === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setFormData((p: any) => ({ ...p, status: opt.value }))}
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${selected ? opt.activeCls : opt.cls}`}
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <div>
+                          <div className="text-xs font-semibold leading-tight">{opt.label}</div>
+                          <div className="text-[10px] opacity-70 leading-tight">{opt.desc}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Fases */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Fases de Entrega</Label>
+                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Datas se ajustam automaticamente</span>
+                </div>
+                <div className="space-y-2">
+                  {PHASES_ORDER.map((phaseId, idx) => {
+                    const meta = PHASE_META[phaseId];
+                    const phase = formData.phases[phaseId];
+                    const dur = businessDaysBetween(phase.start, phase.end);
+                    const hasError = errors[`${phaseId}End`];
+                    return (
+                      <div key={phaseId} className={`rounded-xl border p-3 space-y-2.5 ${meta.color}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
+                            <span className="text-xs font-semibold">{idx + 1}. {meta.label}</span>
+                          </div>
+                          <span className="text-[10px] opacity-60">{dur} dia{dur !== 1 ? 's' : ''} útil{dur !== 1 ? 'eis' : ''}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <span className="text-[10px] opacity-70">Início</span>
+                            <Input
+                              type="date"
+                              value={phase.start}
+                              onChange={e => handlePhaseChange(phaseId, 'start', e.target.value)}
+                              className="h-8 text-xs bg-white/70 border-0 focus:ring-1"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[10px] opacity-70">Fim</span>
+                            <Input
+                              type="date"
+                              value={phase.end}
+                              onChange={e => handlePhaseChange(phaseId, 'end', e.target.value)}
+                              className="h-8 text-xs bg-white/70 border-0 focus:ring-1"
+                            />
+                          </div>
+                        </div>
+                        {hasError && <p className="text-[10px] text-red-600">{errors[`${phaseId}End`]}</p>}
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-slate-500">Fim</Label>
-                        <Input type="date" value={formData.phases[phase.id].end} onChange={(e)=>handlePhaseChange(phase.id,'end',e.target.value)} disabled={!formData.isManual} className={`h-8 text-xs ${!formData.isManual ? 'bg-slate-100 cursor-not-allowed' : ''}`} />
-                      </div>
-                    </div>
-                    {errors[`${phase.id}End`] && <p className="text-[10px] text-red-500">{errors[`${phase.id}End`]}</p>}
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
+
             </div>
           </form>
         </div>
 
-        <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/80 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} type="button">Cancelar</Button>
-          <Button type="submit" form="task-form"><Save className="w-4 h-4 mr-2" />{task ? 'Salvar Alterações' : 'Criar Demanda'}</Button>
+          <Button type="submit" form="task-form">
+            <Save className="w-4 h-4 mr-1.5" />
+            {task ? 'Salvar Alterações' : 'Criar Demanda'}
+          </Button>
         </div>
+
       </div>
     </div>
   );

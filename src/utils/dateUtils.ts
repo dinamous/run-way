@@ -64,4 +64,15 @@ export const cascadePhases = (startDesignDate: Date | string) => {
   };
 };
 
+export const businessDaysBetween = (start: string, end: string): number => {
+  let count = 0;
+  let current = new Date(start);
+  const endDate = new Date(end);
+  while (current <= endDate) {
+    if (current.getDay() !== 0 && current.getDay() !== 6) count++;
+    current.setDate(current.getDate() + 1);
+  }
+  return Math.max(count, 1);
+};
+
 export default {};

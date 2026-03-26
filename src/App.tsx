@@ -1,66 +1,59 @@
-import { useEffect, useState } from 'react';
-import { cascadePhases } from './utils/dateUtils';
-import { MOCK_MEMBERS } from './data/mock';
+import { useState } from 'react';
+import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import TaskModal from './components/TaskModal';
 import DashboardView from './views/DashboardView';
 import MembersView from './views/MembersView';
-import { CalendarDays, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { CalendarDays, RefreshCw, CheckCircle2, AlertCircle, LogIn } from 'lucide-react';
+import { useGoogleDrive } from './hooks/useGoogleDrive';
 
-export default function App() {
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
+
+const DEFAULT_MEMBERS = [
+  { id: '1', name: 'Adryel', role: 'Designer', avatar: 'AD' },
+  { id: '2', name: 'Matheus', role: 'Developer', avatar: 'MT' },
+];
+
+function AppInner() {
   const [tasks, setTasks] = useState<any[]>([]);
-  const [members] = useState(MOCK_MEMBERS);
+  const [members] = useState(DEFAULT_MEMBERS);
   const [view, setView] = useState<'dashboard' | 'members'>('dashboard');
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
 
-  useEffect(() => {
-    const loadData = () => {
-      setSyncStatus('syncing');
-      try {
-        const storedData = localStorage.getItem('capacity-drive-mock');
-        if (storedData) {
-          const parsed = JSON.parse(storedData);
-          setTasks(parsed.tasks || []);
-        } else {
-          const dummyStart = new Date();
-          const p = cascadePhases(dummyStart);
-          setTasks([{
-            id: '1',
-            title: 'Landing Page Q3',
-            clickupLink: 'https://clickup.com/t/123',
-            assignee: '1',
-            phases: p,
-            status: 'em andamento',
-            isManual: false
-          }]);
-        }
-        setTimeout(() => setSyncStatus('success'), 800);
-      } catch (err) {
-        setSyncStatus('error');
-      }
-    };
-    loadData();
-  }, []);
+  const { token, syncStatus, login, load, save } = useGoogleDrive();
 
-  const saveDataToDrive = (newTasks: any[]) => {
-    setSyncStatus('syncing');
-    try {
-      localStorage.setItem('capacity-drive-mock', JSON.stringify({ tasks: newTasks, members, lastSync: new Date().toISOString() }));
-      setTasks(newTasks);
-      setTimeout(() => setSyncStatus('success'), 600);
-    } catch (e) {
-      setSyncStatus('error');
+  const googleLogin = useGoogleLogin({
+    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email',
+    onSuccess: async (res) => {
+      login(res.access_token);
+      const data = await load(res.access_token) as { tasks?: unknown[] } | null;
+      if (data?.tasks) {
+        setTasks(data.tasks);
+      }
+    },
+  });
+
+  const handleSave = async (newTasks: any[]) => {
+    setTasks(newTasks);
+    if (token) {
+      await save({ tasks: newTasks, members, lastSync: new Date().toISOString() });
     }
   };
 
   const handleDelete = (id: string) => {
     if (confirm('Tem a certeza que deseja eliminar esta tarefa?')) {
-      saveDataToDrive(tasks.filter(t => t.id !== id));
+      handleSave(tasks.filter((t: { id: string }) => t.id !== id));
     }
   };
 
-  const handlePrint = () => window.print();
+  const handleUpdateTask = (updatedTask: any) => {
+    handleSave(tasks.map((t: { id: string }) => t.id === updatedTask.id ? updatedTask : t));
+  };
+
+  const syncLabel =
+    syncStatus === 'syncing' ? 'A sincronizar...' :
+    syncStatus === 'success' ? 'Sincronizado com Drive' :
+    syncStatus === 'error' ? 'Erro ao sincronizar' : '';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -74,14 +67,22 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              {syncStatus === 'syncing' && <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />}
-              {syncStatus === 'success' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-              {syncStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
-              <span className="hidden sm:inline-block text-slate-500">
-                {syncStatus === 'syncing' ? 'A sincronizar...' : syncStatus === 'success' ? 'Sincronizado (Drive Mock)' : syncStatus === 'error' ? 'Erro ao sincronizar' : ''}
-              </span>
-            </div>
+            {token ? (
+              <div className="flex items-center gap-2 text-sm">
+                {syncStatus === 'syncing' && <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />}
+                {syncStatus === 'success' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                {syncStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
+                <span className="hidden sm:inline-block text-slate-500">{syncLabel}</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => googleLogin()}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <LogIn className="w-4 h-4" />
+                Conectar Drive
+              </button>
+            )}
 
             <div className="h-6 w-px bg-slate-200"></div>
 
@@ -95,19 +96,29 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {view === 'dashboard' ? (
-          <DashboardView tasks={tasks} members={members} onEdit={(t:any)=>{setEditingTask(t); setIsModalOpen(true);}} onDelete={handleDelete} onOpenNew={()=>{setEditingTask(null); setIsModalOpen(true);}} onExport={handlePrint} />
+          <DashboardView tasks={tasks} members={members} onEdit={(t: unknown) => { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDelete} onUpdateTask={handleUpdateTask} onOpenNew={() => { setEditingTask(null); setIsModalOpen(true); }} onExport={() => window.print()} />
         ) : (
           <MembersView tasks={tasks} members={members} />
         )}
       </main>
 
       {isModalOpen && (
-        <TaskModal task={editingTask} members={members} onClose={()=>setIsModalOpen(false)} onSave={(taskData:any)=>{
-          const newTasks = editingTask ? tasks.map(t=> t.id === taskData.id ? taskData : t) : [...tasks, { ...taskData, id: crypto.randomUUID(), createdAt: new Date().toISOString() }];
-          saveDataToDrive(newTasks);
+        <TaskModal task={editingTask} members={members} onClose={() => setIsModalOpen(false)} onSave={(taskData: { id: string }) => {
+          const newTasks = editingTask
+            ? tasks.map((t: { id: string }) => t.id === taskData.id ? taskData : t)
+            : [...tasks, { ...taskData, id: crypto.randomUUID(), createdAt: new Date().toISOString() }];
+          handleSave(newTasks);
           setIsModalOpen(false);
         }} />
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <GoogleOAuthProvider clientId={CLIENT_ID}>
+      <AppInner />
+    </GoogleOAuthProvider>
   );
 }
