@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(echo '@import \"\"tailwindcss\"\";')",
+      "Bash(npm run:*)"
+    ]
+  }
+}
