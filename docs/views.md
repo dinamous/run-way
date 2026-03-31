@@ -1,5 +1,18 @@
 # Views — DashboardView e MembersView
 
+## Estrutura de Ficheiros
+
+O `DashboardView` foi dividido em múltiplos ficheiros para melhor manutenção:
+
+| Ficheiro | Responsabilidade |
+|---|---|
+| `src/views/DashboardView.tsx` | Componente principal: header, filtros, métricas, aviso Drive, legenda |
+| `src/views/CalendarView.tsx` | Vista de calendário mensal com drag-drop e slots |
+| `src/views/TimelineView.tsx` | Vista de timeline/Gantt com drag-drop por fase |
+| `src/views/dashboardUtils.ts` | Constantes, helpers, tipos partilhados (`DragState`, `DragPreview`, `BarItem`, `layoutWeekBars`, etc.) |
+
+---
+
 ## DashboardView (`src/views/DashboardView.tsx`)
 
 ### Props

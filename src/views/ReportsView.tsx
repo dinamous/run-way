@@ -164,7 +164,7 @@ const ReportsView: React.FC<{ tasks: any[]; members: Member[] }> = ({ tasks, mem
     for (const t of enriched) {
       for (const step of t.visibleSteps) {
         if (step.start <= today && step.end >= today) {
-          counts[step.type] = (counts[step.type] ?? 0) + 1;
+         counts[step.type as StepType] = (counts[step.type as StepType] ?? 0) + 1;
         }
       }
     }
@@ -246,7 +246,7 @@ const ReportsView: React.FC<{ tasks: any[]; members: Member[] }> = ({ tasks, mem
               </thead>
               <tbody>
                 {enriched.map((t, i) => {
-                  const stepMeta = t.currentStep ? STEP_META[t.currentStep.type] : null;
+                  const stepMeta = t.currentStep ? STEP_META[t.currentStep.type as StepType] : null;
                   return (
                     <tr key={t.id} className={cn('border-b border-border last:border-0 hover:bg-muted/30 transition-colors', i % 2 === 0 ? '' : 'bg-muted/10')}>
                       <td className="px-4 py-3">

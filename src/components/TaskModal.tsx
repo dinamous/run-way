@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Input, Label, Button } from './ui';
 import { Save, ExternalLink, Trash2, Users, AlertCircle } from 'lucide-react';
 import {
-  STEP_TYPES_ORDER,
   STEP_META,
   createDefaultSteps,
   migrateLegacyTask,
