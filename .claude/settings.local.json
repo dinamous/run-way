@@ -6,7 +6,8 @@
       "Bash(npm run:*)",
       "Bash(npx shadcn@latest init --yes)",
       "Bash(printf \"0\\\\n0\\\\n\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(wc -l /c/Users/dinam/Documents/Projetos/calendar-task/src/**/*.tsx /c/Users/dinam/Documents/Projetos/calendar-task/src/**/*.ts)"
     ]
   },
   "hooks": {

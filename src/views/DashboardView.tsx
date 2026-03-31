@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Button } from '../components/ui';
-import { Plus, Download, CalendarDays, AlignLeft, WifiOff, X } from 'lucide-react';
+import { Plus, Download, CalendarDays, AlignLeft, X } from 'lucide-react';
 import { STEP_TYPES_ORDER, STEP_META, type StepType } from '../lib/steps';
 import { normaliseTask, todayStr } from './dashboardUtils';
 import { getCurrentStep } from '../lib/steps';
 import CalendarView from './CalendarView';
 import TimelineView from './TimelineView';
 
-const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, isConnected }) => {
+const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport }) => {
   const [calView, setCalView] = useState<'calendar' | 'timeline'>('calendar');
   const [filterAssignee, setFilterAssignee] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -143,13 +143,6 @@ const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpda
         </div>
       )}
 
-      {/* Aviso Drive desconectado */}
-      {!isConnected && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-300 text-sm print:hidden">
-          <WifiOff className="w-4 h-4 shrink-0" />
-          <span>Não conectado ao Google Drive. As alterações são guardadas localmente e sincronizadas ao conectar.</span>
-        </div>
-      )}
 
       {/* View */}
       {calView === 'calendar' ? (
