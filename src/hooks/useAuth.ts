@@ -43,7 +43,7 @@ export function useAuth() {
       options: { redirectTo: window.location.origin },
     })
 
-  const signOut = () => supabase.auth.signOut()
+  const signOut = () => supabase.auth.signOut().catch(console.error)
 
   return { session, user, signIn, signOut, authError, loading }
 }

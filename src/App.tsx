@@ -9,6 +9,7 @@ import { Button } from "./components/ui";
 import { cn } from "./lib/utils";
 import { useAuth } from "./hooks/useAuth";
 import { useSupabase } from "./hooks/useSupabase";
+import { Toaster, toast } from "sonner";
 
 export default function App() {
   const { session, user, signIn, signOut, authError, loading: authLoading } = useAuth();
@@ -43,14 +44,16 @@ export default function App() {
     return <LoginPage onSignIn={signIn} error={authError} />;
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Tem a certeza que deseja eliminar esta tarefa?")) {
-      deleteTask(id);
+      const ok = await deleteTask(id);
+      if (!ok) toast.error("Erro ao eliminar tarefa");
     }
   };
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
+      <Toaster richColors position="top-right" />
       <header className="bg-card border-b border-border sticky top-0 z-10 print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -124,23 +127,26 @@ export default function App() {
           task={editingTask}
           members={members}
           onClose={() => setIsModalOpen(false)}
-          onDelete={(id: string) => {
+          onDelete={async (id: string) => {
             if (confirm("Tem a certeza que deseja eliminar esta demanda?")) {
-              deleteTask(id);
+              const ok = await deleteTask(id);
+              if (!ok) { toast.error("Erro ao eliminar tarefa"); return; }
               setIsModalOpen(false);
             }
           }}
-          onSave={(taskData: any) => {
+          onSave={async (taskData: any) => {
+            let ok: boolean;
             if (editingTask) {
-              updateTask(taskData);
+              ok = await updateTask(taskData);
             } else {
-              createTask({
+              ok = await createTask({
                 title: taskData.title,
                 clickupLink: taskData.clickupLink,
                 status: taskData.status,
                 steps: taskData.steps,
               });
             }
+            if (!ok) { toast.error("Erro ao guardar tarefa"); return; }
             setIsModalOpen(false);
           }}
         />
