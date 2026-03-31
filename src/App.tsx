@@ -1,41 +1,55 @@
-import { useState, useEffect } from 'react';
-import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
-import TaskModal from './components/TaskModal';
-import DashboardView from './views/DashboardView';
-import MembersView from './views/MembersView';
-import { CalendarDays, RefreshCw, CheckCircle2, AlertCircle, LogIn, Sun, Moon } from 'lucide-react';
-import { useGoogleDrive } from './hooks/useGoogleDrive';
-import { Button } from './components/ui';
-import { cn } from './lib/utils';
+import { useState, useEffect } from "react";
+import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
+import TaskModal from "./components/TaskModal";
+import DashboardView from "./views/DashboardView";
+import MembersView from "./views/MembersView";
+import ReportsView from "./views/ReportsView";
+import {
+  CalendarDays,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  LogIn,
+  Sun,
+  Moon,
+} from "lucide-react";
+import { useGoogleDrive } from "./hooks/useGoogleDrive";
+import { Button } from "./components/ui";
+import { cn } from "./lib/utils";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 
 const DEFAULT_MEMBERS = [
-  { id: '1', name: 'Adryel', role: 'Designer', avatar: 'AD' },
-  { id: '2', name: 'Matheus', role: 'Developer', avatar: 'MT' },
+  { id: "1", name: "Adryel", role: "Designer", avatar: "AD" },
+  { id: "2", name: "Matheus", role: "Developer", avatar: "MT" },
 ];
 
 function AppInner() {
   const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('theme') === 'dark' ||
-      (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    return (
+      localStorage.getItem("theme") === "dark" ||
+      (!localStorage.getItem("theme") &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches)
+    );
   });
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode);
-    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+    document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
   const [tasks, setTasks] = useState<any[]>(() => {
     try {
-      const saved = localStorage.getItem('capacity-tasks');
+      const saved = localStorage.getItem("capacity-tasks");
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
   const [members] = useState(DEFAULT_MEMBERS);
-  const [view, setView] = useState<'dashboard' | 'members'>('dashboard');
+  const [view, setView] = useState<"dashboard" | "members" | "reports">(
+    "dashboard",
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
 
@@ -43,54 +57,70 @@ function AppInner() {
 
   const handleLoginSuccess = async (accessToken: string) => {
     login(accessToken);
-    const data = await load(accessToken) as { tasks?: unknown[] } | null;
+    const data = (await load(accessToken)) as { tasks?: unknown[] } | null;
     if (data?.tasks) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tasks = data.tasks as any[];
       setTasks(tasks);
-      localStorage.setItem('capacity-tasks', JSON.stringify(tasks));
+      localStorage.setItem("capacity-tasks", JSON.stringify(tasks));
     }
   };
 
   const googleLogin = useGoogleLogin({
-    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email',
+    scope:
+      "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email",
     onSuccess: (res) => handleLoginSuccess(res.access_token),
   });
 
   const googleLoginSilent = useGoogleLogin({
-    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email',
-    prompt: 'none',
+    scope:
+      "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email",
+    prompt: "none",
     onSuccess: (res) => handleLoginSuccess(res.access_token),
-    onError: () => { /* sem sessão ativa, mostra o botão */ },
+    onError: () => {
+      /* sem sessão ativa, mostra o botão */
+    },
   });
 
   useEffect(() => {
     googleLoginSilent();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async (newTasks: any[]) => {
     setTasks(newTasks);
-    localStorage.setItem('capacity-tasks', JSON.stringify(newTasks));
+    localStorage.setItem("capacity-tasks", JSON.stringify(newTasks));
     if (token) {
-      await save({ tasks: newTasks, members, lastSync: new Date().toISOString() });
+      await save({
+        tasks: newTasks,
+        members,
+        lastSync: new Date().toISOString(),
+      });
     }
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Tem a certeza que deseja eliminar esta tarefa?')) {
+    if (confirm("Tem a certeza que deseja eliminar esta tarefa?")) {
       handleSave(tasks.filter((t: { id: string }) => t.id !== id));
     }
   };
 
   const handleUpdateTask = (updatedTask: any) => {
-    handleSave(tasks.map((t: { id: string }) => t.id === updatedTask.id ? updatedTask : t));
+    handleSave(
+      tasks.map((t: { id: string }) =>
+        t.id === updatedTask.id ? updatedTask : t,
+      ),
+    );
   };
 
   const syncLabel =
-    syncStatus === 'syncing' ? 'A sincronizar...' :
-    syncStatus === 'success' ? 'Sincronizado com Drive' :
-    syncStatus === 'error' ? 'Erro ao sincronizar' : '';
+    syncStatus === "syncing"
+      ? "A sincronizar..."
+      : syncStatus === "success"
+        ? "Sincronizado com Drive"
+        : syncStatus === "error"
+          ? "Erro ao sincronizar"
+          : "";
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -100,19 +130,37 @@ function AppInner() {
             <div className="bg-primary p-2 rounded-lg">
               <CalendarDays className="w-5 h-5 text-primary-foreground" />
             </div>
-            <h1 className="text-xl font-bold text-foreground">Capacity Dashboard</h1>
+            <h1 className="text-xl font-bold text-foreground">
+              Calendário de Demandas
+            </h1>
           </div>
 
           <div className="flex items-center gap-4">
-            <button onClick={() => setDarkMode(d => !d)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="Alternar tema">
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            <button
+              onClick={() => setDarkMode((d) => !d)}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Alternar tema"
+            >
+              {darkMode ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
             </button>
             {token ? (
               <div className="flex items-center gap-2 text-sm">
-                {syncStatus === 'syncing' && <RefreshCw className="w-4 h-4 text-primary animate-spin" />}
-                {syncStatus === 'success' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                {syncStatus === 'error' && <AlertCircle className="w-4 h-4 text-destructive" />}
-                <span className="hidden sm:inline-block text-muted-foreground">{syncLabel}</span>
+                {syncStatus === "syncing" && (
+                  <RefreshCw className="w-4 h-4 text-primary animate-spin" />
+                )}
+                {syncStatus === "success" && (
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                )}
+                {syncStatus === "error" && (
+                  <AlertCircle className="w-4 h-4 text-destructive" />
+                )}
+                <span className="hidden sm:inline-block text-muted-foreground">
+                  {syncLabel}
+                </span>
               </div>
             ) : (
               <Button size="sm" onClick={() => googleLogin()}>
@@ -124,29 +172,97 @@ function AppInner() {
             <div className="h-6 w-px bg-border"></div>
 
             <div className="flex bg-muted rounded-lg p-1">
-              <button onClick={() => setView('dashboard')} className={cn('px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'dashboard' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground')}>Calendário</button>
-              <button onClick={() => setView('members')} className={cn('px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'members' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground')}>Membros</button>
+              <button
+                onClick={() => setView("dashboard")}
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  view === "dashboard"
+                    ? "bg-card shadow-sm text-primary"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Calendário
+              </button>
+              <button
+                onClick={() => setView("members")}
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  view === "members"
+                    ? "bg-card shadow-sm text-primary"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Membros
+              </button>
+              <button
+                onClick={() => setView("reports")}
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  view === "reports"
+                    ? "bg-card shadow-sm text-primary"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Relatórios
+              </button>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {view === 'dashboard' ? (
-          <DashboardView tasks={tasks} members={members} onEdit={(t: unknown) => { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDelete} onUpdateTask={handleUpdateTask} onOpenNew={() => { setEditingTask(null); setIsModalOpen(true); }} onExport={() => window.print()} isConnected={!!token} />
-        ) : (
+        {view === "dashboard" ? (
+          <DashboardView
+            tasks={tasks}
+            members={members}
+            onEdit={(t: unknown) => {
+              setEditingTask(t);
+              setIsModalOpen(true);
+            }}
+            onDelete={handleDelete}
+            onUpdateTask={handleUpdateTask}
+            onOpenNew={() => {
+              setEditingTask(null);
+              setIsModalOpen(true);
+            }}
+            onExport={() => window.print()}
+            isConnected={!!token}
+          />
+        ) : view === "members" ? (
           <MembersView tasks={tasks} members={members} />
+        ) : (
+          <ReportsView tasks={tasks} members={members} />
         )}
       </main>
 
       {isModalOpen && (
-        <TaskModal task={editingTask} members={members} onClose={() => setIsModalOpen(false)} onDelete={(id: string) => { if (confirm('Tem a certeza que deseja eliminar esta demanda?')) { handleSave(tasks.filter((t: { id: string }) => t.id !== id)); setIsModalOpen(false); } }} onSave={(taskData: { id: string }) => {
-          const newTasks = editingTask
-            ? tasks.map((t: { id: string }) => t.id === taskData.id ? taskData : t)
-            : [...tasks, { ...taskData, id: crypto.randomUUID(), createdAt: new Date().toISOString() }];
-          handleSave(newTasks);
-          setIsModalOpen(false);
-        }} />
+        <TaskModal
+          task={editingTask}
+          members={members}
+          onClose={() => setIsModalOpen(false)}
+          onDelete={(id: string) => {
+            if (confirm("Tem a certeza que deseja eliminar esta demanda?")) {
+              handleSave(tasks.filter((t: { id: string }) => t.id !== id));
+              setIsModalOpen(false);
+            }
+          }}
+          onSave={(taskData: { id: string }) => {
+            const newTasks = editingTask
+              ? tasks.map((t: { id: string }) =>
+                  t.id === taskData.id ? taskData : t,
+                )
+              : [
+                  ...tasks,
+                  {
+                    ...taskData,
+                    id: crypto.randomUUID(),
+                    createdAt: new Date().toISOString(),
+                  },
+                ];
+            handleSave(newTasks);
+            setIsModalOpen(false);
+          }}
+        />
       )}
     </div>
   );

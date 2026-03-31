@@ -1,26 +1,18 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Button } from '../components/ui';
-import { Plus, Edit2, Trash2, Download, ChevronLeft, ChevronRight, CalendarDays, AlignLeft, WifiOff, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Download, ChevronLeft, ChevronRight, CalendarDays, AlignLeft, WifiOff, X, AlertTriangle } from 'lucide-react';
 import { formatDate } from '../utils/dateUtils';
+import {
+  STEP_TYPES_ORDER,
+  STEP_META,
+  migrateLegacyTask,
+  getCurrentStep,
+  isStepBlocked,
+  type Step,
+  type StepType,
+} from '../lib/steps';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-
-const PHASE_IDS = ['design', 'approval', 'dev', 'qa'] as const;
-type PhaseId = typeof PHASE_IDS[number];
-
-const PHASE_META: Record<PhaseId, { label: string; tag: string; bar: string; dot: string; handle: string; tagBg: string }> = {
-  design:   { label: 'Design',    tag: 'UX',  bar: 'bg-violet-100 text-violet-900 border border-violet-300 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-700',  dot: 'bg-violet-500',   handle: 'bg-violet-400 dark:bg-violet-600',  tagBg: 'bg-violet-500 text-white'  },
-  approval: { label: 'Aprovação', tag: 'APR', bar: 'bg-orange-100 text-orange-900 border border-orange-300 dark:bg-orange-950 dark:text-orange-200 dark:border-orange-700',  dot: 'bg-orange-400',   handle: 'bg-orange-400 dark:bg-orange-600',  tagBg: 'bg-orange-500 text-white'  },
-  dev:      { label: 'Dev',       tag: 'DEV', bar: 'bg-sky-100 text-sky-900 border border-sky-300 dark:bg-sky-950 dark:text-sky-200 dark:border-sky-700',                    dot: 'bg-sky-500',      handle: 'bg-sky-400 dark:bg-sky-600',        tagBg: 'bg-sky-600 text-white'     },
-  qa:       { label: 'QA',        tag: 'QA',  bar: 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-700', dot: 'bg-emerald-500', handle: 'bg-emerald-400 dark:bg-emerald-600', tagBg: 'bg-emerald-600 text-white' },
-};
-
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  'backlog':       { label: 'Backlog',       cls: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100' },
-  'em andamento':  { label: 'Em andamento',  cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100'    },
-  'bloqueado':     { label: 'Bloqueado',     cls: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'        },
-  'concluído':     { label: 'Concluído',     cls: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' },
-};
 
 const PT_MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const PT_DAYS_SHORT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -29,6 +21,7 @@ const MAX_SLOTS = 3;
 const SLOT_HEIGHT = 28;
 const DAY_HEADER_H = 32;
 const ROW_PADDING = 8;
+const DAY_COL_W = 36;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -49,14 +42,16 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
+function todayStr(): string {
+  return toDateStr(new Date());
+}
 
 function getMonthWeeks(year: number, month: number): Date[][] {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startDow = firstDay.getDay();
-  const offset = -startDow;
   const gridStart = new Date(firstDay);
-  gridStart.setDate(gridStart.getDate() + offset);
+  gridStart.setDate(gridStart.getDate() - startDow);
 
   const weeks: Date[][] = [];
   const cur = new Date(gridStart);
@@ -72,10 +67,50 @@ function getMonthWeeks(year: number, month: number): Date[][] {
   return weeks;
 }
 
+/** Normalise any task to ensure it has steps + status in the new format */
+function normaliseTask(task: any): any {
+  if (task.steps) return task;
+  const migrated = migrateLegacyTask(task);
+  return { ...task, ...migrated };
+}
+
+/** Get visible steps (active + has both dates) */
+function getVisibleSteps(task: any): Step[] {
+  const norm = normaliseTask(task);
+  return (norm.steps as Step[]).filter(s => s.active && s.start && s.end);
+}
+
+/** Derive a display status string for the task info column */
+function getTaskStatusDisplay(task: any): { label: string; cls: string } {
+  const norm = normaliseTask(task);
+  const today = todayStr();
+  const step = getCurrentStep(norm.steps, today);
+  const stepLabel = step ? (STEP_META[step.type]?.label ?? step.type) : 'Sem steps';
+  if (norm.status?.blocked) {
+    return {
+      label: `${stepLabel} · Bloqueado`,
+      cls: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
+    };
+  }
+  if (!step) {
+    return { label: 'Sem steps', cls: 'bg-muted text-muted-foreground' };
+  }
+  if (step.end < today) {
+    return { label: `${stepLabel} · Concluído`, cls: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' };
+  }
+  if (step.start > today) {
+    return { label: `${stepLabel} · Backlog`, cls: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200' };
+  }
+  return { label: `${stepLabel} · Em andamento`, cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100' };
+}
+
+// ─── Bar layout ───────────────────────────────────────────────────────────────
+
 interface BarItem {
   taskId: string;
   taskTitle: string;
-  phaseId: PhaseId;
+  stepType: StepType;
+  stepStart: string;
   startCol: number;
   endCol: number;
   slot: number;
@@ -89,15 +124,14 @@ function layoutWeekBars(weekDays: Date[], tasks: any[]): BarItem[] {
   const raw: Raw[] = [];
 
   for (const task of tasks) {
-    for (const phaseId of PHASE_IDS) {
-      const phase = task.phases?.[phaseId];
-      if (!phase?.start || !phase?.end) continue;
-      const pStart = toLocalDate(phase.start);
-      const pEnd = toLocalDate(phase.end);
+    const steps = getVisibleSteps(task);
+    for (const step of steps) {
+      const pStart = toLocalDate(step.start);
+      const pEnd = toLocalDate(step.end);
       if (pEnd < weekStart || pStart > weekEnd) continue;
       const startCol = Math.max(0, Math.round((pStart.getTime() - weekStart.getTime()) / 86400000));
-      const endCol   = Math.min(6, Math.round((pEnd.getTime()   - weekStart.getTime()) / 86400000));
-      raw.push({ taskId: task.id, taskTitle: task.title, phaseId, startCol, endCol });
+      const endCol   = Math.min(6, Math.round((pEnd.getTime() - weekStart.getTime()) / 86400000));
+      raw.push({ taskId: task.id, taskTitle: task.title, stepType: step.type, stepStart: step.start, startCol, endCol });
     }
   }
 
@@ -119,7 +153,7 @@ function layoutWeekBars(weekDays: Date[], tasks: any[]): BarItem[] {
 interface DragState {
   type: 'move' | 'resize-start' | 'resize-end';
   taskId: string;
-  phaseId: PhaseId;
+  stepType: StepType;
   originalStart: Date;
   originalEnd: Date;
   startX: number;
@@ -128,23 +162,32 @@ interface DragState {
 
 interface DragPreview {
   taskId: string;
-  phaseId: PhaseId;
+  stepType: StepType;
   deltaDays: number;
   type: DragState['type'];
 }
 
 // ─── Timeline (Gantt) View ───────────────────────────────────────────────────
 
-const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) => void; onDelete: (id: string) => void; onUpdateTask: (updatedTask: any) => void }> = ({ tasks, members, onEdit, onDelete, onUpdateTask }) => {
+const TimelineView: React.FC<{
+  tasks: any[];
+  members: any[];
+  onEdit: (t: any) => void;
+  onDelete: (id: string) => void;
+  onUpdateTask: (t: any) => void;
+}> = ({ tasks, members, onEdit, onDelete, onUpdateTask }) => {
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const [daysRange, setDaysRange] = useState(60);
-  const DAY_COL_W = 36;
-  const days = useMemo(() => Array.from({ length: daysRange }).map((_, i) => { const d = new Date(today); d.setDate(d.getDate() + i); return d; }), [today, daysRange]);
+  const days = useMemo(() => Array.from({ length: daysRange }).map((_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    return d;
+  }), [today, daysRange]);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const dragStateRef = useRef<{ type: 'move' | 'resize-start' | 'resize-end'; taskId: string; phaseId: PhaseId; originalStart: Date; originalEnd: Date; startX: number; colWidth: number } | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
   const didDragRef = useRef(false);
-  const [dragPreview, setDragPreview] = useState<{ taskId: string; phaseId: PhaseId; deltaDays: number; type: string } | null>(null);
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -152,7 +195,7 @@ const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) =>
       if (!ds) return;
       const delta = Math.round((e.clientX - ds.startX) / ds.colWidth);
       if (delta !== 0) didDragRef.current = true;
-      setDragPreview({ taskId: ds.taskId, phaseId: ds.phaseId, deltaDays: delta, type: ds.type });
+      setDragPreview({ taskId: ds.taskId, stepType: ds.stepType, deltaDays: delta, type: ds.type });
     };
     const onUp = (e: MouseEvent) => {
       const ds = dragStateRef.current;
@@ -162,10 +205,10 @@ const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) =>
         const task = tasks.find((t: any) => t.id === ds.taskId);
         if (task) {
           let newStart = new Date(ds.originalStart);
-          let newEnd   = new Date(ds.originalEnd);
+          let newEnd = new Date(ds.originalEnd);
           if (ds.type === 'move') {
             newStart = addDays(ds.originalStart, delta);
-            newEnd   = addDays(ds.originalEnd,   delta);
+            newEnd = addDays(ds.originalEnd, delta);
           } else if (ds.type === 'resize-start') {
             newStart = addDays(ds.originalStart, delta);
             if (newStart >= newEnd) newStart = addDays(newEnd, -1);
@@ -173,9 +216,14 @@ const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) =>
             newEnd = addDays(ds.originalEnd, delta);
             if (newEnd <= newStart) newEnd = addDays(newStart, 1);
           }
+          const norm = normaliseTask(task);
           onUpdateTask({
-            ...task,
-            phases: { ...task.phases, [ds.phaseId]: { ...task.phases[ds.phaseId], start: toDateStr(newStart), end: toDateStr(newEnd) } },
+            ...norm,
+            steps: norm.steps.map((s: Step) =>
+              s.type === ds.stepType
+                ? { ...s, start: toDateStr(newStart), end: toDateStr(newEnd) }
+                : s
+            ),
           });
         }
       }
@@ -188,48 +236,61 @@ const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) =>
     return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
   }, [tasks, onUpdateTask]);
 
-  const startDrag = useCallback((e: React.MouseEvent, taskId: string, phaseId: PhaseId, type: 'move' | 'resize-start' | 'resize-end', task: any) => {
+  const startDrag = useCallback((
+    e: React.MouseEvent,
+    taskId: string,
+    stepType: StepType,
+    type: DragState['type'],
+    step: Step,
+  ) => {
     e.preventDefault();
     e.stopPropagation();
-    const colWidth = DAY_COL_W;
-    const phase = task.phases[phaseId];
-    dragStateRef.current = { type, taskId, phaseId, originalStart: toLocalDate(phase.start), originalEnd: toLocalDate(phase.end), startX: e.clientX, colWidth };
+    dragStateRef.current = {
+      type, taskId, stepType,
+      originalStart: toLocalDate(step.start),
+      originalEnd: toLocalDate(step.end),
+      startX: e.clientX,
+      colWidth: DAY_COL_W,
+    };
     didDragRef.current = false;
-  }, [daysRange]);
+  }, []);
 
-  const renderBar = (phaseObj: any, phaseId: PhaseId, task: any) => {
-    if (!phaseObj?.start || !phaseObj?.end) return null;
-    const pStart = toLocalDate(phaseObj.start);
-    const pEnd   = toLocalDate(phaseObj.end);
+  const renderBar = (step: Step, task: any) => {
+    if (!step?.start || !step?.end) return null;
+    const pStart = toLocalDate(step.start);
+    const pEnd = toLocalDate(step.end);
     const tStart = days[0];
-    const tEnd   = days[days.length - 1];
+    const tEnd = days[days.length - 1];
     if (pEnd < tStart || pStart > tEnd) return null;
 
     let s = Math.round((pStart.getTime() - tStart.getTime()) / 86400000);
-    let e = Math.round((pEnd.getTime()   - tStart.getTime()) / 86400000);
+    let e = Math.round((pEnd.getTime() - tStart.getTime()) / 86400000);
 
-    // Apply drag preview
     const dp = dragPreview;
-    if (dp && dp.taskId === task.id && dp.phaseId === phaseId) {
+    if (dp && dp.taskId === task.id && dp.stepType === step.type) {
       if (dp.type === 'move') { s += dp.deltaDays; e += dp.deltaDays; }
       else if (dp.type === 'resize-start') { s = Math.min(s + dp.deltaDays, e); }
       else { e = Math.max(e + dp.deltaDays, s); }
     }
 
-    const sC = Math.max(0, s); const eC = Math.min(days.length - 1, e);
+    const sC = Math.max(0, s);
+    const eC = Math.min(days.length - 1, e);
     if (eC < 0 || sC >= days.length) return null;
 
-    const left  = (sC / days.length) * 100;
+    const left = (sC / days.length) * 100;
     const width = ((eC - sC + 1) / days.length) * 100;
-    const meta  = PHASE_META[phaseId];
-    const isDragging = dp?.taskId === task.id && dp?.phaseId === phaseId;
+    const meta = STEP_META[step.type];
+    const norm = normaliseTask(task);
+    const blocked = isStepBlocked(norm, step.start);
+    const isDragging = dp?.taskId === task.id && dp?.stepType === step.type;
     const startsHere = s >= 0;
-    const endsHere   = e < days.length;
+    const endsHere = e < days.length;
+    const barCls = blocked ? meta.barBlocked : meta.bar;
 
     return (
       <div
-        key={phaseId}
-        className={`absolute top-1.5 bottom-1.5 ${meta.bar} text-[11px] font-semibold flex items-center overflow-hidden select-none ${isDragging ? 'shadow-lg z-20' : 'hover:brightness-110 z-10'}`}
+        key={step.type}
+        className={`absolute top-1.5 bottom-1.5 ${barCls} text-[11px] font-semibold flex items-center overflow-hidden select-none ${isDragging ? 'shadow-lg z-20' : 'hover:brightness-110 z-10'}`}
         style={{
           left: `${left}%`, width: `${width}%`,
           borderRadius: `${startsHere ? 5 : 0}px ${endsHere ? 5 : 0}px ${endsHere ? 5 : 0}px ${startsHere ? 5 : 0}px`,
@@ -237,22 +298,27 @@ const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) =>
           transition: isDragging ? 'none' : 'filter 0.1s',
         }}
         title={`${meta.label}: ${formatDate(pStart)} → ${formatDate(pEnd)}`}
-        onMouseDown={e => startDrag(e, task.id, phaseId, 'move', task)}
+        onMouseDown={e => startDrag(e, task.id, step.type, 'move', step)}
         onClick={() => { if (!didDragRef.current) onEdit(task); }}
       >
         {startsHere && (
           <div
             className={`absolute left-0 top-0 bottom-0 w-2 ${meta.handle} cursor-ew-resize z-20`}
             style={{ borderRadius: '5px 0 0 5px' }}
-            onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, phaseId, 'resize-start', task); }}
+            onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, step.type, 'resize-start', step); }}
           />
         )}
-        {startsHere && <span className="truncate px-2 pointer-events-none">{meta.label}</span>}
+        {startsHere && (
+          <span className="truncate px-2 pointer-events-none flex items-center gap-1">
+            {blocked && <AlertTriangle className="w-3 h-3 shrink-0" />}
+            {meta.label}
+          </span>
+        )}
         {endsHere && (
           <div
             className={`absolute right-0 top-0 bottom-0 w-2 ${meta.handle} cursor-ew-resize z-20`}
             style={{ borderRadius: '0 5px 5px 0' }}
-            onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, phaseId, 'resize-end', task); }}
+            onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, step.type, 'resize-end', step); }}
           />
         )}
       </div>
@@ -276,6 +342,7 @@ const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) =>
           </div>
         </div>
 
+        {/* Column headers */}
         <div className="flex border-b border-border bg-muted sticky top-0 z-10">
           <div className="w-56 shrink-0 p-3 text-xs font-semibold text-muted-foreground border-r border-border">Demanda</div>
           <div ref={containerRef} className="flex">
@@ -293,41 +360,61 @@ const TimelineView: React.FC<{ tasks: any[]; members: any[]; onEdit: (t: any) =>
         </div>
 
         {tasks.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground text-sm">Nenhuma demanda. Clique em "Nova Demanda" para começar.</div>
+          <div className="p-12 text-center text-muted-foreground text-sm">
+            Nenhuma demanda. Clique em "Nova Demanda" para começar.
+          </div>
         ) : tasks.map((task: any) => {
-          const assignee = members.find((m: any) => m.id === task.assignee);
-          const status = STATUS_META[task.status] ?? STATUS_META['backlog'];
+          const norm = normaliseTask(task);
+          const visibleSteps = getVisibleSteps(task);
+          const status = getTaskStatusDisplay(task);
           const PHASE_ROW_H = 28;
-          const totalH = PHASE_IDS.length * PHASE_ROW_H;
+          const totalH = Math.max(visibleSteps.length, 1) * PHASE_ROW_H;
+          const allMemberIds = new Set(visibleSteps.flatMap(s => s.assignees));
+          const assignees = members.filter((m: any) => allMemberIds.has(m.id));
+
           return (
             <div key={task.id} className="flex border-b border-border group hover:bg-muted/30 transition-colors">
               {/* Left: task info */}
               <div className="w-56 shrink-0 border-r border-border relative flex flex-col justify-center px-3 py-2 gap-1" style={{ minHeight: totalH }}>
-                <div className="font-medium text-sm text-foreground truncate pr-12">{task.title}</div>
-                <div className="flex items-center gap-1.5">
-                  {assignee && (
-                    <div className="w-4 h-4 rounded-full bg-muted text-[8px] font-bold flex items-center justify-center text-muted-foreground shrink-0">{assignee.avatar}</div>
+                {norm.status?.blocked && (
+                  <div className="absolute top-1.5 left-1.5">
+                    <AlertTriangle className="w-3 h-3 text-red-500" />
+                  </div>
+                )}
+                <div className="font-medium text-sm text-foreground truncate pr-12 pl-4">{task.title}</div>
+                <div className="flex items-center gap-1 flex-wrap pl-4">
+                  {assignees.slice(0, 3).map((m: any) => (
+                    <div key={m.id} className="w-4 h-4 rounded-full bg-muted text-[8px] font-bold flex items-center justify-center text-muted-foreground shrink-0" title={m.name}>{m.avatar}</div>
+                  ))}
+                  {assignees.length === 0 && (
+                    <div className="w-4 h-4 rounded-full bg-muted border border-dashed border-muted-foreground/30 shrink-0" title="Sem responsável" />
                   )}
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${status.cls}`}>{status.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium truncate max-w-[120px] ${status.cls}`}>{status.label}</span>
                 </div>
-                {/* Edit/delete — inside relative container, properly anchored */}
                 <div className="absolute right-1.5 top-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 print:hidden transition-opacity">
                   <button onClick={() => onEdit(task)} className="p-1 text-muted-foreground hover:text-blue-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900"><Edit2 className="w-3 h-3" /></button>
                   <button onClick={() => onDelete(task.id)} className="p-1 text-muted-foreground hover:text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-900"><Trash2 className="w-3 h-3" /></button>
                 </div>
               </div>
 
-              {/* Right: staircase phase rows */}
+              {/* Right: step rows */}
               <div className="flex flex-col" style={{ width: daysRange * DAY_COL_W }}>
-                {PHASE_IDS.map((pid) => (
-                  <div key={pid} className="relative overflow-hidden" style={{ height: PHASE_ROW_H, width: daysRange * DAY_COL_W }}>
-                    {/* Grid background */}
+                {visibleSteps.length === 0 ? (
+                  <div className="relative overflow-hidden" style={{ height: PHASE_ROW_H, width: daysRange * DAY_COL_W }}>
                     <div className="absolute inset-0 flex pointer-events-none">
                       {days.map((d, i) => (
                         <div key={i} className={`shrink-0 border-r border-border/50 ${d.getDay() === 0 || d.getDay() === 6 ? 'bg-muted/60' : ''}`} style={{ width: DAY_COL_W }} />
                       ))}
                     </div>
-                    {renderBar(task.phases?.[pid], pid, task)}
+                  </div>
+                ) : visibleSteps.map(step => (
+                  <div key={step.type} className="relative overflow-hidden" style={{ height: PHASE_ROW_H, width: daysRange * DAY_COL_W }}>
+                    <div className="absolute inset-0 flex pointer-events-none">
+                      {days.map((d, i) => (
+                        <div key={i} className={`shrink-0 border-r border-border/50 ${d.getDay() === 0 || d.getDay() === 6 ? 'bg-muted/60' : ''}`} style={{ width: DAY_COL_W }} />
+                      ))}
+                    </div>
+                    {renderBar(step, task)}
                   </div>
                 ))}
               </div>
@@ -346,7 +433,7 @@ const CalendarView: React.FC<{
   members: any[];
   onEdit: (t: any) => void;
   onDelete: (id: string) => void;
-  onUpdateTask: (updatedTask: any) => void;
+  onUpdateTask: (t: any) => void;
 }> = ({ tasks, onEdit, onUpdateTask }) => {
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const [monthDate, setMonthDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -368,7 +455,7 @@ const CalendarView: React.FC<{
       if (!ds) return;
       const delta = Math.round((e.clientX - ds.startX) / ds.colWidth);
       if (delta !== 0) didDragRef.current = true;
-      setDragPreview({ taskId: ds.taskId, phaseId: ds.phaseId, deltaDays: delta, type: ds.type });
+      setDragPreview({ taskId: ds.taskId, stepType: ds.stepType, deltaDays: delta, type: ds.type });
     };
 
     const onUp = (e: MouseEvent) => {
@@ -379,10 +466,10 @@ const CalendarView: React.FC<{
         const task = tasks.find((t: any) => t.id === ds.taskId);
         if (task) {
           let newStart = new Date(ds.originalStart);
-          let newEnd   = new Date(ds.originalEnd);
+          let newEnd = new Date(ds.originalEnd);
           if (ds.type === 'move') {
             newStart = addDays(ds.originalStart, delta);
-            newEnd   = addDays(ds.originalEnd,   delta);
+            newEnd = addDays(ds.originalEnd, delta);
           } else if (ds.type === 'resize-start') {
             newStart = addDays(ds.originalStart, delta);
             if (newStart >= newEnd) newStart = addDays(newEnd, -1);
@@ -390,12 +477,14 @@ const CalendarView: React.FC<{
             newEnd = addDays(ds.originalEnd, delta);
             if (newEnd <= newStart) newEnd = addDays(newStart, 1);
           }
+          const norm = normaliseTask(task);
           onUpdateTask({
-            ...task,
-            phases: {
-              ...task.phases,
-              [ds.phaseId]: { ...task.phases[ds.phaseId], start: toDateStr(newStart), end: toDateStr(newEnd) },
-            },
+            ...norm,
+            steps: norm.steps.map((s: Step) =>
+              s.type === ds.stepType
+                ? { ...s, start: toDateStr(newStart), end: toDateStr(newEnd) }
+                : s
+            ),
           });
         }
       }
@@ -422,13 +511,13 @@ const CalendarView: React.FC<{
     e.stopPropagation();
     const container = (e.currentTarget as HTMLElement).closest('[data-week-row]') as HTMLElement;
     const colWidth = container ? container.getBoundingClientRect().width / 7 : 80;
-    const phase = task.phases[bar.phaseId];
+    const norm = normaliseTask(task);
+    const step = (norm.steps as Step[]).find(s => s.type === bar.stepType);
+    if (!step) return;
     dragStateRef.current = {
-      type,
-      taskId: bar.taskId,
-      phaseId: bar.phaseId,
-      originalStart: toLocalDate(phase.start),
-      originalEnd:   toLocalDate(phase.end),
+      type, taskId: bar.taskId, stepType: bar.stepType,
+      originalStart: toLocalDate(step.start),
+      originalEnd: toLocalDate(step.end),
       startX: e.clientX,
       colWidth,
     };
@@ -478,25 +567,23 @@ const CalendarView: React.FC<{
             >
               {/* Day cells */}
               {week.map((day, di) => {
-                const isToday     = day.getTime() === today.getTime();
+                const isToday = day.getTime() === today.getTime();
                 const isThisMonth = day.getMonth() === monthDate.getMonth();
-                const isWeekend   = day.getDay() === 0 || day.getDay() === 6;
+                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                 const hasOverflow = overflow[di] > 0;
                 return (
                   <div
                     key={di}
                     className={`border-r border-border last:border-r-0 flex flex-col select-none ${
-                      !isThisMonth ? 'bg-muted' :
-                      isWeekend    ? 'bg-muted' :
-                      'bg-card'
+                      !isThisMonth ? 'bg-muted' : isWeekend ? 'bg-muted' : 'bg-card'
                     }`}
                     style={{ height: rowHeight }}
                   >
                     <div className="flex items-center justify-center" style={{ height: DAY_HEADER_H }}>
                       <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${
-                        isToday      ? 'bg-blue-600 text-white font-bold' :
+                        isToday ? 'bg-blue-600 text-white font-bold' :
                         !isThisMonth ? 'text-muted-foreground' :
-                        isWeekend    ? 'text-muted-foreground' :
+                        isWeekend ? 'text-muted-foreground' :
                         'text-foreground'
                       }`}>{day.getDate()}</span>
                     </div>
@@ -509,41 +596,37 @@ const CalendarView: React.FC<{
                 );
               })}
 
-              {/* Phase bars */}
+              {/* Step bars */}
               {bars.filter(b => b.slot < MAX_SLOTS).map((bar, bi) => {
-                const meta = PHASE_META[bar.phaseId];
+                const meta = STEP_META[bar.stepType];
                 const task = tasks.find((t: any) => t.id === bar.taskId);
                 const colW = 100 / 7;
 
-                // Apply drag preview offset
                 let adjStart = bar.startCol;
-                let adjEnd   = bar.endCol;
-                if (dragPreview && dragPreview.taskId === bar.taskId && dragPreview.phaseId === bar.phaseId) {
+                let adjEnd = bar.endCol;
+                if (dragPreview && dragPreview.taskId === bar.taskId && dragPreview.stepType === bar.stepType) {
                   const d = dragPreview.deltaDays;
-                  if (dragPreview.type === 'move') {
-                    adjStart = bar.startCol + d;
-                    adjEnd   = bar.endCol + d;
-                  } else if (dragPreview.type === 'resize-start') {
-                    adjStart = Math.min(bar.startCol + d, bar.endCol);
-                  } else {
-                    adjEnd = Math.max(bar.endCol + d, bar.startCol);
-                  }
+                  if (dragPreview.type === 'move') { adjStart = bar.startCol + d; adjEnd = bar.endCol + d; }
+                  else if (dragPreview.type === 'resize-start') { adjStart = Math.min(bar.startCol + d, bar.endCol); }
+                  else { adjEnd = Math.max(bar.endCol + d, bar.startCol); }
                 }
 
-                // Clamp to visible week for preview rendering
                 const clampedStart = Math.max(0, Math.min(6, adjStart));
                 const clampedEnd   = Math.max(0, Math.min(6, adjEnd));
-                const left  = clampedStart * colW;
-                const width = (clampedEnd - clampedStart + 1) * colW;
-                const top   = DAY_HEADER_H + bar.slot * SLOT_HEIGHT + 3;
+                const left   = clampedStart * colW;
+                const width  = (clampedEnd - clampedStart + 1) * colW;
+                const top    = DAY_HEADER_H + bar.slot * SLOT_HEIGHT + 3;
                 const startsHere = bar.startCol >= 0;
                 const endsHere   = bar.endCol <= 6;
-                const isDragging = dragPreview?.taskId === bar.taskId && dragPreview?.phaseId === bar.phaseId;
+                const isDragging = dragPreview?.taskId === bar.taskId && dragPreview?.stepType === bar.stepType;
+                const norm = task ? normaliseTask(task) : null;
+                const blocked = norm ? isStepBlocked(norm, bar.stepStart) : false;
+                const barCls = blocked ? meta.barBlocked : meta.bar;
 
                 return (
                   <div
-                    key={`${bar.taskId}-${bar.phaseId}-${bi}`}
-                    className={`absolute ${meta.bar} text-[11px] font-semibold flex items-center overflow-hidden z-10 group/bar select-none ${isDragging ? 'shadow-lg' : 'hover:brightness-110'}`}
+                    key={`${bar.taskId}-${bar.stepType}-${bi}`}
+                    className={`absolute ${barCls} text-[11px] font-semibold flex items-center overflow-hidden z-10 group/bar select-none ${isDragging ? 'shadow-lg' : 'hover:brightness-110'}`}
                     style={{
                       top,
                       height: SLOT_HEIGHT - 4,
@@ -553,26 +636,25 @@ const CalendarView: React.FC<{
                       cursor: isDragging ? 'grabbing' : 'grab',
                       transition: isDragging ? 'none' : 'filter 0.1s',
                     }}
-                    title={`${task?.title} · ${meta.label}`}
+                    title={`${task?.title} · ${meta.label}${blocked ? ' · BLOQUEADO' : ''}`}
                     onMouseDown={e => task && startDrag(e, bar, 'move', task)}
                     onClick={() => { if (!didDragRef.current && task) onEdit(task); }}
                   >
-                    {/* Left resize handle */}
                     {startsHere && (
                       <div
-                        className={`absolute left-0 top-0 bottom-0 w-2 ${meta.handle} rounded-l-[5px] cursor-ew-resize z-20 flex items-center justify-center`}
+                        className={`absolute left-0 top-0 bottom-0 w-2 ${meta.handle} rounded-l-[5px] cursor-ew-resize z-20`}
                         onMouseDown={e => { e.stopPropagation(); task && startDrag(e, bar, 'resize-start', task); }}
                       />
                     )}
-
                     {startsHere && (
                       <span className="flex items-center gap-1 px-1.5 truncate leading-none pointer-events-none min-w-0">
-                        <span className={`shrink-0 text-[9px] font-bold px-1 py-0.5 rounded ${meta.tagBg}`}>{meta.tag}</span>
+                        {blocked
+                          ? <AlertTriangle className="w-3 h-3 shrink-0" />
+                          : <span className={`shrink-0 text-[9px] font-bold px-1 py-0.5 rounded ${meta.tagBg}`}>{meta.tag}</span>
+                        }
                         <span className="truncate text-[11px]">{task?.title}</span>
                       </span>
                     )}
-
-                    {/* Right resize handle */}
                     {endsHere && (
                       <div
                         className={`absolute right-0 top-0 bottom-0 w-2 ${meta.handle} rounded-r-[5px] cursor-ew-resize z-20`}
@@ -595,36 +677,57 @@ const CalendarView: React.FC<{
 const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, isConnected }) => {
   const [calView, setCalView] = useState<'calendar' | 'timeline'>('calendar');
   const [filterAssignee, setFilterAssignee] = useState('');
-  const [filterStatus, setFilterStatus]     = useState('');
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo]     = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterSteps, setFilterSteps] = useState<StepType[]>([]);
+  const hasActiveFilters = filterAssignee || filterStatus || filterSteps.length > 0;
 
-  const hasActiveFilters = filterAssignee || filterStatus || filterDateFrom || filterDateTo;
+  const clearFilters = () => { setFilterAssignee(''); setFilterStatus(''); setFilterSteps([]); };
 
-  const clearFilters = () => { setFilterAssignee(''); setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo(''); };
+  const toggleStepFilter = (type: StepType) => {
+    setFilterSteps(prev => prev.includes(type) ? prev.filter(s => s !== type) : [...prev, type]);
+  };
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task: any) => {
-      if (filterAssignee) {
-        const pa = task.phaseAssignees;
-        const inPhase = pa && Object.values(pa).some((id: any) => id === filterAssignee);
-        const legacy = !pa && task.assignee === filterAssignee;
-        if (!inPhase && !legacy) return false;
-      }
-      if (filterStatus   && task.status   !== filterStatus)   return false;
-      if (filterDateFrom || filterDateTo) {
-        const from = filterDateFrom ? toLocalDate(filterDateFrom) : null;
-        const to   = filterDateTo   ? toLocalDate(filterDateTo)   : null;
-        const taskStart = task.phases?.design?.start ? toLocalDate(task.phases.design.start) : null;
-        const taskEnd   = task.phases?.qa?.end       ? toLocalDate(task.phases.qa.end)       : null;
-        if (from && taskEnd   && taskEnd   < from) return false;
-        if (to   && taskStart && taskStart > to)   return false;
-      }
-      return true;
-    });
-  }, [tasks, filterAssignee, filterStatus, filterDateFrom, filterDateTo]);
+    return tasks
+      .filter((task: any) => {
+        if (filterStatus) {
+          const norm = normaliseTask(task);
+          if (filterStatus === 'bloqueado' && !norm.status?.blocked) return false;
+          if (filterStatus === 'nao-bloqueado' && norm.status?.blocked) return false;
+        }
+        if (filterAssignee) {
+          const norm = normaliseTask(task);
+          const anyStepHas = (norm.steps as Step[]).some((s: Step) => s.assignees.includes(filterAssignee));
+          const legacyMatch = task.assignee === filterAssignee;
+          if (!anyStepHas && !legacyMatch) return false;
+        }
+        if (filterSteps.length > 0) {
+          const norm = normaliseTask(task);
+          const activeTypes = (norm.steps as Step[]).filter(s => s.active).map(s => s.type);
+          if (!filterSteps.some(ft => activeTypes.includes(ft))) return false;
+        }
+        return true;
+      })
+      .map((task: any) => {
+        const norm = normaliseTask(task);
+        let steps: Step[] = norm.steps as Step[];
+        if (filterSteps.length > 0) {
+          steps = steps.filter(s => filterSteps.includes(s.type));
+        }
+        if (filterAssignee) {
+          steps = steps.filter(s => s.assignees.includes(filterAssignee));
+        }
+        return { ...norm, steps };
+      });
+  }, [tasks, filterAssignee, filterStatus, filterSteps]);
 
-  const selectCls = 'text-sm rounded-lg border border-border bg-card px-2 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary w-full';
+  const blockedCount = useMemo(() => tasks.filter((t: any) => normaliseTask(t).status?.blocked).length, [tasks]);
+  const activeCount  = useMemo(() => tasks.filter((t: any) => {
+    const norm = normaliseTask(t);
+    const today = todayStr();
+    const step = getCurrentStep(norm.steps ?? [], today);
+    return step && step.start <= today && step.end >= today;
+  }).length, [tasks]);
 
   return (
     <div className="space-y-5">
@@ -654,50 +757,50 @@ const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpda
         </div>
       </div>
 
-      {/* Filtros sempre visíveis */}
-      <div className="p-3 rounded-xl border border-border bg-muted print:hidden">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground">Responsável</label>
-            <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} className={selectCls}>
-              <option value="">Todos</option>
-              {members.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground">Status</label>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={selectCls}>
-              <option value="">Todos</option>
-              {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground">Data de</label>
-            <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className={selectCls} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground">Data até</label>
-            <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className={selectCls} />
-          </div>
+      {/* Filtros */}
+      <div className="px-3 py-2 rounded-xl border border-border bg-muted print:hidden">
+        <div className="flex items-center gap-2 flex-wrap">
+          <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} className="text-xs rounded-lg border border-border bg-card px-2 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
+            <option value="">Responsável</option>
+            {members.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="text-xs rounded-lg border border-border bg-card px-2 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
+            <option value="">Status</option>
+            <option value="bloqueado">Bloqueado</option>
+            <option value="nao-bloqueado">Não bloqueado</option>
+          </select>
+          <div className="w-px h-4 bg-border mx-0.5" />
+          {STEP_TYPES_ORDER.map(type => {
+            const meta = STEP_META[type];
+            const active = filterSteps.includes(type);
+            return (
+              <button
+                key={type}
+                onClick={() => toggleStepFilter(type)}
+                className={`px-2 py-1 rounded-full text-xs font-medium border transition-colors ${active ? meta.tagBg + ' border-transparent' : 'bg-card border-border text-muted-foreground hover:text-foreground'}`}
+              >
+                {meta.tag}
+              </button>
+            );
+          })}
+          {hasActiveFilters && (
+            <>
+              <span className="text-xs text-muted-foreground ml-auto">{filteredTasks.length}/{tasks.length}</span>
+              <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
+                <X className="w-3 h-3" /> Limpar
+              </button>
+            </>
+          )}
         </div>
-        {hasActiveFilters && (
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
-            <span className="text-xs text-muted-foreground">{filteredTasks.length} de {tasks.length} demanda{tasks.length !== 1 ? 's' : ''}</span>
-            <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
-              <X className="w-3 h-3" /> Limpar filtros
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Métricas do time */}
+      {/* Métricas */}
       {tasks.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 print:hidden">
           {[
-            { label: 'Total',        value: tasks.length,                                              cls: 'text-foreground',   bg: 'bg-card border border-border' },
-            { label: 'Em andamento', value: tasks.filter((t: any) => t.status === 'em andamento').length, cls: 'text-blue-600 dark:text-blue-400',  bg: 'bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800' },
-            { label: 'Bloqueadas',   value: tasks.filter((t: any) => t.status === 'bloqueado').length,    cls: 'text-red-600 dark:text-red-400',   bg: 'bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-800' },
-            { label: 'Concluídas',   value: tasks.filter((t: any) => t.status === 'concluído').length,    cls: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 border border-green-200 dark:bg-green-950 dark:border-green-800' },
+            { label: 'Total',        value: tasks.length,  cls: 'text-foreground',                    bg: 'bg-card border border-border' },
+            { label: 'Em andamento', value: activeCount,   cls: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800' },
+            { label: 'Bloqueadas',   value: blockedCount,  cls: 'text-red-600 dark:text-red-400',     bg: 'bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-800' },
           ].map(({ label, value, cls, bg }) => (
             <div key={label} className={`rounded-xl px-4 py-3 flex flex-col gap-0.5 ${bg}`}>
               <span className="text-xs text-muted-foreground font-medium">{label}</span>
@@ -724,12 +827,16 @@ const DashboardView: React.FC<any> = ({ tasks, members, onEdit, onDelete, onUpda
 
       {/* Legend */}
       <div className="flex gap-4 flex-wrap text-xs text-muted-foreground print:hidden">
-        {PHASE_IDS.map(id => (
-          <div key={id} className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-full ${PHASE_META[id].dot}`} />
-            {PHASE_META[id].label}
+        {STEP_TYPES_ORDER.map(type => (
+          <div key={type} className="flex items-center gap-1.5">
+            <span className={`w-2.5 h-2.5 rounded-full ${STEP_META[type].dot}`} />
+            {STEP_META[type].label}
           </div>
         ))}
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+          Bloqueado
+        </div>
       </div>
     </div>
   );

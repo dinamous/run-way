@@ -1,92 +1,69 @@
 import React, { useState } from 'react';
-import { cascadePhases, addBusinessDays, nextBusinessDay, businessDaysBetween } from '../utils/dateUtils';
 import { Input, Label, Button } from './ui';
-import { Save, Clock, Play, AlertTriangle, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
-
-const PHASES_ORDER = ['design', 'approval', 'dev', 'qa'] as const;
-const PHASE_META = {
-  design:   { label: 'Design',    color: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-700',     dot: 'bg-blue-500',    role: 'Designer'  as const },
-  approval: { label: 'Aprovação', color: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-700', dot: 'bg-amber-500',   role: 'Designer'  as const },
-  dev:      { label: 'Dev',       color: 'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-700', dot: 'bg-violet-500', role: 'Developer' as const },
-  qa:       { label: 'QA',        color: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-700', dot: 'bg-emerald-500', role: 'Designer' as const },
-};
-
-const STATUS_OPTIONS = [
-  { value: 'backlog',      label: 'Backlog',      desc: 'Aguardando início',   icon: Clock,         cls: 'border-slate-300 text-slate-700 bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:bg-slate-800',        activeCls: 'border-slate-600 bg-slate-200 text-slate-900 ring-1 ring-slate-500 dark:border-slate-400 dark:bg-slate-700 dark:text-white'        },
-  { value: 'em andamento', label: 'Em Andamento', desc: 'Em progresso',        icon: Play,          cls: 'border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-700 dark:text-blue-200 dark:bg-blue-950',             activeCls: 'border-blue-600 bg-blue-100 text-blue-900 ring-1 ring-blue-500 dark:border-blue-500 dark:bg-blue-900 dark:text-blue-100'          },
-  { value: 'bloqueado',    label: 'Bloqueado',    desc: 'Impedido de avançar', icon: AlertTriangle, cls: 'border-red-300 text-red-700 bg-red-50 dark:border-red-700 dark:text-red-200 dark:bg-red-950',                  activeCls: 'border-red-600 bg-red-100 text-red-900 ring-1 ring-red-500 dark:border-red-500 dark:bg-red-900 dark:text-red-100'              },
-  { value: 'concluído',    label: 'Concluído',    desc: 'Entregue',            icon: CheckCircle2,  cls: 'border-green-300 text-green-700 bg-green-50 dark:border-green-700 dark:text-green-200 dark:bg-green-950',        activeCls: 'border-green-600 bg-green-100 text-green-900 ring-1 ring-green-500 dark:border-green-500 dark:bg-green-900 dark:text-green-100'    },
-];
+import { Save, ExternalLink, Trash2, Users, AlertCircle } from 'lucide-react';
+import {
+  STEP_TYPES_ORDER,
+  STEP_META,
+  createDefaultSteps,
+  migrateLegacyTask,
+  type Step,
+  type StepType,
+  type TaskStatus,
+} from '../lib/steps';
 
 const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) => {
-  const firstDesigner  = members.find((m: any) => m.role === 'Designer')?.id  || '';
-  const firstDeveloper = members.find((m: any) => m.role === 'Developer')?.id || '';
+  const init = migrateLegacyTask(task ?? {});
 
-  const [formData, setFormData] = useState<any>({
-    title: task?.title || '',
-    clickupLink: task?.clickupLink || '',
-    status: task?.status || 'backlog',
-    phases: task?.phases || cascadePhases(new Date()),
-    phaseAssignees: task?.phaseAssignees || {
-      design:   task?.assignee || firstDesigner,
-      approval: task?.assignee || firstDesigner,
-      dev:      firstDeveloper,
-      qa:       task?.assignee || firstDesigner,
-    },
-  });
-  const [errors, setErrors] = useState<any>({});
+  const [title, setTitle] = useState<string>(task?.title ?? '');
+  const [clickupLink, setClickupLink] = useState<string>(task?.clickupLink ?? '');
+  const [blocked, setBlocked] = useState<boolean>(init.status.blocked);
+  const [blockedAt, setBlockedAt] = useState<string>(
+    init.status.blockedAt ?? new Date().toISOString().split('T')[0]
+  );
+  const [steps, setSteps] = useState<Step[]>(
+    task ? init.steps : createDefaultSteps()
+  );
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = () => {
-    const e: any = {};
-    if (!formData.title || formData.title.length < 3) e.title = 'Título obrigatório (mín. 3 caracteres).';
-    if (formData.clickupLink && !formData.clickupLink.startsWith('http')) e.clickupLink = 'Insira um link válido.';
-    PHASES_ORDER.forEach(p => {
-      if (formData.phases[p].end < formData.phases[p].start) e[`${p}End`] = 'Fim anterior ao início.';
+    const e: Record<string, string> = {};
+    if (!title || title.length < 3) e.title = 'Título obrigatório (mín. 3 caracteres).';
+    if (clickupLink && !clickupLink.startsWith('http')) e.clickupLink = 'Insira um link válido.';
+    steps.filter(s => s.active).forEach(s => {
+      if (!s.start || !s.end) e[`${s.type}-dates`] = 'Datas obrigatórias quando step está ativo.';
+      else if (s.end < s.start) e[`${s.type}-dates`] = 'Fim anterior ao início.';
     });
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e: any) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) onSave({ ...task, ...formData, assignee: formData.phaseAssignees.design });
+    if (!validate()) return;
+    const status: TaskStatus = {
+      blocked,
+      blockedAt: blocked ? blockedAt : undefined,
+    };
+    onSave({ ...task, title, clickupLink, status, steps });
   };
 
-  // Smart cascade: any change propagates forward keeping each phase's duration
-  const handlePhaseChange = (phase: string, field: 'start' | 'end', value: string) => {
-    const idx = PHASES_ORDER.indexOf(phase as any);
-    let newPhases = { ...formData.phases };
-
-    if (field === 'start') {
-      const dur = businessDaysBetween(newPhases[phase].start, newPhases[phase].end);
-      newPhases[phase] = { start: value, end: addBusinessDays(value, dur) };
-    } else {
-      newPhases[phase] = { ...newPhases[phase], end: value };
-    }
-
-    // Cascade all subsequent phases; QA always starts 1 business day after dev ends
-    for (let i = idx + 1; i < PHASES_ORDER.length; i++) {
-      const prev = PHASES_ORDER[i - 1];
-      const curr = PHASES_ORDER[i];
-      const dur = businessDaysBetween(newPhases[curr].start, newPhases[curr].end);
-      const newStart = nextBusinessDay(newPhases[prev].end);
-      newPhases[curr] = { start: newStart, end: addBusinessDays(newStart, dur) };
-    }
-    // Enforce: each phase must start at least nextBusinessDay after the previous phase ends
-    // approval >= nextBusinessDay(design.end)
-    // dev      >= nextBusinessDay(approval.end)
-    // qa       >= nextBusinessDay(dev.end)
-    const chain: Array<[string, string]> = [['design', 'approval'], ['approval', 'dev'], ['dev', 'qa']];
-    for (const [prev, curr] of chain) {
-      const minStart = nextBusinessDay(newPhases[prev].end);
-      if (newPhases[curr].start < minStart) {
-        const dur = businessDaysBetween(newPhases[curr].start, newPhases[curr].end);
-        newPhases[curr] = { start: minStart, end: addBusinessDays(minStart, dur) };
-      }
-    }
-
-    setFormData((p: any) => ({ ...p, phases: newPhases }));
+  const toggleStep = (type: StepType) => {
+    setSteps(prev => prev.map(s => s.type === type ? { ...s, active: !s.active } : s));
   };
+
+  const updateStep = (type: StepType, field: keyof Step, value: any) => {
+    setSteps(prev => prev.map(s => s.type === type ? { ...s, [field]: value } : s));
+  };
+
+  const toggleAssignee = (type: StepType, memberId: string) => {
+    setSteps(prev => prev.map(s => {
+      if (s.type !== type) return s;
+      const has = s.assignees.includes(memberId);
+      return { ...s, assignees: has ? s.assignees.filter(id => id !== memberId) : [...s.assignees, memberId] };
+    }));
+  };
+
+  const activeCount = steps.filter(s => s.active).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -94,8 +71,13 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) 
 
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-5 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">{task ? 'Editar Demanda' : 'Nova Demanda'}</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">✕</button>
+          <h2 className="text-lg font-semibold text-foreground">
+            {task ? 'Editar Demanda' : 'Nova Demanda'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >✕</button>
         </div>
 
         <div className="px-6 py-5 overflow-y-auto flex-1 space-y-6 custom-scrollbar">
@@ -107,8 +89,8 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) 
                 <Label htmlFor="title">Título</Label>
                 <Input
                   id="title"
-                  value={formData.title}
-                  onChange={e => setFormData((p: any) => ({ ...p, title: e.target.value }))}
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
                   placeholder="Ex: Landing Page Black Friday"
                 />
                 {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
@@ -124,13 +106,18 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) 
                   <Input
                     id="clickup"
                     type="url"
-                    value={formData.clickupLink}
-                    onChange={e => setFormData((p: any) => ({ ...p, clickupLink: e.target.value }))}
+                    value={clickupLink}
+                    onChange={e => setClickupLink(e.target.value)}
                     placeholder="https://app.clickup.com/t/..."
                     className="pr-9"
                   />
-                  {formData.clickupLink && (
-                    <a href={formData.clickupLink} target="_blank" rel="noreferrer" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition-colors">
+                  {clickupLink && (
+                    <a
+                      href={clickupLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition-colors"
+                    >
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   )}
@@ -138,101 +125,159 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) 
                 {errors.clickupLink && <p className="text-xs text-red-500">{errors.clickupLink}</p>}
               </div>
 
-              {/* Status */}
-              <div className="space-y-2">
-                <Label>Estado</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {STATUS_OPTIONS.map(opt => {
-                    const Icon = opt.icon;
-                    const selected = formData.status === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setFormData((p: any) => ({ ...p, status: opt.value }))}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${selected ? opt.activeCls : opt.cls}`}
-                      >
-                        <Icon className="w-4 h-4 shrink-0" />
-                        <div>
-                          <div className="text-xs font-semibold leading-tight">{opt.label}</div>
-                          <div className="text-[10px] opacity-70 leading-tight">{opt.desc}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
+              {/* Bloqueado */}
+              <div className={`rounded-xl border p-3 transition-colors ${blocked
+                ? 'bg-red-50 border-red-300 dark:bg-red-950/60 dark:border-red-700'
+                : 'bg-muted border-border'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className={`w-4 h-4 shrink-0 ${blocked ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`} />
+                    <div>
+                      <div className={`text-sm font-semibold ${blocked ? 'text-red-800 dark:text-red-200' : 'text-foreground'}`}>
+                        Bloqueado
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Steps a partir da data de bloqueio ficam em alerta vermelho
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBlocked(b => !b)}
+                    className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${blocked ? 'bg-red-500' : 'bg-muted-foreground/30'}`}
+                    aria-label="Alternar bloqueio"
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${blocked ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
                 </div>
+                {blocked && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-[11px] text-red-700 dark:text-red-300 font-medium shrink-0">Data do bloqueio:</span>
+                    <Input
+                      type="date"
+                      value={blockedAt}
+                      onChange={e => setBlockedAt(e.target.value)}
+                      className="h-7 text-xs w-auto flex-1 bg-white/70 dark:bg-red-900/30 border-red-300 dark:border-red-700"
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* Fases */}
-              <div className="space-y-3">
+              {/* Steps */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Fases de Entrega</Label>
-                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Datas se ajustam automaticamente</span>
+                  <Label>Steps da Demanda</Label>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                    {activeCount} ativo{activeCount !== 1 ? 's' : ''}
+                  </span>
                 </div>
-                <div className="space-y-2">
-                  {PHASES_ORDER.map((phaseId, idx) => {
-                    const meta = PHASE_META[phaseId];
-                    const phase = formData.phases[phaseId];
-                    const dur = businessDaysBetween(phase.start, phase.end);
-                    const hasError = errors[`${phaseId}End`];
-                    const roleMembers = members.filter((m: any) => m.role === meta.role);
-                    const currentAssignee = formData.phaseAssignees[phaseId];
-                    const isQa = phaseId === 'qa';
+                <div className="space-y-1.5">
+                  {steps.map((step) => {
+                    const meta = STEP_META[step.type as StepType];
+                    if (!meta) return null;
                     return (
-                      <div key={phaseId} className={`rounded-xl border p-3 space-y-2.5 ${meta.color}`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
-                            <span className="text-xs font-semibold">{idx + 1}. {meta.label}</span>
+                      <div
+                        key={step.type}
+                        className={`rounded-xl border transition-all ${step.active ? meta.color : 'bg-muted/50 border-border'}`}
+                      >
+                        {/* Step header — always visible */}
+                        <button
+                          type="button"
+                          onClick={() => toggleStep(step.type)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
+                        >
+                          {/* Checkbox */}
+                          <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${
+                            step.active
+                              ? 'bg-current border-current'
+                              : 'border-muted-foreground/40 bg-transparent'
+                          }`}>
+                            {step.active && <span className="text-white text-[9px] leading-none font-bold">✓</span>}
+                          </span>
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dot}`} />
+                          <span className={`text-xs font-semibold flex-1 ${step.active ? '' : 'text-muted-foreground'}`}>
+                            {meta.label}
+                          </span>
+                          {/* Assignee avatars when active */}
+                          {step.active && step.assignees.length > 0 && (
+                            <div className="flex -space-x-1 shrink-0">
+                              {step.assignees.map(aid => {
+                                const m = members.find((m: any) => m.id === aid);
+                                return m ? (
+                                  <div
+                                    key={aid}
+                                    className="w-5 h-5 rounded-full bg-white/80 dark:bg-black/30 border border-white dark:border-black/20 text-[8px] font-bold flex items-center justify-center text-foreground"
+                                    title={m.name}
+                                  >{m.avatar}</div>
+                                ) : null;
+                              })}
+                            </div>
+                          )}
+                        </button>
+
+                        {/* Step details — only when active */}
+                        {step.active && (
+                          <div className="px-3 pb-3 space-y-3 border-t border-black/10 dark:border-white/10 pt-2.5">
+
+                            {/* Responsáveis */}
+                            <div>
+                              <span className="text-[10px] opacity-70 font-medium flex items-center gap-1 mb-1.5">
+                                <Users className="w-3 h-3" /> Responsáveis
+                                <span className="opacity-60">(opcional)</span>
+                              </span>
+                              <div className="flex gap-1.5 flex-wrap">
+                                {members.map((m: any) => {
+                                  const sel = step.assignees.includes(m.id);
+                                  return (
+                                    <button
+                                      key={m.id}
+                                      type="button"
+                                      onClick={() => toggleAssignee(step.type, m.id)}
+                                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all ${
+                                        sel
+                                          ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200'
+                                          : 'border-transparent bg-white/50 dark:bg-white/10 text-inherit hover:bg-white/80 dark:hover:bg-white/20'
+                                      }`}
+                                    >
+                                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                                        sel ? 'bg-blue-500 text-white' : 'bg-black/10 dark:bg-white/20 text-inherit'
+                                      }`}>
+                                        {m.avatar}
+                                      </div>
+                                      {m.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Datas */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <span className="text-[10px] opacity-70">Início</span>
+                                <Input
+                                  type="date"
+                                  value={step.start}
+                                  onChange={e => updateStep(step.type, 'start', e.target.value)}
+                                  className="h-8 text-xs bg-white/70 dark:bg-black/20 border-0 focus:ring-1"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <span className="text-[10px] opacity-70">Fim</span>
+                                <Input
+                                  type="date"
+                                  value={step.end}
+                                  onChange={e => updateStep(step.type, 'end', e.target.value)}
+                                  className="h-8 text-xs bg-white/70 dark:bg-black/20 border-0 focus:ring-1"
+                                />
+                              </div>
+                            </div>
+                            {errors[`${step.type}-dates`] && (
+                              <p className="text-[10px] text-red-600">{errors[`${step.type}-dates`]}</p>
+                            )}
                           </div>
-                          <span className="text-[10px] opacity-60">{dur} dia{dur !== 1 ? 's' : ''} útil{dur !== 1 ? 'eis' : ''}</span>
-                        </div>
-                        {/* Responsável pela fase */}
-                        <div className="flex gap-1.5 flex-wrap">
-                          {roleMembers.map((m: any) => {
-                            const sel = currentAssignee === m.id;
-                            return (
-                              <button
-                                key={m.id}
-                                type="button"
-                                onClick={() => setFormData((p: any) => ({ ...p, phaseAssignees: { ...p.phaseAssignees, [phaseId]: m.id } }))}
-                                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all ${
-                                  sel
-                                    ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200'
-                                    : 'border-transparent bg-white/50 text-inherit hover:bg-white/80'
-                                }`}
-                              >
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${sel ? 'bg-blue-500 text-white' : 'bg-black/10 text-inherit'}`}>
-                                  {m.avatar}
-                                </div>
-                                {m.name}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <span className="text-[10px] opacity-70">Início</span>
-                            <Input
-                              type="date"
-                              value={phase.start}
-                              onChange={e => handlePhaseChange(phaseId, 'start', e.target.value)}
-                              className={`h-8 text-xs bg-white/70 border-0 focus:ring-1 ${isQa ? 'opacity-60 cursor-not-allowed' : ''}`}
-                              readOnly={isQa}
-                              title={isQa ? 'QA começa automaticamente 1 dia após o fim do Dev' : undefined}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[10px] opacity-70">Fim</span>
-                            <Input
-                              type="date"
-                              value={phase.end}
-                              onChange={e => handlePhaseChange(phaseId, 'end', e.target.value)}
-                              className="h-8 text-xs bg-white/70 border-0 focus:ring-1"
-                            />
-                          </div>
-                        </div>
-                        {hasError && <p className="text-[10px] text-red-600">{errors[`${phaseId}End`]}</p>}
+                        )}
                       </div>
                     );
                   })}
@@ -254,11 +299,11 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) 
             )}
           </div>
           <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose} type="button">Cancelar</Button>
-          <Button type="submit" form="task-form">
-            <Save className="w-4 h-4 mr-1.5" />
-            {task ? 'Salvar Alterações' : 'Criar Demanda'}
-          </Button>
+            <Button variant="outline" onClick={onClose} type="button">Cancelar</Button>
+            <Button type="submit" form="task-form">
+              <Save className="w-4 h-4 mr-1.5" />
+              {task ? 'Salvar Alterações' : 'Criar Demanda'}
+            </Button>
           </div>
         </div>
 
