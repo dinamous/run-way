@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import TaskModal from "./components/TaskModal";
 import { DashboardView } from "./views/dashboard";
 import MembersView from "./views/MembersView";
-import ReportsView from "./views/ReportsView";
+import ReportsView from "./views/reports";
 import LoginPage from "./pages/LoginPage";
 import { CalendarDays, LogOut, Sun, Moon } from "lucide-react";
 import { Button } from "./components/ui";
