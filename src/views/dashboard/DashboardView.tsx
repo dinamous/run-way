@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CalendarView } from '@/views/calendar';
-import TimelineView from '@/views/TimelineView';
+import TimelineView from '@/views/timeline';
 import { useTaskFilters } from './hooks/useTaskFilters';
 import { DashboardHeader } from './components/DashboardHeader';
 import { FilterBar } from './components/FilterBar';
