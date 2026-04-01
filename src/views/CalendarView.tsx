@@ -9,7 +9,7 @@ import {
   type BarItem, type DragState, type DragPreview,
   type Task, type Step,
   STEP_META, isStepBlocked,
-} from './dashboardUtils';
+} from '../utils/dashboardUtils';
 import type { CalendarViewProps } from '../types/props';
 
 const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask }) => {

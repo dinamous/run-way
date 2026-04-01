@@ -8,7 +8,7 @@ import {
   type Task, type Step, type StepType,
   STEP_META, isStepBlocked,
   formatDate,
-} from './dashboardUtils';
+} from '../utils/dashboardUtils';
 import type { TimelineViewProps } from '../types/props';
 
 const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask }) => {
