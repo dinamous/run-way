@@ -29,6 +29,7 @@ npm run lint      # ESLint
 - Usar `src/components/ui/` antes de criar novos componentes
 - Estado global em `App.tsx`; local no componente
 - Sem abstrações prematuras
+- Views devem ser pastas (`src/views/<nome>/`) com componentes, hooks e `index.ts` — nunca arquivos monolíticos
 - `.env` nunca commitado
 
 ## Docs (ler sob demanda — NÃO carregar tudo de uma vez)

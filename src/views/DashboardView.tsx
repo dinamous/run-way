@@ -4,7 +4,7 @@ import { Plus, Download, CalendarDays, AlignLeft, X } from 'lucide-react';
 import { STEP_TYPES_ORDER, STEP_META, type StepType } from '../lib/steps';
 import { normaliseTask, todayStr } from '../utils/dashboardUtils';
 import { getCurrentStep } from '../lib/steps';
-import CalendarView from './CalendarView';
+import { CalendarView } from './calendar';
 import TimelineView from './TimelineView';
 import type { DashboardViewProps } from '../types/props';
 
