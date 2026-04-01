@@ -10,6 +10,7 @@ import {
   type TaskStatus,
 } from '../lib/steps';
 import type { TaskModalProps } from '../types/props';
+import { useFormState } from '../hooks/useFormState';
 
 const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, onDelete }) => {
   const init = migrateLegacyTask(task ?? {});
@@ -24,6 +25,13 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
     task ? init.steps : createDefaultSteps()
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const formSnapshot = { title, clickupLink, blocked, blockedAt, steps };
+  const { isDirty, submitting, withSubmit, confirmClose } = useFormState(
+    formSnapshot,
+    !task,
+    title.length >= 3,
+  );
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -44,7 +52,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
       blocked,
       blockedAt: blocked ? blockedAt : undefined,
     };
-    onSave({ ...task, title, clickupLink, status, steps });
+    withSubmit(() => onSave({ ...task, title, clickupLink, status, steps }));
   };
 
   const toggleStep = (type: StepType) => {
@@ -75,7 +83,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
             {task ? 'Editar Demanda' : 'Nova Demanda'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={() => confirmClose() && onClose()}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >✕</button>
         </div>
@@ -299,10 +307,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} type="button">Cancelar</Button>
-            <Button type="submit" form="task-form">
+            <Button variant="outline" onClick={() => confirmClose() && onClose()} type="button">Cancelar</Button>
+            <Button type="submit" form="task-form" disabled={!isDirty || submitting}>
               <Save className="w-4 h-4 mr-1.5" />
-              {task ? 'Salvar Alterações' : 'Criar Demanda'}
+              {submitting ? 'A guardar…' : task ? 'Salvar Alterações' : 'Criar Demanda'}
             </Button>
           </div>
         </div>
