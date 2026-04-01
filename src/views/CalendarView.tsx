@@ -7,17 +7,12 @@ import {
   normaliseTask,
   layoutWeekBars,
   type BarItem, type DragState, type DragPreview,
-  type Step,
+  type Task, type Step,
   STEP_META, isStepBlocked,
 } from './dashboardUtils';
+import type { CalendarViewProps } from '../types/props';
 
-const CalendarView: React.FC<{
-  tasks: any[];
-  members: any[];
-  onEdit: (t: any) => void;
-  onDelete: (id: string) => void;
-  onUpdateTask: (t: any) => void;
-}> = ({ tasks, onEdit, onUpdateTask }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask }) => {
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const [monthDate, setMonthDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
 
@@ -62,7 +57,7 @@ const CalendarView: React.FC<{
       if (!ds) return;
       const delta = Math.round((e.clientX - ds.startX) / ds.colWidth);
       if (delta !== 0) {
-        const task = tasks.find((t: any) => t.id === ds.taskId);
+        const task = tasks.find(t => t.id === ds.taskId);
         if (task) {
           let newStart = new Date(ds.originalStart);
           let newEnd = new Date(ds.originalEnd);
@@ -104,7 +99,7 @@ const CalendarView: React.FC<{
     e: React.MouseEvent,
     bar: BarItem,
     type: DragState['type'],
-    task: any,
+    task: Task,
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -198,7 +193,7 @@ const CalendarView: React.FC<{
               {/* Step bars */}
               {bars.filter(b => b.slot < MAX_SLOTS).map((bar, bi) => {
                 const meta = STEP_META[bar.stepType];
-                const task = tasks.find((t: any) => t.id === bar.taskId);
+                const task = tasks.find(t => t.id === bar.taskId);
                 const colW = 100 / 7;
 
                 let adjStart = bar.startCol;

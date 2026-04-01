@@ -5,11 +5,9 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { STEP_TYPES_ORDER, STEP_META, migrateLegacyTask, getCurrentStep } from '../lib/steps';
-import type { Step, StepType } from '../lib/steps';
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface Member { id: string; name: string; role: string; avatar: string; }
+import type { Task, Step, StepType, LegacyTask } from '../lib/steps';
+import type { Member } from '../hooks/useSupabase';
+import type { ReportsViewProps } from '../types/props';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -35,36 +33,36 @@ function businessDaysLeft(endStr: string, fromStr: string): number {
   return count;
 }
 
-function normalizeTask(task: any) {
-  if (task.steps) return task;
-  return { ...task, ...migrateLegacyTask(task) };
+function normalizeTask(task: Task | LegacyTask): Task {
+  if ((task as Task).steps && typeof (task as Task).status === 'object') return task as Task;
+  const migrated = migrateLegacyTask(task as LegacyTask);
+  return { ...(task as object), ...migrated } as Task;
 }
 
-function getVisibleSteps(task: any): Step[] {
-  const norm = normalizeTask(task);
-  return (norm.steps as Step[]).filter(s => s.active && s.start && s.end);
+function getVisibleSteps(task: Task | LegacyTask): Step[] {
+  return normalizeTask(task).steps.filter(s => s.active && s.start && s.end);
 }
 
 /** Last end date across all visible steps */
-function getLastDeadline(task: any): string | null {
+function getLastDeadline(task: Task | LegacyTask): string | null {
   const steps = getVisibleSteps(task);
   if (steps.length === 0) return null;
   return steps.reduce((max, s) => s.end > max ? s.end : max, steps[0].end);
 }
 
 /** First start date across all visible steps */
-function getFirstStart(task: any): string | null {
+function getFirstStart(task: Task | LegacyTask): string | null {
   const steps = getVisibleSteps(task);
   if (steps.length === 0) return null;
   return steps.reduce((min, s) => s.start < min ? s.start : min, steps[0].start);
 }
 
 /** All unique member ids across all steps */
-function getTaskMembers(task: any): string[] {
+function getTaskMembers(task: Task | LegacyTask): string[] {
   return [...new Set(getVisibleSteps(task).flatMap(s => s.assignees))];
 }
 
-function getRisk(task: any, today: string): 'ok' | 'risco' | 'atrasado' | 'concluido' {
+function getRisk(task: Task | LegacyTask, today: string): 'ok' | 'risco' | 'atrasado' | 'concluido' {
   const norm = normalizeTask(task);
   const lastDeadline = getLastDeadline(task);
   if (!lastDeadline) return 'ok';
@@ -103,7 +101,7 @@ function RiskBadge({ risk }: { risk: 'ok' | 'risco' | 'atrasado' | 'concluido' }
 
 // ─── Main View ────────────────────────────────────────────────────────────────
 
-const ReportsView: React.FC<{ tasks: any[]; members: Member[] }> = ({ tasks, members }) => {
+const ReportsView: React.FC<ReportsViewProps> = ({ tasks, members }) => {
   const today = todayStr();
 
   const enriched = useMemo(() => tasks.map(task => {
@@ -174,7 +172,7 @@ const ReportsView: React.FC<{ tasks: any[]; members: Member[] }> = ({ tasks, mem
 
   // Capacity per member: active steps today
   const memberLoad = useMemo(() => members.map(m => {
-    const activeStepsToday: { task: any; step: Step }[] = [];
+    const activeStepsToday: { task: Task; step: Step }[] = [];
     const atrasadasCount = enriched.filter(t => t.risk === 'atrasado' && getTaskMembers(t).includes(m.id)).length;
     const riscoCount = enriched.filter(t => t.risk === 'risco' && getTaskMembers(t).includes(m.id)).length;
 
@@ -360,7 +358,7 @@ const ReportsView: React.FC<{ tasks: any[]; members: Member[] }> = ({ tasks, mem
         {/* Capacidade da equipa */}
         <section>
           <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
-            <Users className="w-4 h-4 text-primary" /> Capacidade da Equipa
+            <Users className="w-4 h-4 text-primary" /> Capacidade da Equipe (steps ativos hoje)
           </h3>
           <div className="space-y-3">
             {memberLoad.map(m => (

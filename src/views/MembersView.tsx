@@ -1,12 +1,13 @@
 import React from 'react';
 import Badge from '../components/ui/Badge';
-import { STEP_META } from '../lib/steps';
-import { migrateLegacyTask, getCurrentStep } from '../lib/steps';
-import type { Step } from '../lib/steps';
+import { STEP_META, migrateLegacyTask, getCurrentStep } from '../lib/steps';
+import type { Task, Step, LegacyTask } from '../lib/steps';
+import type { MembersViewProps } from '../types/props';
 
-function normalizeTask(task: any) {
-  if (task.steps) return task;
-  return { ...task, ...migrateLegacyTask(task) };
+function normalizeTask(task: Task | LegacyTask): Task {
+  if ((task as Task).steps && typeof (task as Task).status === 'object') return task as Task;
+  const migrated = migrateLegacyTask(task as LegacyTask);
+  return { ...(task as object), ...migrated } as Task;
 }
 
 function todayStr() {
@@ -14,20 +15,20 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const MembersView: React.FC<any> = ({ tasks, members }) => {
+const MembersView: React.FC<MembersViewProps> = ({ tasks, members }) => {
   const today = todayStr();
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Capacity da Equipa</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Capacity da Equipe</h2>
         <p className="text-muted-foreground">Alocação por step ativo por membro.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {members.map((member: any) => {
+        {members.map(member => {
           // Collect all active steps where this member is assigned
-          const memberSteps: { task: any; step: Step }[] = [];
+          const memberSteps: { task: Task; step: Step }[] = [];
           for (const task of tasks) {
             const norm = normalizeTask(task);
             const visibleSteps = (norm.steps as Step[]).filter(
@@ -50,7 +51,7 @@ const MembersView: React.FC<any> = ({ tasks, members }) => {
           else if (activeCount > 0) { statusColor = 'bg-blue-500'; statusText = 'Alocado'; }
 
           // Group by task for display
-          const taskMap = new Map<string, { task: any; steps: Step[] }>();
+          const taskMap = new Map<string, { task: Task; steps: Step[] }>();
           for (const { task, step } of memberSteps) {
             if (!taskMap.has(task.id)) taskMap.set(task.id, { task, steps: [] });
             taskMap.get(task.id)!.steps.push(step);

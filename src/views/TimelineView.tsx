@@ -5,18 +5,13 @@ import {
   toLocalDate, toDateStr, addDays,
   normaliseTask, getVisibleSteps, getTaskStatusDisplay,
   type DragState, type DragPreview,
-  type Step,
+  type Task, type Step, type StepType,
   STEP_META, isStepBlocked,
   formatDate,
 } from './dashboardUtils';
+import type { TimelineViewProps } from '../types/props';
 
-const TimelineView: React.FC<{
-  tasks: any[];
-  members: any[];
-  onEdit: (t: any) => void;
-  onDelete: (id: string) => void;
-  onUpdateTask: (t: any) => void;
-}> = ({ tasks, members, onEdit, onDelete, onUpdateTask }) => {
+const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask }) => {
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const [daysRange, setDaysRange] = useState(60);
   const days = useMemo(() => Array.from({ length: daysRange }).map((_, i) => {
@@ -43,7 +38,7 @@ const TimelineView: React.FC<{
       if (!ds) return;
       const delta = Math.round((e.clientX - ds.startX) / ds.colWidth);
       if (delta !== 0) {
-        const task = tasks.find((t: any) => t.id === ds.taskId);
+        const task = tasks.find(t => t.id === ds.taskId);
         if (task) {
           let newStart = new Date(ds.originalStart);
           let newEnd = new Date(ds.originalEnd);
@@ -80,14 +75,14 @@ const TimelineView: React.FC<{
   const startDrag = useCallback((
     e: React.MouseEvent,
     taskId: string,
-    stepType: string,
+    stepType: StepType,
     type: DragState['type'],
     step: Step,
   ) => {
     e.preventDefault();
     e.stopPropagation();
     dragStateRef.current = {
-      type, taskId, stepType: stepType as any,
+      type, taskId, stepType,
       originalStart: toLocalDate(step.start),
       originalEnd: toLocalDate(step.end),
       startX: e.clientX,
@@ -96,7 +91,7 @@ const TimelineView: React.FC<{
     didDragRef.current = false;
   }, []);
 
-  const renderBar = (step: Step, task: any) => {
+  const renderBar = (step: Step, task: Task) => {
     if (!step?.start || !step?.end) return null;
     const pStart = toLocalDate(step.start);
     const pEnd = toLocalDate(step.end);
@@ -204,14 +199,14 @@ const TimelineView: React.FC<{
           <div className="p-12 text-center text-muted-foreground text-sm">
             Nenhuma demanda. Clique em "Nova Demanda" para começar.
           </div>
-        ) : tasks.map((task: any) => {
+        ) : tasks.map(task => {
           const norm = normaliseTask(task);
           const visibleSteps = getVisibleSteps(task);
           const status = getTaskStatusDisplay(task);
           const PHASE_ROW_H = 28;
           const totalH = Math.max(visibleSteps.length, 1) * PHASE_ROW_H;
           const allMemberIds = new Set(visibleSteps.flatMap(s => s.assignees));
-          const assignees = members.filter((m: any) => allMemberIds.has(m.id));
+          const assignees = members.filter(m => allMemberIds.has(m.id));
 
           return (
             <div key={task.id} className="flex border-b border-border group hover:bg-muted/30 transition-colors">
@@ -224,7 +219,7 @@ const TimelineView: React.FC<{
                 )}
                 <div className="font-medium text-sm text-foreground truncate pr-12 pl-4">{task.title}</div>
                 <div className="flex items-center gap-1 flex-wrap pl-4">
-                  {assignees.slice(0, 3).map((m: any) => (
+                  {assignees.slice(0, 3).map(m => (
                     <div key={m.id} className="w-4 h-4 rounded-full bg-muted text-[8px] font-bold flex items-center justify-center text-muted-foreground shrink-0" title={m.name}>{m.avatar}</div>
                   ))}
                   {assignees.length === 0 && (

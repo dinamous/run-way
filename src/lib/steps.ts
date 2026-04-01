@@ -171,10 +171,39 @@ export function createDefaultSteps(): Step[] {
   }));
 }
 
+/**
+ * Formato legado de tarefa (localStorage / Google Drive antigo).
+ * Pode conter `steps` já migrados ou apenas `phases` + `assignee`.
+ */
+export interface LegacyTask {
+  id?: string;
+  title?: string;
+  clickupLink?: string;
+  /** Assignee global, usado quando não há `phaseAssignees`. */
+  assignee?: string;
+  /** Status como string ('bloqueado', 'em andamento', …) ou objeto moderno. */
+  status?: string | TaskStatus;
+  createdAt?: string;
+  phases?: {
+    design?: { start: string; end: string };
+    approval?: { start: string; end: string };
+    dev?: { start: string; end: string };
+    qa?: { start: string; end: string };
+  };
+  phaseAssignees?: Record<string, string>;
+  /** Presença de `steps` indica tarefa já no formato moderno. */
+  steps?: Step[];
+}
+
 /** Migrates a legacy task (with phases/assignee) to the new steps format */
-export function migrateLegacyTask(task: any): { status: TaskStatus; steps: Step[] } {
+export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; steps: Step[] } {
   if (task.steps) {
-    return { status: task.status ?? { blocked: false }, steps: task.steps };
+    const existingStatus = task.status;
+    const status: TaskStatus =
+      existingStatus && typeof existingStatus === 'object'
+        ? existingStatus
+        : { blocked: false };
+    return { status, steps: task.steps };
   }
 
   const legacyMap: Partial<Record<string, StepType>> = {
@@ -186,7 +215,7 @@ export function migrateLegacyTask(task: any): { status: TaskStatus; steps: Step[
 
   const steps: Step[] = STEP_TYPES_ORDER.map((type, order) => {
     const legacyKey = Object.entries(legacyMap).find(([, v]) => v === type)?.[0];
-    const legacyPhase = legacyKey ? task.phases?.[legacyKey] : null;
+    const legacyPhase = legacyKey ? task.phases?.[legacyKey as keyof NonNullable<LegacyTask['phases']>] : null;
     const legacyAssignee = legacyKey ? (task.phaseAssignees?.[legacyKey] || task.assignee) : null;
     return {
       id: crypto.randomUUID(),
@@ -199,7 +228,7 @@ export function migrateLegacyTask(task: any): { status: TaskStatus; steps: Step[
     };
   });
 
-  const oldStatus = task.status as string | undefined;
+  const oldStatus = typeof task.status === 'string' ? task.status : undefined;
   const blocked = oldStatus === 'bloqueado';
   const status: TaskStatus = {
     blocked,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Task, Step, StepType } from '../lib/steps'
+import type { DbTaskRow, LocalStorageTaskEntry } from '../types/db'
 
 export interface Member {
   id: string
@@ -11,17 +12,17 @@ export interface Member {
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
-function dbRowToTask(row: any): Task {
+function dbRowToTask(row: DbTaskRow): Task {
   const steps: Step[] = (row.task_steps ?? [])
-    .sort((a: any, b: any) => a.step_order - b.step_order)
-    .map((s: any) => ({
+    .sort((a, b) => a.step_order - b.step_order)
+    .map(s => ({
       id: s.id,
       type: s.type as StepType,
       order: s.step_order,
       active: s.active,
       start: s.start_date ?? '',
       end: s.end_date ?? '',
-      assignees: (s.step_assignees ?? []).map((a: any) => a.member_id),
+      assignees: (s.step_assignees ?? []).map(a => a.member_id),
     }))
 
   return {
@@ -89,8 +90,8 @@ export function useSupabase() {
     const raw = localStorage.getItem('capacity-tasks')
     if (!raw) return
 
-    let parsed: any[]
-    try { parsed = JSON.parse(raw) } catch { return }
+    let parsed: LocalStorageTaskEntry[]
+    try { parsed = JSON.parse(raw) as LocalStorageTaskEntry[] } catch { return }
     if (!Array.isArray(parsed) || parsed.length === 0) return
 
     migrationRan.current = true
@@ -120,7 +121,7 @@ export function useSupabase() {
 
           if (taskErr || !taskRow) continue
 
-          const steps: any[] = raw.steps ?? []
+          const steps = raw.steps ?? []
           for (const step of steps) {
             const { data: stepRow, error: stepErr } = await supabase
               .from('task_steps')
@@ -159,38 +160,68 @@ export function useSupabase() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members])
 
-  // ── Insert steps helper ────────────────────────────────────────────────────
-  async function insertSteps(taskId: string, steps: Step[]): Promise<boolean> {
+  // ── Upsert steps helper ───────────────────────────────────────────────────
+  async function upsertSteps(taskId: string, steps: Step[]): Promise<boolean> {
     for (const step of steps) {
-      const { data: stepRow, error: stepErr } = await supabase
-        .from('task_steps')
-        .insert({
-          task_id: taskId,
-          type: step.type,
-          step_order: step.order,
-          active: step.active,
-          start_date: step.start || null,
-          end_date: step.end || null,
-        })
-        .select('id')
-        .single()
+      const isNew = !step.id
 
-      if (stepErr || !stepRow) {
-        console.error('[insertSteps] Erro ao inserir step:', stepErr?.message)
-        return false
+      let stepId: string
+
+      if (isNew) {
+        const { data, error } = await supabase
+          .from('task_steps')
+          .insert({
+            task_id: taskId,
+            type: step.type,
+            step_order: step.order,
+            active: step.active,
+            start_date: step.start || null,
+            end_date: step.end || null,
+          })
+          .select('id')
+          .single()
+
+        if (error || !data) {
+          console.error('[upsertSteps] Erro ao inserir step:', error?.message)
+          return false
+        }
+        stepId = data.id
+      } else {
+        const { error } = await supabase
+          .from('task_steps')
+          .update({
+            type: step.type,
+            step_order: step.order,
+            active: step.active,
+            start_date: step.start || null,
+            end_date: step.end || null,
+          })
+          .eq('id', step.id)
+
+        if (error) {
+          console.error('[upsertSteps] Erro ao atualizar step:', error.message)
+          return false
+        }
+        stepId = step.id
       }
 
+      await supabase.from('step_assignees').delete().eq('step_id', stepId)
       if (step.assignees.length > 0) {
         const { error: assigneeErr } = await supabase.from('step_assignees').insert(
-          step.assignees.map(mid => ({ step_id: stepRow.id, member_id: mid }))
+          step.assignees.map(mid => ({ step_id: stepId, member_id: mid }))
         )
         if (assigneeErr) {
-          console.error('[insertSteps] Erro ao inserir assignees:', assigneeErr.message)
+          console.error('[upsertSteps] Erro ao inserir assignees:', assigneeErr.message)
           return false
         }
       }
     }
     return true
+  }
+
+  // ── Insert steps helper (used only on create) ─────────────────────────────
+  async function insertSteps(taskId: string, steps: Step[]): Promise<boolean> {
+    return upsertSteps(taskId, steps)
   }
 
   // ── Create task ────────────────────────────────────────────────────────────
@@ -225,6 +256,10 @@ export function useSupabase() {
 
   // ── Update task ────────────────────────────────────────────────────────────
   const updateTask = async (taskData: Task): Promise<boolean> => {
+    // Optimistic update: apply locally first, sync in background
+    const previousTasks = tasks
+    setTasks(prev => prev.map(t => t.id === taskData.id ? taskData : t))
+
     const { error: taskErr } = await supabase
       .from('tasks')
       .update({
@@ -237,21 +272,39 @@ export function useSupabase() {
 
     if (taskErr) {
       setError(taskErr.message)
+      setTasks(previousTasks)
       return false
     }
 
-    const { error: deleteErr } = await supabase
-      .from('task_steps')
-      .delete()
-      .eq('task_id', taskData.id)
+    // Delete only steps that were removed by the user
+    const keptIds = taskData.steps.map(s => s.id).filter(Boolean)
+    if (keptIds.length > 0) {
+      const { error: deleteErr } = await supabase
+        .from('task_steps')
+        .delete()
+        .eq('task_id', taskData.id)
+        .not('id', 'in', `(${keptIds.join(',')})`)
 
-    if (deleteErr) {
-      setError(deleteErr.message)
-      await fetchTasks()
-      return false
+      if (deleteErr) {
+        setError(deleteErr.message)
+        setTasks(previousTasks)
+        return false
+      }
+    } else {
+      // No steps kept — delete all
+      const { error: deleteErr } = await supabase
+        .from('task_steps')
+        .delete()
+        .eq('task_id', taskData.id)
+
+      if (deleteErr) {
+        setError(deleteErr.message)
+        setTasks(previousTasks)
+        return false
+      }
     }
 
-    const ok = await insertSteps(taskData.id, taskData.steps)
+    const ok = await upsertSteps(taskData.id, taskData.steps)
     if (!ok) {
       setError('Tarefa atualizada mas erro ao guardar etapas')
       await fetchTasks()
@@ -259,7 +312,6 @@ export function useSupabase() {
     }
 
     setError(null)
-    await fetchTasks()
     return true
   }
 

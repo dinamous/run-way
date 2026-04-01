@@ -9,8 +9,9 @@ import {
   type StepType,
   type TaskStatus,
 } from '../lib/steps';
+import type { TaskModalProps } from '../types/props';
 
-const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, onDelete }) => {
   const init = migrateLegacyTask(task ?? {});
 
   const [title, setTitle] = useState<string>(task?.title ?? '');
@@ -50,7 +51,7 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) 
     setSteps(prev => prev.map(s => s.type === type ? { ...s, active: !s.active } : s));
   };
 
-  const updateStep = (type: StepType, field: keyof Step, value: any) => {
+  const updateStep = (type: StepType, field: keyof Step, value: Step[keyof Step]) => {
     setSteps(prev => prev.map(s => s.type === type ? { ...s, [field]: value } : s));
   };
 
@@ -202,7 +203,7 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) 
                           {step.active && step.assignees.length > 0 && (
                             <div className="flex -space-x-1 shrink-0">
                               {step.assignees.map(aid => {
-                                const m = members.find((m: any) => m.id === aid);
+                                const m = members.find(m => m.id === aid);
                                 return m ? (
                                   <div
                                     key={aid}
@@ -226,7 +227,7 @@ const TaskModal: React.FC<any> = ({ task, members, onClose, onSave, onDelete }) 
                                 <span className="opacity-60">(opcional)</span>
                               </span>
                               <div className="flex gap-1.5 flex-wrap">
-                                {members.map((m: any) => {
+                                {members.map(m => {
                                   const sel = step.assignees.includes(m.id);
                                   return (
                                     <button

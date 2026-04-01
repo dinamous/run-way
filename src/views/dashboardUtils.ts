@@ -4,8 +4,10 @@ import {
   migrateLegacyTask,
   getCurrentStep,
   isStepBlocked,
+  type Task,
   type Step,
   type StepType,
+  type LegacyTask,
 } from '../lib/steps';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -63,18 +65,22 @@ export function getMonthWeeks(year: number, month: number): Date[][] {
   return weeks;
 }
 
-export function normaliseTask(task: any): any {
-  if (task.steps) return task;
-  const migrated = migrateLegacyTask(task);
-  return { ...task, ...migrated };
+/** Garante que a tarefa tem o formato moderno com `steps`. */
+export function normaliseTask(task: Task | LegacyTask): Task {
+  if ((task as Task).steps && typeof (task as Task).status === 'object') {
+    return task as Task;
+  }
+  const migrated = migrateLegacyTask(task as LegacyTask);
+  return { ...(task as object), ...migrated } as Task;
 }
 
-export function getVisibleSteps(task: any): Step[] {
+/** Devolve os steps ativos (com datas preenchidas) de uma tarefa. */
+export function getVisibleSteps(task: Task | LegacyTask): Step[] {
   const norm = normaliseTask(task);
-  return (norm.steps as Step[]).filter(s => s.active && s.start && s.end);
+  return norm.steps.filter(s => s.active && s.start && s.end);
 }
 
-export function getTaskStatusDisplay(task: any): { label: string; cls: string } {
+export function getTaskStatusDisplay(task: Task | LegacyTask): { label: string; cls: string } {
   const norm = normaliseTask(task);
   const today = todayStr();
   const step = getCurrentStep(norm.steps, today);
@@ -109,7 +115,7 @@ export interface BarItem {
   slot: number;
 }
 
-export function layoutWeekBars(weekDays: Date[], tasks: any[]): BarItem[] {
+export function layoutWeekBars(weekDays: Date[], tasks: (Task | LegacyTask)[]): BarItem[] {
   const weekStart = weekDays[0];
   const weekEnd = weekDays[6];
 
@@ -161,4 +167,4 @@ export interface DragPreview {
 }
 
 // Re-export used downstream
-export { formatDate, STEP_META, isStepBlocked, type Step, type StepType };
+export { formatDate, STEP_META, isStepBlocked, type Task, type Step, type StepType, type LegacyTask };

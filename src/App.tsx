@@ -10,6 +10,7 @@ import { cn } from "./lib/utils";
 import { useAuth } from "./hooks/useAuth";
 import { useSupabase } from "./hooks/useSupabase";
 import { Toaster, toast } from "sonner";
+import type { Task } from "./lib/steps";
 
 export default function App() {
   const { session, user, signIn, signOut, authError, loading: authLoading } = useAuth();
@@ -30,7 +31,7 @@ export default function App() {
 
   const [view, setView] = useState<"dashboard" | "members" | "reports">("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<any | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   if (authLoading) {
     return (
@@ -134,7 +135,7 @@ export default function App() {
               setIsModalOpen(false);
             }
           }}
-          onSave={async (taskData: any) => {
+          onSave={async (taskData) => {
             let ok: boolean;
             if (editingTask) {
               ok = await updateTask(taskData);
