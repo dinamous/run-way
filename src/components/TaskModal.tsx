@@ -36,7 +36,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
   const validate = () => {
     const e: Record<string, string> = {};
     if (!title || title.length < 3) e.title = 'Título obrigatório (mín. 3 caracteres).';
-    if (clickupLink && !clickupLink.startsWith('http')) e.clickupLink = 'Insira um link válido.';
+    if (clickupLink) {
+      try { new URL(clickupLink) } catch { e.clickupLink = 'Insira um URL válido (ex: https://...).'; }
+    }
     steps.filter(s => s.active).forEach(s => {
       if (!s.start || !s.end) e[`${s.type}-dates`] = 'Datas obrigatórias quando step está ativo.';
       else if (s.end < s.start) e[`${s.type}-dates`] = 'Fim anterior ao início.';

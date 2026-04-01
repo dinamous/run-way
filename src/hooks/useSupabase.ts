@@ -1,4 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+
+const devLog = import.meta.env.DEV
+  ? (...args: unknown[]) => console.error(...args)
+  : () => undefined
 import { supabase } from '../lib/supabase'
 import type { Task, Step, StepType } from '../lib/steps'
 import type { DbTaskRow, LocalStorageTaskEntry } from '../types/db'
@@ -152,7 +156,7 @@ export function useSupabase() {
         localStorage.removeItem('capacity-tasks')
         await fetchTasks()
       } catch (err) {
-        console.error('[migration] Erro ao migrar dados do localStorage:', err)
+        devLog('[migration] Erro ao migrar dados do localStorage:', err)
       }
     }
 
@@ -182,7 +186,7 @@ export function useSupabase() {
           .single()
 
         if (error || !data) {
-          console.error('[upsertSteps] Erro ao inserir step:', error?.message)
+          devLog('[upsertSteps] Erro ao inserir step:', error?.message)
           return false
         }
         stepId = data.id
@@ -199,7 +203,7 @@ export function useSupabase() {
           .eq('id', step.id)
 
         if (error) {
-          console.error('[upsertSteps] Erro ao atualizar step:', error.message)
+          devLog('[upsertSteps] Erro ao atualizar step:', error.message)
           return false
         }
         stepId = step.id
@@ -211,7 +215,7 @@ export function useSupabase() {
           step.assignees.map(mid => ({ step_id: stepId, member_id: mid }))
         )
         if (assigneeErr) {
-          console.error('[upsertSteps] Erro ao inserir assignees:', assigneeErr.message)
+          devLog('[upsertSteps] Erro ao inserir assignees:', assigneeErr.message)
           return false
         }
       }
