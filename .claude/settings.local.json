@@ -7,7 +7,11 @@
       "Bash(npx shadcn@latest init --yes)",
       "Bash(printf \"0\\\\n0\\\\n\")",
       "Bash(npx tsc:*)",
-      "Bash(wc -l /c/Users/dinam/Documents/Projetos/calendar-task/src/**/*.tsx /c/Users/dinam/Documents/Projetos/calendar-task/src/**/*.ts)"
+      "Bash(wc -l /c/Users/dinam/Documents/Projetos/calendar-task/src/**/*.tsx /c/Users/dinam/Documents/Projetos/calendar-task/src/**/*.ts)",
+      "Bash(mkdir:*)",
+      "Bash(cp docs/todo-upsert-steps.md docs/todo/upsert-steps.md)",
+      "Bash(cp docs/date-utils.md docs/utils/date-utils.md)",
+      "Bash(rm:*)"
     ]
   },
   "hooks": {

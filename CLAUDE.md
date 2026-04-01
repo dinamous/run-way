@@ -1,165 +1,49 @@
 # CLAUDE.md — Capacity Dashboard
 
-## Visão Geral
+Aplicação web de capacity planning. Gerir demandas com fases de entrega, visualizar em calendário/Gantt, dados no Supabase.
 
-Aplicação web de gestão de capacidade de equipa (capacity planning). Permite criar e gerir "demandas" (tarefas/projetos) com fases de entrega, visualizar em calendário mensal ou timeline tipo Gantt, e sincronizar os dados com Google Drive.
+**Stack:** React 19 · TypeScript 5.9 · Vite 8 · Tailwind CSS 4 · Supabase
 
-**Stack:** React 19 · TypeScript 5.9 · Vite 8 · Tailwind CSS 4 · `@react-oauth/google`
-
----
-
-## Comandos Essenciais
+## Comandos
 
 ```bash
-npm run dev       # servidor de desenvolvimento (localhost:5173)
-npm run build     # build de produção (tsc + vite build)
+npm run dev       # localhost:5173
+npm run build     # tsc + vite build
 npm run lint      # ESLint
-npm run preview   # pré-visualizar build de produção
 ```
-
----
-
-## Estrutura do Projeto
-
-```
-src/
-├── App.tsx                   # Root: providers, estado global, header, roteamento de views
-├── main.tsx                  # Entry point React
-├── components/
-│   ├── TaskModal.tsx         # Modal criar/editar demanda
-│   └── ui/                   # Design system básico
-│       ├── Button.tsx        # Variantes: primary, secondary, outline, destructive, ghost
-│       ├── Input.tsx         # Input genérico
-│       ├── Label.tsx         # Label com peer-disabled
-│       ├── Badge.tsx         # Variantes: default, design, approval, dev, qa
-│       └── index.ts          # Barrel export
-├── views/
-│   ├── DashboardView.tsx     # Calendário mensal + Timeline (Gantt 60 dias)
-│   └── MembersView.tsx       # Visão de capacidade por membro
-├── hooks/
-│   └── useGoogleDrive.ts     # Integração Google Drive API v3
-├── utils/
-│   └── dateUtils.ts          # Utilitários de datas úteis (business days)
-└── data/
-    └── mock.ts               # Placeholder para dados mock
-```
-
----
 
 ## Modelo de Dados
 
-### Task (Demanda)
+**Task:** `id, title, clickupLink?, assignee, status ('backlog'|'em andamento'|'bloqueado'|'concluído'), phases {design,approval,dev,qa} cada com {start,end} YYYY-MM-DD, createdAt`
 
-```typescript
-{
-  id: string;                   // crypto.randomUUID()
-  title: string;                // Mín. 3 caracteres
-  clickupLink?: string;         // URL opcional (deve começar com "http")
-  assignee: string;             // ID do membro (ver DEFAULT_MEMBERS)
-  status: 'backlog' | 'em andamento' | 'bloqueado' | 'concluído';
-  phases: {
-    design:   { start: string; end: string };  // YYYY-MM-DD
-    approval: { start: string; end: string };
-    dev:      { start: string; end: string };
-    qa:       { start: string; end: string };
-  };
-  createdAt: string;            // ISO string
-}
-```
+**Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais)`
 
-### Member
+**Fases:** Design (5d, violeta) → Approval (3d, laranja) → Dev (7d, azul) → QA (3d, esmeralda). Cascata automática.
 
-```typescript
-{
-  id: string;
-  name: string;
-  role: 'Designer' | 'Developer';
-  avatar: string;  // iniciais (ex: 'AD')
-}
-```
+## Convenções
 
-### Fases e Durações Padrão (dias úteis)
+- UI em Português PT-BR; código em inglês
+- Datas: `YYYY-MM-DD`, parse com `new Date(str + 'T00:00:00')`
+- Tailwind v4 (plugin Vite, sem tailwind.config.js)
+- Commits: Conventional Commits + gitmoji, em português
+- Usar `src/components/ui/` antes de criar novos componentes
+- Estado global em `App.tsx`; local no componente
+- Sem abstrações prematuras
+- `.env` nunca commitado
 
-| Fase     | Duração | Cor           |
-|----------|---------|---------------|
-| Design   | 5 dias  | Violeta       |
-| Approval | 3 dias  | Laranja       |
-| Dev      | 7 dias  | Azul céu      |
-| QA       | 3 dias  | Esmeralda     |
+## Docs (ler sob demanda — NÃO carregar tudo de uma vez)
 
-Quando o início do Design muda, todas as fases seguintes são recalculadas automaticamente (`cascadePhases`).
-
----
-
-## Integração Google Drive
-
-- **Ficheiro:** `capacity-tasks.json`
-- **Caminho no Drive:** `Projeto web/dados/capacity-tasks.json`
-- **Formato JSON guardado:**
-  ```json
-  { "tasks": [...], "members": [...], "lastSync": "ISO string" }
-  ```
-- **Scopes OAuth:** `drive` + `userinfo.email`
-- Ao criar o ficheiro pela primeira vez, é partilhado com o domínio do utilizador (organizações Google Workspace)
-- Token armazenado apenas em memória (React state), não em localStorage
-
----
-
-## Variáveis de Ambiente
-
-```bash
-VITE_GOOGLE_CLIENT_ID=...   # Google OAuth 2.0 Client ID
-```
-
-Ficheiro `.env` na raiz. **Nunca commitar o `.env`** (já está no `.gitignore`).
-
----
-
-## Convenções e Padrões
-
-- **Idioma da UI:** Português PT (BR no conteúdo)
-- **Datas:** sempre no formato `YYYY-MM-DD`; usar `toLocalDate(str)` no DashboardView para evitar problemas de timezone (`new Date(str + 'T00:00:00')`)
-- **Componentes UI:** usar os de `src/components/ui/` antes de criar novos
-- **Tipos:** o projeto usa `any` em alguns sítios por design (dados vindos do Drive sem schema fixo); não adicionar tipagem desnecessária nestes casos
-- **Tailwind v4:** configuração via plugin Vite, sem ficheiro `tailwind.config.js`
-- **Print/Export PDF:** o header e controlos têm `print:hidden`; as views renderizam corretamente ao imprimir
-
----
-
-## Lógica Crítica
-
-### Cascata de Fases (`TaskModal.tsx`)
-Ao alterar o **início** de uma fase, a sua duração é preservada e todas as fases seguintes avançam. Ao alterar o **fim**, todas as fases seguintes são também arrastadas (cascata bidirecional). Restrições garantidas após cada alteração:
-- `approval.start` ≥ `nextBusinessDay(design.end)`
-- `dev.start` ≥ `nextBusinessDay(approval.end)`
-- `qa.start` ≥ `nextBusinessDay(dev.end)`
-
-### Apagar Demanda
-- Botão "Apagar" no footer do `TaskModal` (só visível ao editar)
-- Ícone de lixo nas linhas do CalendarView e TimelineView (hover)
-- Confirmação via `confirm()` antes de eliminar
-
-### Slot Algorithm (`DashboardView.tsx` — CalendarView)
-Cada célula de dia no calendário suporta até `MAX_SLOTS = 3` barras de fases sobrepostas. O algoritmo aloca slots por ordem de início. Quando há mais de 3, mostra indicador de overflow.
-
-### Timeline/Gantt (`DashboardView.tsx` — TimelineView)
-- Colunas de largura fixa `DAY_COL_W = 36px`; o wrapper tem `minWidth = 224 + daysRange * 36` e scrolla horizontalmente
-- Layout em degraus: 4 sub-linhas por tarefa (uma por fase), cada uma com `height = 28px`
-- Range de dias configurável: 14 / 30 / 60 / 90 (botões no header)
-- Drag-and-drop: `colWidth` fixo = `DAY_COL_W` (não precisa de medir o DOM)
-- Filtro de datas sem valor por defeito — todas as demandas são visíveis ao carregar
-
-### Capacidade de Membros (`MembersView.tsx`)
-- **Verde (Livre):** 0-2 tarefas ativas
-- **Azul (Alocado):** 3 tarefas ativas
-- **Vermelho (Sobrecarregado):** >3 tarefas ativas
-
----
-
-## Documentação Adicional
-
-- [docs/architecture.md](docs/architecture.md) — diagrama de componentes e fluxo de dados
-- [docs/views.md](docs/views.md) — detalhe das views e lógica de drag-drop
-- [docs/google-drive.md](docs/google-drive.md) — detalhe da integração Google Drive
-- [docs/date-utils.md](docs/date-utils.md) — referência das funções de datas úteis
-- [docs/ui-components.md](docs/ui-components.md) — guia do design system
+| Quando precisar de... | Ler |
+|---|---|
+| Estrutura, fluxo de dados, decisões | [docs/architecture.md](docs/architecture.md) |
+| DashboardView, Calendar, Timeline, drag-drop | [docs/views/dashboard.md](docs/views/dashboard.md) |
+| MembersView, capacidade | [docs/views/members.md](docs/views/members.md) |
+| TaskModal, cascata de fases | [docs/components/task-modal.md](docs/components/task-modal.md) |
+| Design system (Button, Input, Label, Badge) | [docs/components/ui.md](docs/components/ui.md) |
+| useSupabase, CRUD, steps | [docs/hooks/supabase.md](docs/hooks/supabase.md) |
+| useAuth, login | [docs/hooks/auth.md](docs/hooks/auth.md) |
+| useFormState | [docs/hooks/form-state.md](docs/hooks/form-state.md) |
+| dateUtils, dias úteis, cascadePhases | [docs/utils/date-utils.md](docs/utils/date-utils.md) |
+| Convenções, padrões, env vars | [docs/guidelines.md](docs/guidelines.md) |
+| TODOs e melhorias pendentes | [docs/todo/melhorias.md](docs/todo/melhorias.md) |
+| TODO: upsert steps (detalhado) | [docs/todo/upsert-steps.md](docs/todo/upsert-steps.md) |
