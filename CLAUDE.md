@@ -28,8 +28,10 @@ npm run lint      # ESLint
 - Commits: Conventional Commits + gitmoji, em português
 - Usar `src/components/ui/` antes de criar novos componentes
 - Estado global em `App.tsx`; local no componente
+- Imports: usar alias `@/` para paths fora do módulo local (ex: `@/hooks/useAuth`, `@/components/ui`). Manter `./` apenas para imports dentro do mesmo módulo/pasta
 - Sem abstrações prematuras
 - Views devem ser pastas (`src/views/<nome>/`) com componentes, hooks e `index.ts` — nunca arquivos monolíticos
+- **Co-location:** componentes e hooks **privados** de uma view ficam dentro dela (`views/<nome>/components/`, `views/<nome>/hooks/`). Só sobem para `src/components/` ou `src/hooks/` quando usados por 2+ views
 - `.env` nunca commitado
 
 ## Docs (ler sob demanda — NÃO carregar tudo de uma vez)
