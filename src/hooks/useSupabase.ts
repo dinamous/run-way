@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { supabase } from '@/lib/supabase'
+import type { Task, Step, StepType } from '@/lib/steps'
+import type { DbTaskRow, LocalStorageTaskEntry } from '@/types/db'
 
 const devLog = import.meta.env.DEV
-  ? (...args: unknown[]) => console.error(...args)
+  ? (...args: unknown[]) => console.warn(...args)
   : () => undefined
-import { supabase } from '../lib/supabase'
-import type { Task, Step, StepType } from '../lib/steps'
-import type { DbTaskRow, LocalStorageTaskEntry } from '../types/db'
 
 export interface Member {
   id: string
@@ -224,11 +224,6 @@ export function useSupabase() {
     return true
   }
 
-  // ── Insert steps helper (used only on create) ─────────────────────────────
-  async function insertSteps(taskId: string, steps: Step[]): Promise<boolean> {
-    return upsertSteps(taskId, steps)
-  }
-
   // ── Create task ────────────────────────────────────────────────────────────
   const createTask = async (taskData: Omit<Task, 'id' | 'createdAt'>): Promise<boolean> => {
     const { data: taskRow, error: taskErr } = await supabase
@@ -247,7 +242,7 @@ export function useSupabase() {
       return false
     }
 
-    const ok = await insertSteps(taskRow.id, taskData.steps)
+    const ok = await upsertSteps(taskRow.id, taskData.steps)
     if (!ok) {
       setError('Tarefa criada mas erro ao guardar etapas')
       await fetchTasks()
