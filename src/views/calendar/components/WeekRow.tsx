@@ -58,11 +58,17 @@ const WeekRow: React.FC<WeekRowProps> = ({
       {bars.filter(b => b.slot < MAX_SLOTS).map((bar, bi) => {
         const task = tasks.find(t => t.id === bar.taskId);
         if (!task) return null;
+        const weekStart = week[0].toISOString().split('T')[0];
+        const weekEnd = week[6].toISOString().split('T')[0];
+        const isFirstBarOfStep = bar.stepStart >= weekStart;
+        const isLastBarOfStep = bar.stepEnd <= weekEnd;
         return (
           <StepBar
             key={`${bar.taskId}-${bar.stepType}-${bi}`}
             bar={bar}
             task={task}
+            isFirstBarOfStep={isFirstBarOfStep}
+            isLastBarOfStep={isLastBarOfStep}
             dragPreview={dragPreview}
             onStartDrag={onStartDrag}
             onClick={() => { if (!didDragRef.current) onEdit(task); }}
