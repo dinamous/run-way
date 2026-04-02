@@ -18,10 +18,11 @@ interface StepRowProps {
   startDrag: (e: React.MouseEvent, taskId: string, stepType: StepType, type: DragState['type'], step: Step, colWidth: number) => void;
   onEdit: (t: Task) => void;
   holidays?: Holiday[];
+  flex1?: boolean;
 }
 
-const StepRow: React.FC<StepRowProps> = ({ step, days, daysRange, task, dragPreview, didDragRef, startDrag, onEdit, holidays = [] }) => (
-  <div className="relative overflow-hidden" style={{ height: PHASE_ROW_H, width: daysRange * DAY_COL_W }}>
+const StepRow: React.FC<StepRowProps> = ({ step, days, daysRange, task, dragPreview, didDragRef, startDrag, onEdit, holidays = [], flex1 = false }) => (
+  <div className={`relative overflow-hidden${flex1 ? ' flex-1' : ''}`} style={{ minHeight: PHASE_ROW_H, width: daysRange * DAY_COL_W }}>
     <div className="absolute inset-0 flex pointer-events-none">
       {days.map((d, i) => {
         const isWeekend = d.getDay() === 0 || d.getDay() === 6;

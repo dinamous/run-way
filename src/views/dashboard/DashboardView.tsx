@@ -26,6 +26,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tasks, members, onEdit, o
         onExport={onExport}
         onOpenNew={onOpenNew}
       />
+      <MetricsBar
+        totalCount={tasks.length}
+        activeCount={activeCount}
+        blockedCount={blockedCount}
+      />
 
       <FilterBar
         members={members}
@@ -41,11 +46,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tasks, members, onEdit, o
         totalCount={tasks.length}
       />
 
-      <MetricsBar
-        totalCount={tasks.length}
-        activeCount={activeCount}
-        blockedCount={blockedCount}
-      />
+      
 
       {calView === 'calendar' ? (
         <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />

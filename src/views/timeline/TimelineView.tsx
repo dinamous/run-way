@@ -23,8 +23,9 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onD
       <div className="flex w-full">
         {/* Fixed info column */}
         <div className="shrink-0 w-56 border-r border-border z-10">
-          <div className="border-b border-border bg-muted px-3 text-xs font-semibold text-muted-foreground h-[46px] flex items-center sticky top-0">
-            Demanda
+          <div className="border-b border-border bg-muted sticky top-0 z-10 flex flex-col">
+            <div className="border-b border-border/50 px-3 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">&nbsp;</div>
+            <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground flex items-center h-[46px]">Demanda</div>
           </div>
           {tasks.length > 0 && tasks.map((task, i) => (
             <div key={task.id} className={`border-b border-border group hover:bg-muted/30 transition-colors ${i % 2 === 1 ? 'bg-muted/20' : ''}`}>

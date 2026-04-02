@@ -43,8 +43,9 @@ const TaskCalendarRows: React.FC<TaskCalendarRowsProps> = ({ task, days, daysRan
           startDrag={startDrag}
           onEdit={onEdit}
           holidays={holidays}
+          flex1
         />
-      ) : visibleSteps.map(step => (
+      ) : visibleSteps.map((step) => (
         <StepRow
           key={step.type}
           step={step}
@@ -56,6 +57,7 @@ const TaskCalendarRows: React.FC<TaskCalendarRowsProps> = ({ task, days, daysRan
           startDrag={startDrag}
           onEdit={onEdit}
           holidays={holidays}
+          flex1={visibleSteps.length === 1}
         />
       ))}
     </div>
