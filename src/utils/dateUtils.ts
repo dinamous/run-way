@@ -9,7 +9,7 @@ export const formatDate = (date: Date | string) => {
 };
 
 export const addBusinessDays = (startDate: Date | string, daysToAdd: number) => {
-  let currentDate = new Date(startDate);
+  const currentDate = new Date(startDate);
   let addedDays = 0;
   if (daysToAdd === 0) {
     while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
@@ -28,7 +28,7 @@ export const addBusinessDays = (startDate: Date | string, daysToAdd: number) => 
 };
 
 export const nextBusinessDay = (date: Date | string) => {
-  let next = new Date(date);
+  const next = new Date(date);
   next.setDate(next.getDate() + 1);
   while (next.getDay() === 0 || next.getDay() === 6) {
     next.setDate(next.getDate() + 1);
@@ -66,7 +66,7 @@ export const cascadePhases = (startDesignDate: Date | string) => {
 
 export const businessDaysBetween = (start: string, end: string): number => {
   let count = 0;
-  let current = new Date(start);
+  const current = new Date(start);
   const endDate = new Date(end);
   while (current <= endDate) {
     if (current.getDay() !== 0 && current.getDay() !== 6) count++;

@@ -6,10 +6,11 @@ import { useTimelineDays } from './hooks/useTimelineDays';
 import TimelineHeader from './components/TimelineHeader';
 import DayColumnHeaders from './components/DayColumnHeaders';
 import TaskRow from './components/TaskRow';
+import { ConfirmModal } from '@/components/ui';
 
-const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask }) => {
+const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask, holidays }) => {
   const { daysRange, setDaysRange, days, today } = useTimelineDays();
-  const { dragPreview, didDragRef, startDrag } = usePhaseDrag(tasks, onUpdateTask);
+  const { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag } = usePhaseDrag(tasks, onUpdateTask, holidays);
   const containerRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -37,6 +38,14 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onD
           />
         ))}
       </div>
+      {pendingDragUpdate && (
+        <ConfirmModal
+          title="Fase em fim de semana ou feriado"
+          message="A fase foi movida para uma data em fim de semana ou feriado. Deseja manter mesmo assim?"
+          onConfirm={confirmDrag}
+          onCancel={cancelDrag}
+        />
+      )}
     </div>
   );
 };

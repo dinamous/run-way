@@ -16,3 +16,5 @@ export {
   TooltipTrigger,
   TooltipContent,
 } from './Tooltip';
+export { ConfirmModal } from './ConfirmModal';
+export type { ConfirmModalProps } from './ConfirmModal';

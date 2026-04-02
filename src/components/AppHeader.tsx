@@ -73,7 +73,7 @@ export function AppHeader({
                 {getInitials(userEmail)}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel>{userEmail ?? "Utilizador"}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem disabled>

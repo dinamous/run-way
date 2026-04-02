@@ -3,11 +3,16 @@ import {
   toLocalDate, toDateStr, addDays, normaliseTask,
   type DragState, type DragPreview, type Task, type Step, type StepType,
 } from '@/utils/dashboardUtils';
+import { isWeekendOrHoliday, type Holiday } from '@/utils/holidayUtils';
 
-export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void) {
+type PendingDragUpdate = { task: Task };
+
+export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, holidays: Holiday[] = []) {
   const dragStateRef = useRef<DragState | null>(null);
   const didDragRef = useRef(false);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+  const [pendingDragUpdate, setPendingDragUpdate] = useState<PendingDragUpdate | null>(null);
+  const originalTaskRef = useRef<{ start: Date; end: Date } | null>(null);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -37,15 +42,25 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void) 
             newEnd = addDays(ds.originalEnd, delta);
             if (newEnd <= newStart) newEnd = addDays(newStart, 1);
           }
+
           const norm = normaliseTask(task);
-          onUpdateTask({
+          const updatedTask: Task = {
             ...norm,
             steps: norm.steps.map((s: Step) =>
               s.type === ds.stepType
                 ? { ...s, start: toDateStr(newStart), end: toDateStr(newEnd) }
                 : s
             ),
-          });
+          };
+
+          const startStr = toDateStr(newStart);
+          const endStr = toDateStr(newEnd);
+          if (isWeekendOrHoliday(startStr, holidays) || isWeekendOrHoliday(endStr, holidays)) {
+            originalTaskRef.current = { start: ds.originalStart, end: ds.originalEnd };
+            setPendingDragUpdate({ task: updatedTask });
+          } else {
+            onUpdateTask(updatedTask);
+          }
         }
       }
       dragStateRef.current = null;
@@ -59,7 +74,7 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void) 
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-  }, [tasks, onUpdateTask]);
+  }, [tasks, onUpdateTask, holidays]);
 
   const startDrag = useCallback((
     e: React.MouseEvent,
@@ -81,5 +96,17 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void) 
     didDragRef.current = false;
   }, []);
 
-  return { dragPreview, didDragRef, startDrag };
+  const confirmDrag = useCallback(() => {
+    if (!pendingDragUpdate) return;
+    onUpdateTask(pendingDragUpdate.task);
+    setPendingDragUpdate(null);
+    originalTaskRef.current = null;
+  }, [pendingDragUpdate, onUpdateTask]);
+
+  const cancelDrag = useCallback(() => {
+    setPendingDragUpdate(null);
+    originalTaskRef.current = null;
+  }, []);
+
+  return { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag };
 }

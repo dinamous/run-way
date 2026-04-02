@@ -8,7 +8,7 @@ import { MetricsBar } from './components/MetricsBar';
 import { StepsLegend } from './components/StepsLegend';
 import type { DashboardViewProps } from '@/types/props';
 
-const DashboardView: React.FC<DashboardViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
   const [calView, setCalView] = useState<'calendar' | 'timeline'>('calendar');
   const {
     filterAssignee, setFilterAssignee,
@@ -48,9 +48,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tasks, members, onEdit, o
       />
 
       {calView === 'calendar' ? (
-        <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} />
+        <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
       ) : (
-        <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} />
+        <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
       )}
 
       <StepsLegend />

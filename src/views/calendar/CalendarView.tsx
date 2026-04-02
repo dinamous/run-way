@@ -6,10 +6,11 @@ import { useCalendarDrag } from './hooks/useCalendarDrag';
 import CalendarHeader from './components/CalendarHeader';
 import DayHeaders from './components/DayHeaders';
 import WeekRow from './components/WeekRow';
+import { ConfirmModal } from '@/components/ui';
 
-const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask, holidays }) => {
   const { today, monthDate, weeks, prevMonth, nextMonth, goToday } = useCalendarNavigation();
-  const { dragPreview, didDragRef, startDrag } = useCalendarDrag(tasks, onUpdateTask);
+  const { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag } = useCalendarDrag(tasks, onUpdateTask, holidays);
   const rowHeight = DAY_HEADER_H + MAX_SLOTS * SLOT_HEIGHT + ROW_PADDING;
 
   return (
@@ -34,9 +35,18 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask
             didDragRef={didDragRef}
             onStartDrag={startDrag}
             onEdit={onEdit}
+            holidays={holidays}
           />
         ))}
       </div>
+      {pendingDragUpdate && (
+        <ConfirmModal
+          title="Fase em fim de semana ou feriado"
+          message="A fase foi movida para uma data em fim de semana ou feriado. Deseja manter mesmo assim?"
+          onConfirm={confirmDrag}
+          onCancel={cancelDrag}
+        />
+      )}
     </div>
   );
 };

@@ -7,6 +7,7 @@
 
 import type { Task } from '../lib/steps';
 import type { Member } from '../hooks/useSupabase';
+import type { Holiday } from '../utils/holidayUtils';
 
 // ─── TaskModal ────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ export interface TaskModalProps {
   onSave: (taskData: Omit<Task, 'id' | 'createdAt'>) => Promise<void>;
   /** Chamado com o id da tarefa a eliminar; omitido no modal de criação. */
   onDelete?: (id: string) => void;
+  holidays: Holiday[];
 }
 
 // ─── DashboardView ────────────────────────────────────────────────────────────
@@ -31,6 +33,7 @@ export interface DashboardViewProps {
   onUpdateTask: (task: Task) => void;
   onOpenNew: () => void;
   onExport: () => void;
+  holidays: Holiday[];
 }
 
 // ─── CalendarView ─────────────────────────────────────────────────────────────
@@ -41,6 +44,7 @@ export interface CalendarViewProps {
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
+  holidays: Holiday[];
 }
 
 // ─── TimelineView ─────────────────────────────────────────────────────────────
@@ -51,6 +55,7 @@ export interface TimelineViewProps {
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
+  holidays: Holiday[];
 }
 
 // ─── MembersView ─────────────────────────────────────────────────────────────

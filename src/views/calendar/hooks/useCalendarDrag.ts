@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
 import { normaliseTask, type BarItem, type DragState, type Task, type Step } from '../../../utils/dashboardUtils';
 import { usePhaseDrag } from '@/hooks/usePhaseDrag';
+import type { Holiday } from '@/utils/holidayUtils';
 
-export function useCalendarDrag(tasks: Task[], onUpdateTask: (task: Task) => void) {
-  const { dragPreview, didDragRef, startDrag: phaseDragStart } = usePhaseDrag(tasks, onUpdateTask);
+export function useCalendarDrag(tasks: Task[], onUpdateTask: (task: Task) => void, holidays: Holiday[] = []) {
+  const { dragPreview, didDragRef, startDrag: phaseDragStart, pendingDragUpdate, confirmDrag, cancelDrag } = usePhaseDrag(tasks, onUpdateTask, holidays);
 
   const startDrag = useCallback((
     e: React.MouseEvent,
@@ -19,5 +20,5 @@ export function useCalendarDrag(tasks: Task[], onUpdateTask: (task: Task) => voi
     phaseDragStart(e, bar.taskId, bar.stepType, type, step, colWidth);
   }, [phaseDragStart]);
 
-  return { dragPreview, didDragRef, startDrag };
+  return { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag };
 }

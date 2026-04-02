@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Input, Label, Button } from './ui';
+import { Input, Label, Button, ConfirmModal } from './ui';
 import { Save, ExternalLink, Trash2, Users, AlertCircle } from 'lucide-react';
 import {
   STEP_META,
@@ -11,8 +11,9 @@ import {
 } from '../lib/steps';
 import type { TaskModalProps } from '../types/props';
 import { useFormState } from '../hooks/useFormState';
+import { isWeekendOrHoliday } from '../utils/holidayUtils';
 
-const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, onDelete }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, onDelete, holidays }) => {
   const init = migrateLegacyTask(task ?? {});
 
   const [title, setTitle] = useState<string>(task?.title ?? '');
@@ -25,6 +26,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
     task ? init.steps : createDefaultSteps()
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pendingSubmitData, setPendingSubmitData] = useState<Parameters<typeof onSave>[0] | null>(null);
+  const [confirmMessage, setConfirmMessage] = useState('');
 
   const formSnapshot = { title, clickupLink, blocked, blockedAt, steps };
   const { isDirty, submitting, withSubmit, confirmClose } = useFormState(
@@ -50,11 +53,41 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+
     const status: TaskStatus = {
       blocked,
       blockedAt: blocked ? blockedAt : undefined,
     };
-    withSubmit(() => onSave({ ...task, title, clickupLink, status, steps }));
+    const taskData = { ...task, title, clickupLink, status, steps };
+
+    const affected = steps
+      .filter(s => s.active)
+      .filter(s => (s.start && isWeekendOrHoliday(s.start, holidays)) || (s.end && isWeekendOrHoliday(s.end, holidays)))
+      .map(s => {
+        const STEP_META_LABEL: Record<string, string> = { design: 'Design', approval: 'Aprovação', dev: 'Dev', qa: 'QA' };
+        const parts: string[] = [];
+        if (s.start && isWeekendOrHoliday(s.start, holidays)) parts.push(`início (${s.start})`);
+        if (s.end && isWeekendOrHoliday(s.end, holidays)) parts.push(`fim (${s.end})`);
+        return `• ${STEP_META_LABEL[s.type] ?? s.type}: ${parts.join(' e ')}`;
+      });
+
+    if (affected.length > 0) {
+      setConfirmMessage(`As seguintes fases têm datas em fim de semana ou feriado:\n\n${affected.join('\n')}\n\nDeseja salvar mesmo assim?`);
+      setPendingSubmitData(taskData as Parameters<typeof onSave>[0]);
+      return;
+    }
+
+    withSubmit(() => onSave(taskData as Parameters<typeof onSave>[0]));
+  };
+
+  const handleConfirmWeekend = () => {
+    if (!pendingSubmitData) return;
+    setPendingSubmitData(null);
+    withSubmit(() => onSave(pendingSubmitData));
+  };
+
+  const handleCancelWeekend = () => {
+    setPendingSubmitData(null);
   };
 
   const toggleStep = (type: StepType) => {
@@ -316,6 +349,15 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
             </Button>
           </div>
         </div>
+
+        {pendingSubmitData && (
+          <ConfirmModal
+            title="Datas em fim de semana ou feriado"
+            message={confirmMessage}
+            onConfirm={handleConfirmWeekend}
+            onCancel={handleCancelWeekend}
+          />
+        )}
 
       </div>
     </div>

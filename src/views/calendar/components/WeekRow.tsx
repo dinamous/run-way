@@ -3,6 +3,8 @@ import {
   MAX_SLOTS, layoutWeekBars,
   type BarItem, type DragPreview, type DragState, type Task,
 } from '../../../utils/dashboardUtils';
+import type { Holiday } from '../../../utils/holidayUtils';
+import { getHolidayName } from '../../../utils/holidayUtils';
 import DayCell from './DayCell';
 import StepBar from './StepBar';
 
@@ -16,11 +18,12 @@ interface WeekRowProps {
   didDragRef: React.RefObject<boolean>;
   onStartDrag: (e: React.MouseEvent, bar: BarItem, type: DragState['type'], task: Task) => void;
   onEdit: (task: Task) => void;
+  holidays: Holiday[];
 }
 
 const WeekRow: React.FC<WeekRowProps> = ({
   week, tasks, today, currentMonth, rowHeight,
-  dragPreview, didDragRef, onStartDrag, onEdit,
+  dragPreview, didDragRef, onStartDrag, onEdit, holidays,
 }) => {
   const bars = layoutWeekBars(week, tasks);
   const overflow = Array(7).fill(0);
@@ -28,6 +31,10 @@ const WeekRow: React.FC<WeekRowProps> = ({
     if (bar.slot >= MAX_SLOTS) {
       for (let c = bar.startCol; c <= bar.endCol; c++) overflow[c]++;
     }
+  }
+
+  function toDateStr(d: Date): string {
+    return d.toISOString().split('T')[0];
   }
 
   return (
@@ -44,6 +51,7 @@ const WeekRow: React.FC<WeekRowProps> = ({
           currentMonth={currentMonth}
           rowHeight={rowHeight}
           overflowCount={overflow[di]}
+          holidayName={getHolidayName(toDateStr(day), holidays)}
         />
       ))}
 
