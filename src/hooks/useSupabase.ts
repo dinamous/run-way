@@ -109,15 +109,16 @@ export function useSupabase() {
     const migrate = async () => {
       try {
         for (const raw of parsed) {
-          if (/^[0-9a-f-]{36}$/.test(raw.id)) continue
+          if (/^[0-9a-f-]{36}$/.test(raw.id ?? '')) continue
 
+          const statusObj = typeof raw.status === 'object' ? raw.status : undefined
           const { data: taskRow, error: taskErr } = await supabase
             .from('tasks')
             .insert({
               title: raw.title ?? 'Sem título',
               clickup_link: raw.clickupLink ?? null,
-              blocked: raw.status?.blocked ?? false,
-              blocked_at: raw.status?.blockedAt ?? null,
+              blocked: statusObj?.blocked ?? false,
+              blocked_at: statusObj?.blockedAt ?? null,
               created_at: raw.createdAt ?? new Date().toISOString(),
             })
             .select('id')

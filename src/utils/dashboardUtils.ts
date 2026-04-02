@@ -130,7 +130,7 @@ export function layoutWeekBars(weekDays: Date[], tasks: (Task | LegacyTask)[]): 
       if (pEnd < weekStart || pStart > weekEnd) continue;
       const startCol = Math.max(0, Math.round((pStart.getTime() - weekStart.getTime()) / 86400000));
       const endCol   = Math.min(6, Math.round((pEnd.getTime() - weekStart.getTime()) / 86400000));
-      raw.push({ taskId: task.id, taskTitle: task.title, stepType: step.type, stepStart: step.start, startCol, endCol });
+      raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', stepType: step.type, stepStart: step.start, startCol, endCol });
     }
   }
 
