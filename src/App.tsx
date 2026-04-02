@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import TaskModal from "./components/TaskModal";
 import { AppHeader } from "./components/AppHeader";
+import { AppSidebar } from "./components/AppSidebar";
 import { DashboardView } from "./views/dashboard";
 import MembersView from "./views/MembersView";
 import ReportsView from "./views/reports";
@@ -27,6 +28,17 @@ export default function App() {
     localStorage.setItem("theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    return localStorage.getItem("sidebarOpen") !== "false";
+  });
+
+  const handleToggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      localStorage.setItem("sidebarOpen", String(!prev));
+      return !prev;
+    });
+  };
+
   const [view, setView] = useState<"dashboard" | "members" | "reports">("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -51,34 +63,43 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
+    <div className="flex flex-col h-screen bg-background text-foreground font-sans">
       <Toaster richColors position="top-right" />
       <AppHeader
         darkMode={darkMode}
         onToggleDark={() => setDarkMode((d) => !d)}
         userEmail={user?.email}
         onSignOut={signOut}
-        view={view}
-        onViewChange={setView}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={handleToggleSidebar}
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {view === "dashboard" ? (
-          <DashboardView
-            tasks={tasks}
-            members={members}
-            onEdit={(task: Task) => { setEditingTask(task); setIsModalOpen(true); }}
-            onDelete={handleDelete}
-            onUpdateTask={updateTask}
-            onOpenNew={() => { setEditingTask(null); setIsModalOpen(true); }}
-            onExport={() => window.print()}
-          />
-        ) : view === "members" ? (
-          <MembersView tasks={tasks} members={members} />
-        ) : (
-          <ReportsView tasks={tasks} members={members} />
-        )}
-      </main>
+      <div className="flex flex-row flex-1 overflow-hidden">
+        <AppSidebar
+          open={sidebarOpen}
+          onToggle={handleToggleSidebar}
+          view={view}
+          onViewChange={setView}
+        />
+
+        <main className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8">
+          {view === "dashboard" ? (
+            <DashboardView
+              tasks={tasks}
+              members={members}
+              onEdit={(task: Task) => { setEditingTask(task); setIsModalOpen(true); }}
+              onDelete={handleDelete}
+              onUpdateTask={updateTask}
+              onOpenNew={() => { setEditingTask(null); setIsModalOpen(true); }}
+              onExport={() => window.print()}
+            />
+          ) : view === "members" ? (
+            <MembersView tasks={tasks} members={members} />
+          ) : (
+            <ReportsView tasks={tasks} members={members} />
+          )}
+        </main>
+      </div>
 
       {isModalOpen && (
         <TaskModal

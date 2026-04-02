@@ -1,38 +1,61 @@
-import { Sun, Moon, CalendarDays, LogOut } from "lucide-react";
-import { Button } from "@/components/ui";
-import { cn } from "@/lib/utils";
-
-type View = "dashboard" | "members" | "reports";
+import { Sun, Moon, CalendarDays, PanelLeft, LogOut, User } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui";
 
 interface AppHeaderProps {
   darkMode: boolean;
   onToggleDark: () => void;
   userEmail?: string;
   onSignOut: () => void;
-  view: View;
-  onViewChange: (view: View) => void;
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
 }
 
-const VIEW_LABELS: Record<View, string> = {
-  dashboard: "Calendário",
-  members: "Membros",
-  reports: "Relatórios",
-};
+function getInitials(email?: string): string {
+  if (!email) return "?";
+  const name = email.split("@")[0];
+  const parts = name.split(/[._-]/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
 
-export function AppHeader({ darkMode, onToggleDark, userEmail, onSignOut, view, onViewChange }: AppHeaderProps) {
+export function AppHeader({
+  darkMode,
+  onToggleDark,
+  userEmail,
+  onSignOut,
+  sidebarOpen,
+  onToggleSidebar,
+}: AppHeaderProps) {
   return (
     <header className="bg-card border-b border-border sticky top-0 z-10 print:hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="bg-primary p-2 rounded-lg">
-            <CalendarDays className="w-5 h-5 text-primary-foreground" />
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label={sidebarOpen ? "Fechar sidebar" : "Abrir sidebar"}
+          >
+            <PanelLeft className="w-4 h-4" />
+          </button>
+
+          <div className="flex items-center gap-2">
+            <div className="bg-primary p-2 rounded-lg">
+              <CalendarDays className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <h1 className="text-xl font-bold text-foreground hidden sm:block">
+              Calendário de Demandas
+            </h1>
           </div>
-          <h1 className="text-xl font-bold text-foreground">
-            Calendário de Demandas
-          </h1>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <button
             onClick={onToggleDark}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -41,31 +64,29 @@ export function AppHeader({ darkMode, onToggleDark, userEmail, onSignOut, view, 
             {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="hidden sm:inline">{userEmail}</span>
-            <Button variant="ghost" size="sm" onClick={onSignOut}>
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <div className="h-6 w-px bg-border" />
-
-          <div className="flex bg-muted rounded-lg p-1">
-            {(["dashboard", "members", "reports"] as const).map((v) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <button
-                key={v}
-                onClick={() => onViewChange(v)}
-                className={cn(
-                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                  view === v
-                    ? "bg-card shadow-sm text-primary"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                aria-label="Menu do utilizador"
               >
-                {VIEW_LABELS[v]}
+                {getInitials(userEmail)}
               </button>
-            ))}
-          </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>{userEmail ?? "Utilizador"}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled>
+                <User className="w-4 h-4" />
+                Perfil
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onSignOut}>
+                <LogOut className="w-4 h-4" />
+                Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
