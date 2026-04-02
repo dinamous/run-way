@@ -5,7 +5,7 @@ import { AppSidebar } from "./components/AppSidebar";
 import { DashboardView } from "./views/dashboard";
 import MembersView from "./views/MembersView";
 import ReportsView from "./views/reports";
-import LoginPage from "./pages/LoginPage";
+import { LoginView } from "./views/login";
 import { useAuth } from "./hooks/useAuth";
 import { useSupabase } from "./hooks/useSupabase";
 import { Toaster, toast } from "sonner";
@@ -52,7 +52,7 @@ export default function App() {
   }
 
   if (!session) {
-    return <LoginPage onSignIn={signIn} error={authError} />;
+    return <LoginView onSignIn={signIn} error={authError} />;
   }
 
   const handleDelete = async (id: string) => {

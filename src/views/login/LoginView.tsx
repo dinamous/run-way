@@ -1,12 +1,12 @@
 import { CalendarDays, LogIn } from 'lucide-react'
-import { Button } from '../components/ui'
+import { Button } from '@/components/ui'
 
-interface LoginPageProps {
+interface LoginViewProps {
   onSignIn: () => void
   error?: string | null
 }
 
-export default function LoginPage({ onSignIn, error }: LoginPageProps) {
+export default function LoginView({ onSignIn, error }: LoginViewProps) {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6 text-center">

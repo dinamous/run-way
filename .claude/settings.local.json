@@ -11,7 +11,8 @@
       "Bash(mkdir:*)",
       "Bash(cp docs/todo-upsert-steps.md docs/todo/upsert-steps.md)",
       "Bash(cp docs/date-utils.md docs/utils/date-utils.md)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Skill(update-config)"
     ]
   },
   "hooks": {
