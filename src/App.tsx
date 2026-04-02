@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
 import TaskModal from "./components/TaskModal";
+import { AppHeader } from "./components/AppHeader";
 import { DashboardView } from "./views/dashboard";
 import MembersView from "./views/MembersView";
 import ReportsView from "./views/reports";
 import LoginPage from "./pages/LoginPage";
-import { CalendarDays, LogOut, Sun, Moon } from "lucide-react";
-import { Button } from "./components/ui";
-import { cn } from "./lib/utils";
 import { useAuth } from "./hooks/useAuth";
 import { useSupabase } from "./hooks/useSupabase";
 import { Toaster, toast } from "sonner";
@@ -55,66 +53,25 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       <Toaster richColors position="top-right" />
-      <header className="bg-card border-b border-border sticky top-0 z-10 print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary p-2 rounded-lg">
-              <CalendarDays className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <h1 className="text-xl font-bold text-foreground">
-              Calendário de Demandas
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setDarkMode((d) => !d)}
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              aria-label="Alternar tema"
-            >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="hidden sm:inline">{user?.email}</span>
-              <Button variant="ghost" size="sm" onClick={signOut}>
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <div className="h-6 w-px bg-border" />
-
-            <div className="flex bg-muted rounded-lg p-1">
-              {(["dashboard", "members", "reports"] as const).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={cn(
-                    "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                    view === v
-                      ? "bg-card shadow-sm text-primary"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {v === "dashboard" ? "Calendário" : v === "members" ? "Membros" : "Relatórios"}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        darkMode={darkMode}
+        onToggleDark={() => setDarkMode((d) => !d)}
+        userEmail={user?.email}
+        onSignOut={signOut}
+        view={view}
+        onViewChange={setView}
+      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {view === "dashboard" ? (
           <DashboardView
             tasks={tasks}
             members={members}
-            onEdit={(t: unknown) => { setEditingTask(t); setIsModalOpen(true); }}
+            onEdit={(task: Task) => { setEditingTask(task); setIsModalOpen(true); }}
             onDelete={handleDelete}
             onUpdateTask={updateTask}
             onOpenNew={() => { setEditingTask(null); setIsModalOpen(true); }}
             onExport={() => window.print()}
-            isConnected={true}
           />
         ) : view === "members" ? (
           <MembersView tasks={tasks} members={members} />
@@ -138,7 +95,7 @@ export default function App() {
           onSave={async (taskData) => {
             let ok: boolean;
             if (editingTask) {
-              ok = await updateTask(taskData);
+              ok = await updateTask({ ...editingTask, ...taskData });
             } else {
               ok = await createTask({
                 title: taskData.title,
