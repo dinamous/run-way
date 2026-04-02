@@ -62,4 +62,5 @@ const TaskRow: React.FC<TaskRowProps> = ({ task, members, days, daysRange, dragP
   );
 };
 
+
 export default TaskRow;

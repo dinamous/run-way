@@ -11,7 +11,7 @@ import {
 } from '../lib/steps';
 import type { TaskModalProps } from '../types/props';
 import { useFormState } from '../hooks/useFormState';
-import { isWeekendOrHoliday } from '../utils/holidayUtils';
+import { isWeekendOrHoliday, getHolidayName } from '../utils/holidayUtils';
 
 const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, onDelete, holidays }) => {
   const init = migrateLegacyTask(task ?? {});
@@ -60,15 +60,21 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
     };
     const taskData = { ...task, title, clickupLink, status, steps };
 
+    const describeDateConflict = (date: string): string => {
+      const holidayName = getHolidayName(date, holidays);
+      if (holidayName) return `${date} (Feriado: ${holidayName})`;
+      const dow = new Date(date + 'T00:00:00').getDay();
+      return `${date} (${dow === 0 ? 'Domingo' : 'Sábado'})`;
+    };
+
     const affected = steps
       .filter(s => s.active)
       .filter(s => (s.start && isWeekendOrHoliday(s.start, holidays)) || (s.end && isWeekendOrHoliday(s.end, holidays)))
       .map(s => {
-        const STEP_META_LABEL: Record<string, string> = { design: 'Design', approval: 'Aprovação', dev: 'Dev', qa: 'QA' };
         const parts: string[] = [];
-        if (s.start && isWeekendOrHoliday(s.start, holidays)) parts.push(`início (${s.start})`);
-        if (s.end && isWeekendOrHoliday(s.end, holidays)) parts.push(`fim (${s.end})`);
-        return `• ${STEP_META_LABEL[s.type] ?? s.type}: ${parts.join(' e ')}`;
+        if (s.start && isWeekendOrHoliday(s.start, holidays)) parts.push(`início em ${describeDateConflict(s.start)}`);
+        if (s.end && isWeekendOrHoliday(s.end, holidays)) parts.push(`fim em ${describeDateConflict(s.end)}`);
+        return `• ${STEP_META[s.type]?.label ?? s.type}: ${parts.join(' e ')}`;
       });
 
     if (affected.length > 0) {

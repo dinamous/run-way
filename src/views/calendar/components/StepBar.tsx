@@ -23,9 +23,9 @@ const STEP_BORDER_COLORS: Record<string, string> = {
   'design': '#c4b5fd',
   'aprovacao-design': '#fdba74',
   'desenvolvimento': '#86ceef',
-  'homologacao': '#fcd34d',
+  'homologacao': '#708ef1',
   'qa': '#6ee7b7',
-  'publicacao': '#fda4af',
+  'publicacao': '#bafc50',
 };
 
 const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBarOfStep, dragPreview, onStartDrag, onClick }) => {

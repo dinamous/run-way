@@ -161,7 +161,7 @@ export function isStepBlocked(task: { status: TaskStatus }, stepStart: string): 
 /** Creates default steps array for a new task */
 export function createDefaultSteps(): Step[] {
   return STEP_TYPES_ORDER.map((type, order) => ({
-    id: crypto.randomUUID(),
+    id: '',
     type,
     start: '',
     end: '',
@@ -218,7 +218,7 @@ export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; steps
     const legacyPhase = legacyKey ? task.phases?.[legacyKey as keyof NonNullable<LegacyTask['phases']>] : null;
     const legacyAssignee = legacyKey ? (task.phaseAssignees?.[legacyKey] || task.assignee) : null;
     return {
-      id: crypto.randomUUID(),
+      id: '',
       type,
       start: legacyPhase?.start || '',
       end: legacyPhase?.end || '',

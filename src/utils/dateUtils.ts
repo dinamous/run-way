@@ -1,5 +1,7 @@
 // --- UTILITÁRIOS DE DATAS ---
 
+import type { Holiday } from './holidayUtils';
+
 export const formatDate = (date: Date | string) => {
   const d = new Date(date);
   const month = '' + (d.getMonth() + 1);
@@ -8,11 +10,18 @@ export const formatDate = (date: Date | string) => {
   return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
 };
 
-export const addBusinessDays = (startDate: Date | string, daysToAdd: number) => {
+function isNonBusinessDay(date: Date, holidays: Holiday[]): boolean {
+  const day = date.getDay();
+  if (day === 0 || day === 6) return true;
+  const str = formatDate(date);
+  return holidays.some(h => h.date === str);
+}
+
+export const addBusinessDays = (startDate: Date | string, daysToAdd: number, holidays: Holiday[] = []) => {
   const currentDate = new Date(startDate);
   let addedDays = 0;
   if (daysToAdd === 0) {
-    while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+    while (isNonBusinessDay(currentDate, holidays)) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     return formatDate(currentDate);
@@ -20,17 +29,17 @@ export const addBusinessDays = (startDate: Date | string, daysToAdd: number) => 
 
   while (addedDays < daysToAdd - 1) {
     currentDate.setDate(currentDate.getDate() + 1);
-    if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+    if (!isNonBusinessDay(currentDate, holidays)) {
       addedDays++;
     }
   }
   return formatDate(currentDate);
 };
 
-export const nextBusinessDay = (date: Date | string) => {
+export const nextBusinessDay = (date: Date | string, holidays: Holiday[] = []) => {
   const next = new Date(date);
   next.setDate(next.getDate() + 1);
-  while (next.getDay() === 0 || next.getDay() === 6) {
+  while (isNonBusinessDay(next, holidays)) {
     next.setDate(next.getDate() + 1);
   }
   return formatDate(next);
@@ -43,18 +52,18 @@ export const DEFAULT_DURATIONS = {
   qa: 3
 };
 
-export const cascadePhases = (startDesignDate: Date | string) => {
+export const cascadePhases = (startDesignDate: Date | string, holidays: Holiday[] = []) => {
   const designStart = formatDate(startDesignDate);
-  const designEnd = addBusinessDays(designStart, DEFAULT_DURATIONS.design);
+  const designEnd = addBusinessDays(designStart, DEFAULT_DURATIONS.design, holidays);
 
-  const approvalStart = nextBusinessDay(designEnd);
-  const approvalEnd = addBusinessDays(approvalStart, DEFAULT_DURATIONS.approval);
+  const approvalStart = nextBusinessDay(designEnd, holidays);
+  const approvalEnd = addBusinessDays(approvalStart, DEFAULT_DURATIONS.approval, holidays);
 
-  const devStart = nextBusinessDay(approvalEnd);
-  const devEnd = addBusinessDays(devStart, DEFAULT_DURATIONS.dev);
+  const devStart = nextBusinessDay(approvalEnd, holidays);
+  const devEnd = addBusinessDays(devStart, DEFAULT_DURATIONS.dev, holidays);
 
-  const qaStart = nextBusinessDay(devEnd);
-  const qaEnd = addBusinessDays(qaStart, DEFAULT_DURATIONS.qa);
+  const qaStart = nextBusinessDay(devEnd, holidays);
+  const qaEnd = addBusinessDays(qaStart, DEFAULT_DURATIONS.qa, holidays);
 
   return {
     design: { start: designStart, end: designEnd },
