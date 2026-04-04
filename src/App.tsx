@@ -5,6 +5,8 @@ import { AppSidebar } from "./components/AppSidebar";
 import { DashboardView } from "./views/dashboard";
 import MembersView from "./views/MembersView";
 import ReportsView from "./views/reports";
+import { AdminView } from "./views/admin";
+import { RequireAdmin } from "./components/RequireAdmin";
 import { LoginView } from "./views/login";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
@@ -13,9 +15,23 @@ import { Toaster, toast } from "sonner";
 import type { Task } from "./lib/steps";
 
 export default function App() {
-  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clientIds, impersonatedClientId } = useAuthContext();
+  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients, impersonatedClientId } = useAuthContext();
 
-  const effectiveClientId = isAdmin ? impersonatedClientId : (clientIds[0] ?? null)
+  const hasMultipleClients = clients.length > 1;
+  const hasOneClient = clients.length === 1;
+  const defaultClientId = hasOneClient ? clients[0].id : null;
+
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (hasOneClient && !selectedClientId) {
+      setSelectedClientId(defaultClientId)
+    } else if (!hasMultipleClients && !hasOneClient) {
+      setSelectedClientId(null)
+    }
+  }, [hasOneClient, hasMultipleClients, defaultClientId, selectedClientId])
+
+  const effectiveClientId = isAdmin ? impersonatedClientId : selectedClientId
 
   const { tasks, members, createTask, updateTask, deleteTask } = useSupabase({
     memberId: member?.id,
@@ -48,7 +64,7 @@ export default function App() {
     });
   };
 
-  const [view, setView] = useState<"dashboard" | "members" | "reports">("dashboard");
+  const [view, setView] = useState<"dashboard" | "members" | "reports" | "admin">("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -81,6 +97,7 @@ export default function App() {
         onSignOut={signOut}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={handleToggleSidebar}
+        selectedClient={selectedClientId ? clients.find(c => c.id === selectedClientId) : null}
       />
 
       <div className="flex flex-row flex-1 overflow-hidden">
@@ -88,11 +105,15 @@ export default function App() {
           open={sidebarOpen}
           onToggle={handleToggleSidebar}
           view={view}
-          onViewChange={setView}
+          onViewChange={(v) => setView(v as typeof view)}
         />
 
         <main className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8">
-          {view === "dashboard" ? (
+          {view === "admin" ? (
+            <RequireAdmin>
+              <AdminView />
+            </RequireAdmin>
+          ) : view === "dashboard" ? (
             <DashboardView
               tasks={tasks}
               members={members}

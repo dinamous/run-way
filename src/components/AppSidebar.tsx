@@ -1,4 +1,4 @@
-import { CalendarDays, Users, BarChart2, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, Users, BarChart2, ShieldCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   TooltipProvider,
@@ -6,8 +6,9 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui";
+import { useAuthContext } from "@/contexts/AuthContext";
 
-type View = "dashboard" | "members" | "reports";
+type View = "dashboard" | "members" | "reports" | "admin";
 
 interface AppSidebarProps {
   open: boolean;
@@ -16,13 +17,17 @@ interface AppSidebarProps {
   onViewChange: (view: View) => void;
 }
 
-const NAV_ITEMS: { view: View; label: string; Icon: React.ElementType }[] = [
+const BASE_NAV_ITEMS: { view: View; label: string; Icon: React.ElementType }[] = [
   { view: "dashboard", label: "Calendário", Icon: CalendarDays },
   { view: "members",   label: "Membros",    Icon: Users },
   { view: "reports",   label: "Relatórios", Icon: BarChart2 },
 ];
 
 export function AppSidebar({ open, onToggle, view, onViewChange }: AppSidebarProps) {
+  const { isAdmin } = useAuthContext();
+  const NAV_ITEMS = isAdmin
+    ? [...BASE_NAV_ITEMS, { view: "admin" as View, label: "Admin", Icon: ShieldCheck }]
+    : BASE_NAV_ITEMS;
   return (
     <TooltipProvider delayDuration={200}>
       <aside

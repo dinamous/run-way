@@ -63,7 +63,7 @@ export function ClientsPanel({
               <td className="py-2 flex gap-2">
                 <Button
                   size="sm"
-                  variant={impersonatedClientId === c.id ? 'default' : 'outline'}
+                  variant={impersonatedClientId === c.id ? 'primary' : 'outline'}
                   onClick={() => onImpersonate(impersonatedClientId === c.id ? null : c.id)}
                 >
                   {impersonatedClientId === c.id ? 'Sair da visão' : 'Visualizar como'}

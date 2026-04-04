@@ -8,7 +8,7 @@ import { MetricsBar } from './components/MetricsBar';
 import { StepsLegend } from './components/StepsLegend';
 import type { DashboardViewProps } from '@/types/props';
 
-const DashboardView: React.FC<DashboardViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ tasks = [], members = [], onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
   const [calView, setCalView] = useState<'calendar' | 'timeline'>('calendar');
   const {
     filterAssignee, setFilterAssignee,
@@ -16,7 +16,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tasks, members, onEdit, o
     filterSteps, hasActiveFilters,
     clearFilters, toggleStepFilter,
     filteredTasks, blockedCount, activeCount,
-  } = useTaskFilters(tasks);
+  } = useTaskFilters(tasks ?? []);
 
   return (
     <div className="space-y-5">
@@ -27,13 +27,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tasks, members, onEdit, o
         onOpenNew={onOpenNew}
       />
       <MetricsBar
-        totalCount={tasks.length}
+        totalCount={(tasks ?? []).length}
         activeCount={activeCount}
         blockedCount={blockedCount}
       />
 
       <FilterBar
-        members={members}
+        members={members ?? []}
         filterAssignee={filterAssignee}
         onChangeAssignee={setFilterAssignee}
         filterStatus={filterStatus}
@@ -43,10 +43,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tasks, members, onEdit, o
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         filteredCount={filteredTasks.length}
-        totalCount={tasks.length}
+        totalCount={(tasks ?? []).length}
       />
-
-      
 
       {calView === 'calendar' ? (
         <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />

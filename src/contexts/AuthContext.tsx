@@ -1,13 +1,18 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { Member } from '@/hooks/useSupabase'
+
+export interface ClientOption {
+  id: string
+  name: string
+}
 
 interface AuthContextValue {
   session: Session | null
   user: User | null
   member: Member | null
-  clientIds: string[]
+  clients: ClientOption[]
   isAdmin: boolean
   impersonatedClientId: string | null
   setImpersonatedClientId: (id: string | null) => void
@@ -25,62 +30,113 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [member, setMember] = useState<Member | null>(null)
-  const [clientIds, setClientIds] = useState<string[]>([])
+  const [clients, setClients] = useState<ClientOption[]>([])
   const [authError, setAuthError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [impersonatedClientId, setImpersonatedClientId] = useState<string | null>(null)
+  const subscriptionRef = useRef<ReturnType<typeof supabase.auth.onAuthStateChange>['data']['subscription'] | null>(null)
 
-  // Busca member + clientIds após login
   async function loadProfile(authUid: string) {
-    const { data: memberData } = await supabase
-      .from('members')
-      .select('id, name, role, avatar, auth_user_id, access_role')
-      .eq('auth_user_id', authUid)
-      .single()
+    try {
+      const { data: memberData } = await supabase
+        .from('members')
+        .select('id, name, role, avatar, auth_user_id, access_role')
+        .eq('auth_user_id', authUid)
+        .single()
 
-    if (!memberData) { setMember(null); setClientIds([]); return }
+      if (!memberData) { setMember(null); setClients([]); return }
 
-    setMember(memberData as Member)
+      setMember(memberData as Member)
 
-    if (memberData.access_role !== 'admin') {
-      const { data: uc } = await supabase
-        .from('user_clients')
-        .select('client_id')
-        .eq('user_id', memberData.id)
-      setClientIds((uc ?? []).map((r: { client_id: string }) => r.client_id))
-    } else {
-      setClientIds([]) // admin usa impersonação ou vê tudo
+      if (memberData.access_role !== 'admin') {
+        const { data: uc } = await supabase
+          .from('user_clients')
+          .select('client_id')
+          .eq('user_id', memberData.id)
+
+        const clientIds = (uc ?? []).map((r: { client_id: string }) => r.client_id)
+
+        if (clientIds.length > 0) {
+          const { data: clientsData } = await supabase
+            .from('clients')
+            .select('id, name')
+            .in('id', clientIds)
+          setClients(clientsData ?? [])
+        } else {
+          setClients([])
+        }
+      } else {
+        setClients([])
+      }
+    } catch (err) {
+      console.warn('[AuthContext] Erro ao carregar perfil:', err)
+      setMember(null)
+      setClients([])
     }
   }
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        if (newSession?.user) {
-          const email = newSession.user.email ?? ''
-          const domain = email.split('@')[1]
+    if (subscriptionRef.current) return
 
-          if (ALLOWED_DOMAIN && domain !== ALLOWED_DOMAIN) {
-            await supabase.auth.signOut()
-            setAuthError(`Acesso restrito ao domínio @${ALLOWED_DOMAIN}.`)
-            setSession(null); setUser(null); setLoading(false)
-            return
-          }
+    let mounted = true
 
-          await loadProfile(newSession.user.id)
-        } else {
-          setMember(null)
-          setClientIds([])
+    const setupSubscription = async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (mounted && data.session) {
+          setSession(data.session)
+          setUser(data.session.user)
+          await loadProfile(data.session.user.id)
+          setLoading(false)
         }
 
-        setSession(newSession)
-        setUser(newSession?.user ?? null)
-        setAuthError(null)
-        setLoading(false)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (_event, newSession) => {
+            if (!mounted) return
+
+            if (newSession?.user) {
+              const email = newSession.user.email ?? ''
+              const domain = email.split('@')[1]
+
+              if (ALLOWED_DOMAIN && domain !== ALLOWED_DOMAIN) {
+                setTimeout(() => supabase.auth.signOut({ scope: 'local' }).catch(() => {}), 0)
+                setAuthError(`Acesso restrito ao domínio @${ALLOWED_DOMAIN}.`)
+                setSession(null); setUser(null); setLoading(false)
+                return
+              }
+
+              await loadProfile(newSession.user.id)
+            } else {
+              setMember(null)
+              setClients([])
+            }
+
+            setSession(newSession)
+            setUser(newSession?.user ?? null)
+            setAuthError(null)
+            setLoading(false)
+          }
+        )
+
+        subscriptionRef.current = subscription
+      } catch (err) {
+        if (err instanceof Error && err.name === 'NavigatorLockAcquireTimeoutError') {
+          console.warn('[AuthContext] NavigatorLock timeout — re tentaremos em 1s')
+          setTimeout(setupSubscription, 1000)
+        } else {
+          console.error('[AuthContext] Erro ao inicializar auth:', err)
+          setLoading(false)
+        }
       }
-    )
-    return () => subscription.unsubscribe()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    }
+
+    setupSubscription()
+
+    return () => {
+      mounted = false
+      subscriptionRef.current?.unsubscribe()
+      subscriptionRef.current = null
+    }
   }, [])
 
   const signIn = () =>
@@ -93,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      session, user, member, clientIds,
+      session, user, member, clients,
       isAdmin: member?.access_role === 'admin',
       impersonatedClientId, setImpersonatedClientId,
       signIn, signOut, authError, loading,
@@ -103,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuthContext() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuthContext deve ser usado dentro de <AuthProvider>')

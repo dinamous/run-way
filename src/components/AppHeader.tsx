@@ -8,6 +8,11 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui";
 
+interface ClientOption {
+  id: string;
+  name: string;
+}
+
 interface AppHeaderProps {
   darkMode: boolean;
   onToggleDark: () => void;
@@ -15,6 +20,7 @@ interface AppHeaderProps {
   onSignOut: () => void;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
+  selectedClient?: ClientOption | null;
 }
 
 function getInitials(email?: string): string {
@@ -32,6 +38,7 @@ export function AppHeader({
   onSignOut,
   sidebarOpen,
   onToggleSidebar,
+  selectedClient,
 }: AppHeaderProps) {
   return (
     <header className="bg-card border-b border-border sticky top-0 z-10 print:hidden">
@@ -55,7 +62,13 @@ export function AppHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {selectedClient && (
+            <span className="text-sm text-muted-foreground">
+              Cliente: <span className="font-medium text-foreground">{selectedClient.name}</span>
+            </span>
+          )}
+
           <button
             onClick={onToggleDark}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
