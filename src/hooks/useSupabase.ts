@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Task, Step, StepType } from '@/lib/steps'
 import type { DbTaskRow, LocalStorageTaskEntry } from '@/types/db'
+import { toast } from 'sonner'
+import { logAudit } from '@/lib/audit'
 
 const devLog = import.meta.env.DEV
   ? (...args: unknown[]) => console.warn(...args)
@@ -35,6 +37,7 @@ function dbRowToTask(row: DbTaskRow): Task {
     id: row.id,
     title: row.title,
     clickupLink: row.clickup_link ?? undefined,
+    clientId: row.client_id ?? undefined,
     status: {
       blocked: row.blocked,
       blockedAt: row.blocked_at ?? undefined,
@@ -46,7 +49,14 @@ function dbRowToTask(row: DbTaskRow): Task {
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
-export function useSupabase() {
+interface UseSupabaseOptions {
+  memberId?: string
+  clientId?: string | null        // null = admin vê tudo; string = filtra por cliente
+  isAdmin?: boolean
+}
+
+export function useSupabase(options: UseSupabaseOptions = {}) {
+  const { memberId, clientId, isAdmin } = options
   const [tasks, setTasks] = useState<Task[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,10 +65,10 @@ export function useSupabase() {
 
   // ── Fetch all tasks with nested steps + assignees ──────────────────────────
   const fetchTasks = useCallback(async (): Promise<boolean> => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('tasks')
       .select(`
-        id, title, clickup_link, blocked, blocked_at, created_at,
+        id, title, clickup_link, blocked, blocked_at, created_at, client_id,
         task_steps (
           id, type, step_order, active, start_date, end_date,
           step_assignees ( member_id )
@@ -66,11 +76,24 @@ export function useSupabase() {
       `)
       .order('created_at', { ascending: false })
 
+    // Filtrar por cliente — admin sem impersonação vê tudo (sem filtro)
+    if (!isAdmin || clientId) {
+      const ids = clientId ? [clientId] : []
+      if (ids.length > 0) {
+        query = query.in('client_id', ids)
+      } else if (!isAdmin) {
+        // Usuário sem clientes configurados — retorna vazio
+        setTasks([])
+        return true
+      }
+    }
+
+    const { data, error } = await query
     if (error) { setError(error.message); return false }
     setTasks((data ?? []).map(dbRowToTask))
     setError(null)
     return true
-  }, [])
+  }, [isAdmin, clientId])
 
   // ── Fetch members ──────────────────────────────────────────────────────────
   const fetchMembers = useCallback(async (): Promise<boolean> => {
@@ -235,6 +258,7 @@ export function useSupabase() {
         clickup_link: taskData.clickupLink ?? null,
         blocked: taskData.status.blocked,
         blocked_at: taskData.status.blockedAt ?? null,
+        client_id: taskData.clientId ?? null,
       })
       .select('id')
       .single()
@@ -251,6 +275,18 @@ export function useSupabase() {
       return false
     }
 
+    toast.success(`Demanda "${taskData.title}" criada`)
+    if (memberId) {
+      await logAudit({
+        userId: memberId,
+        clientId: taskData.clientId ?? null,
+        entity: 'task',
+        entityId: taskRow.id,
+        entityName: taskData.title,
+        action: 'create',
+      })
+    }
+
     setError(null)
     await fetchTasks()
     return true
@@ -260,6 +296,7 @@ export function useSupabase() {
   const updateTask = async (taskData: Task): Promise<boolean> => {
     // Optimistic update: apply locally first, sync in background
     const previousTasks = tasks
+    const prevTask = tasks.find(t => t.id === taskData.id)
     setTasks(prev => prev.map(t => t.id === taskData.id ? taskData : t))
 
     const { error: taskErr } = await supabase
@@ -313,12 +350,43 @@ export function useSupabase() {
       return false
     }
 
+    toast.success(`Demanda "${taskData.title}" atualizada`)
+    if (memberId && prevTask) {
+      if (prevTask.status?.blocked !== taskData.status?.blocked) {
+        await logAudit({
+          userId: memberId,
+          clientId: taskData.clientId ?? null,
+          entity: 'task',
+          entityId: taskData.id,
+          entityName: taskData.title,
+          action: 'update',
+          field: 'blocked',
+          fromValue: String(prevTask.status?.blocked ?? false),
+          toValue: String(taskData.status?.blocked ?? false),
+        })
+      }
+      if (prevTask.title !== taskData.title) {
+        await logAudit({
+          userId: memberId,
+          clientId: taskData.clientId ?? null,
+          entity: 'task',
+          entityId: taskData.id,
+          entityName: taskData.title,
+          action: 'update',
+          field: 'title',
+          fromValue: prevTask.title,
+          toValue: taskData.title,
+        })
+      }
+    }
+
     setError(null)
     return true
   }
 
   // ── Delete task ────────────────────────────────────────────────────────────
   const deleteTask = async (id: string): Promise<boolean> => {
+    const deletedTask = tasks.find(t => t.id === id)
     const { error } = await supabase.from('tasks').delete().eq('id', id)
     if (error) {
       setError(error.message)
@@ -326,6 +394,17 @@ export function useSupabase() {
     }
     setError(null)
     setTasks(prev => prev.filter(t => t.id !== id))
+    toast.success(`Demanda "${deletedTask?.title ?? id}" eliminada`)
+    if (memberId && deletedTask) {
+      await logAudit({
+        userId: memberId,
+        clientId: deletedTask.clientId ?? null,
+        entity: 'task',
+        entityId: id,
+        entityName: deletedTask.title,
+        action: 'delete',
+      })
+    }
     return true
   }
 

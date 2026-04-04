@@ -13,8 +13,15 @@ import { Toaster, toast } from "sonner";
 import type { Task } from "./lib/steps";
 
 export default function App() {
-  const { session, user, signIn, signOut, authError, loading: authLoading } = useAuthContext();
-  const { tasks, members, createTask, updateTask, deleteTask } = useSupabase();
+  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clientIds, impersonatedClientId } = useAuthContext();
+
+  const effectiveClientId = isAdmin ? impersonatedClientId : (clientIds[0] ?? null)
+
+  const { tasks, members, createTask, updateTask, deleteTask } = useSupabase({
+    memberId: member?.id,
+    clientId: effectiveClientId,
+    isAdmin,
+  });
   const { holidays } = useHolidays();
 
   const [darkMode, setDarkMode] = useState(() => {

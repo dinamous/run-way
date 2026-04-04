@@ -30,6 +30,7 @@ export interface Task {
   id: string;
   title: string;
   clickupLink?: string;
+  clientId?: string;
   status: TaskStatus;
   steps: Step[];
   createdAt: string;
