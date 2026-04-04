@@ -32,6 +32,34 @@ export interface DbTaskRow {
   task_steps: DbStepRow[];
 }
 
+// ─── RBAC / Multi-tenant rows ─────────────────────────────────────────────────
+
+export interface DbClientRow {
+  id: string
+  name: string
+  slug: string
+  created_at: string
+}
+
+export interface DbUserClientRow {
+  user_id: string
+  client_id: string
+}
+
+export interface DbAuditLogRow {
+  id: string
+  user_id: string | null
+  client_id: string | null
+  entity: 'task' | 'step'
+  entity_id: string
+  entity_name: string | null
+  action: 'create' | 'update' | 'delete'
+  field: string | null
+  from_value: string | null
+  to_value: string | null
+  created_at: string
+}
+
 // ─── localStorage migration ───────────────────────────────────────────────────
 
 /**

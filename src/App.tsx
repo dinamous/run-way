@@ -6,14 +6,14 @@ import { DashboardView } from "./views/dashboard";
 import MembersView from "./views/MembersView";
 import ReportsView from "./views/reports";
 import { LoginView } from "./views/login";
-import { useAuth } from "./hooks/useAuth";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
 import { Toaster, toast } from "sonner";
 import type { Task } from "./lib/steps";
 
 export default function App() {
-  const { session, user, signIn, signOut, authError, loading: authLoading } = useAuth();
+  const { session, user, signIn, signOut, authError, loading: authLoading } = useAuthContext();
   const { tasks, members, createTask, updateTask, deleteTask } = useSupabase();
   const { holidays } = useHolidays();
 

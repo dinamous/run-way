@@ -12,6 +12,8 @@ export interface Member {
   name: string
   role: string
   avatar: string
+  auth_user_id?: string | null
+  access_role?: 'admin' | 'user'
 }
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
