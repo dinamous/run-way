@@ -6,8 +6,18 @@
 |---|---|
 | `src/views/DashboardView.tsx` | Header, filtros, métricas, toggle Calendar/Timeline |
 | `src/views/CalendarView.tsx` | Calendário mensal com drag-drop e slots |
-| `src/views/TimelineView.tsx` | Timeline/Gantt com drag-drop por fase |
-| `src/views/dashboardUtils.ts` | Constantes, helpers, tipos (`DragState`, `DragPreview`, `BarItem`, `layoutWeekBars`) |
+| `src/views/timeline/TimelineView.tsx` | Timeline/Gantt — componente raiz |
+| `src/views/timeline/components/TimelineHeader.tsx` | Selector de range (14/30/60/90d) |
+| `src/views/timeline/components/DayColumnHeaders.tsx` | Header de colunas de dias (mês + dia + feriados) |
+| `src/views/timeline/components/TaskCalendarRows.tsx` | Linhas de fases no calendário por tarefa |
+| `src/views/timeline/components/TaskInfoPanelWrapper.tsx` | Wrapper da coluna fixa esquerda por tarefa |
+| `src/views/timeline/components/TaskInfoPanel.tsx` | Conteúdo da coluna fixa (título, assignees, status) |
+| `src/views/timeline/components/StepRow.tsx` | Linha individual de fase com drag |
+| `src/views/timeline/components/PhaseBar.tsx` | Barra visual de uma fase |
+| `src/views/timeline/hooks/useTimelineDays.ts` | Calcula array de dias para o range selecionado |
+| `src/views/timeline/hooks/useRowHeightSync.ts` | Sincroniza altura entre coluna info e coluna calendário por linha |
+| `src/views/timeline/hooks/useHeaderHeightSync.ts` | Sincroniza altura do header esquerdo com `DayColumnHeaders` |
+| `src/utils/dashboardUtils.ts` | Constantes, helpers, tipos (`DragState`, `DragPreview`, `BarItem`, `layoutWeekBars`) |
 
 ## CalendarView
 
@@ -24,9 +34,12 @@ Para cada semana, cada fase de cada tarefa: calcular colunas ocupadas → atribu
 
 - Range: 14 / 30 / 60 / 90 dias (botões no header, padrão 60)
 - Colunas fixas `DAY_COL_W = 36px` com scroll horizontal
-- Layout em degraus: 4 sub-linhas por tarefa (Design → Approval → Dev → QA), `height = 28px`
+- Layout em degraus: fases visíveis por tarefa (Design → Approval → Dev → QA), `PHASE_ROW_H = 28px`
 - Drag-drop e resize por fase — `colWidth` fixo (sem medir DOM)
 - Botões editar/apagar por tarefa (hover)
+- Dois containers paralelos: coluna fixa (info) + área scrollável (calendário). Alturas sincronizadas via:
+  - `useRowHeightSync` — sincroniza altura de cada linha de tarefa entre os dois lados
+  - `useHeaderHeightSync` — sincroniza altura do header esquerdo com `DayColumnHeaders` via `ResizeObserver`
 
 ## Drag-and-Drop (ambas views)
 
