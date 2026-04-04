@@ -8,7 +8,7 @@ import {
 } from "@/components/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 
-type View = "dashboard" | "members" | "reports" | "admin";
+type View = "dashboard" | "members" | "reports" | "admin" | "clients";
 
 interface AppSidebarProps {
   open: boolean;
@@ -21,12 +21,13 @@ const BASE_NAV_ITEMS: { view: View; label: string; Icon: React.ElementType }[] =
   { view: "dashboard", label: "Calendário", Icon: CalendarDays },
   { view: "members",   label: "Membros",    Icon: Users },
   { view: "reports",   label: "Relatórios", Icon: BarChart2 },
+  { view: "clients",   label: "Clientes",    Icon: Users },
 ];
 
 export function AppSidebar({ open, onToggle, view, onViewChange }: AppSidebarProps) {
   const { isAdmin } = useAuthContext();
   const NAV_ITEMS = isAdmin
-    ? [...BASE_NAV_ITEMS, { view: "admin" as View, label: "Admin", Icon: ShieldCheck }]
+    ? [...BASE_NAV_ITEMS.filter(i => i.view !== 'clients'), { view: "admin" as View, label: "Admin", Icon: ShieldCheck }]
     : BASE_NAV_ITEMS;
   return (
     <TooltipProvider delayDuration={200}>

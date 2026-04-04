@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
 
 export interface AuditPayload {
   userId: string
@@ -17,7 +17,8 @@ export interface AuditPayload {
  * Falhas são silenciosas — nunca bloquear a ação principal.
  */
 export async function logAudit(payload: AuditPayload): Promise<void> {
-  const { error } = await supabase.from('audit_logs').insert({
+  const client = supabaseAdmin ?? supabase
+  const { error } = await client.from('audit_logs').insert({
     user_id: payload.userId,
     client_id: payload.clientId,
     entity: payload.entity,

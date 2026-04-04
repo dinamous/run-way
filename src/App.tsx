@@ -8,6 +8,8 @@ import ReportsView from "./views/reports";
 import { AdminView } from "./views/admin";
 import { RequireAdmin } from "./components/RequireAdmin";
 import { LoginView } from "./views/login";
+import { UserClientsView } from "./views/user/UserClientsView";
+import { useUserClients } from "./views/user/hooks/useUserClients";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
@@ -39,6 +41,7 @@ export default function App() {
     isAdmin,
   });
   const { holidays } = useHolidays();
+  const { userClients, availableClients, linkToClient, unlinkFromClient } = useUserClients();
 
   const [darkMode, setDarkMode] = useState(() => {
     return (
@@ -64,7 +67,7 @@ export default function App() {
     });
   };
 
-  const [view, setView] = useState<"dashboard" | "members" | "reports" | "admin">("dashboard");
+  const [view, setView] = useState<"dashboard" | "members" | "reports" | "admin" | "clients">("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -113,6 +116,13 @@ export default function App() {
             <RequireAdmin>
               <AdminView />
             </RequireAdmin>
+          ) : view === "clients" ? (
+            <UserClientsView
+              userClients={userClients}
+              availableClients={availableClients}
+              onLink={linkToClient}
+              onUnlink={unlinkFromClient}
+            />
           ) : view === "dashboard" ? (
             <DashboardView
               tasks={tasks}

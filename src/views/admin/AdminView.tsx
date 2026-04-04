@@ -12,13 +12,11 @@ export function AdminView() {
   const [tab, setTab] = useState<AdminTab>('clients')
   const { impersonatedClientId, setImpersonatedClientId } = useAuthContext()
   const {
-    clients, users, auditLogs, loading,
+    clients, users, auditLogs, loading, userClientsMap,
     fetchAuditLogs,
-    createClient, deleteClient,
+    createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
   } = useAdminData()
-
-  const userClientsMap: Record<string, string[]> = {}
 
   if (!supabaseAdmin) {
     return (
@@ -85,6 +83,7 @@ export function AdminView() {
           <ClientsPanel
             clients={clients}
             onCreate={createClient}
+            onUpdate={updateClient}
             onDelete={deleteClient}
             onImpersonate={setImpersonatedClientId}
             impersonatedClientId={impersonatedClientId}

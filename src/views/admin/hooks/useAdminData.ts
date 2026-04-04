@@ -16,6 +16,7 @@ export function useAdminData() {
   const [clients, setClients] = useState<DbClientRow[]>([])
   const [users, setUsers] = useState<Member[]>([])
   const [auditLogs, setAuditLogs] = useState<DbAuditLogRow[]>([])
+  const [userClientsMap, setUserClientsMap] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(false)
 
   const fetchClients = useCallback(async () => {
@@ -34,6 +35,19 @@ export function useAdminData() {
       .select('id, name, role, avatar, auth_user_id, access_role')
       .order('name')
     setUsers(data ?? [])
+  }, [])
+
+  const fetchUserClientsMap = useCallback(async () => {
+    if (!supabaseAdmin) return
+    const { data } = await supabaseAdmin
+      .from('user_clients')
+      .select('user_id, client_id')
+    const map: Record<string, string[]> = {}
+    ;(data ?? []).forEach(({ user_id, client_id }) => {
+      if (!map[user_id]) map[user_id] = []
+      map[user_id].push(client_id)
+    })
+    setUserClientsMap(map)
   }, [])
 
   const fetchAuditLogs = useCallback(async (filters: AuditFilters = {}) => {
@@ -67,6 +81,14 @@ export function useAdminData() {
     return true
   }, [fetchClients])
 
+  const updateClient = useCallback(async (id: string, name: string, slug: string) => {
+    if (!supabaseAdmin) return false
+    const { error } = await supabaseAdmin.from('clients').update({ name, slug }).eq('id', id)
+    if (error) return false
+    await fetchClients()
+    return true
+  }, [fetchClients])
+
   const deleteClient = useCallback(async (id: string) => {
     if (!supabaseAdmin) return false
     const { error } = await supabaseAdmin.from('clients').delete().eq('id', id)
@@ -81,7 +103,10 @@ export function useAdminData() {
     const { error } = await supabaseAdmin
       .from('user_clients')
       .upsert({ user_id: userId, client_id: clientId })
-    if (!error) await fetchUsers()
+    if (!error) {
+      await fetchUsers()
+      await fetchUserClientsMap()
+    }
     return !error
   }, [fetchUsers])
 
@@ -91,7 +116,10 @@ export function useAdminData() {
       .from('user_clients')
       .delete()
       .match({ user_id: userId, client_id: clientId })
-    if (!error) await fetchUsers()
+    if (!error) {
+      await fetchUsers()
+      await fetchUserClientsMap()
+    }
     return !error
   }, [fetchUsers])
 
@@ -108,12 +136,13 @@ export function useAdminData() {
   useEffect(() => {
     fetchClients()
     fetchUsers()
-  }, [fetchClients, fetchUsers])
+    fetchUserClientsMap()
+  }, [fetchClients, fetchUsers, fetchUserClientsMap])
 
   return {
-    clients, users, auditLogs, loading,
+    clients, users, auditLogs, loading, userClientsMap,
     fetchAuditLogs, fetchClients, fetchUsers,
-    createClient, deleteClient,
+    createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
   }
 }
