@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { Label } from '@/components/ui/Label'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/DropdownMenu'
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerFooter,
+  DrawerTitle,
+  DrawerDescription,
+} from '@/components/ui/Drawer'
 import { toast } from 'sonner'
 import type { Member } from '@/hooks/useSupabase'
 import type { DbClientRow } from '@/types/db'
-import { MoreHorizontal, Plus, Trash2 } from 'lucide-react'
+import { Plus, Building, X, Check } from 'lucide-react'
 
 interface UsersPanelProps {
   users: Member[]
@@ -25,182 +27,253 @@ interface UsersPanelProps {
 export function UsersPanel({
   users, clients, onSetRole, onLink, onUnlink, userClientsMap
 }: UsersPanelProps) {
-  const [selectedUser, setSelectedUser] = useState<string>('')
-  const [selectedClient, setSelectedClient] = useState<string>('')
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<Member | null>(null)
+  const [editRole, setEditRole] = useState<'admin' | 'user'>('user')
+  const [savingRole, setSavingRole] = useState(false)
+  const [linkingId, setLinkingId] = useState<string | null>(null)
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null)
 
-  const handleLink = async () => {
-    if (!selectedUser || !selectedClient) return
-    const ok = await onLink(selectedUser, selectedClient)
-    if (ok) {
-      toast.success('Usuário vinculado ao cliente')
-      setSelectedClient('')
-    } else {
-      toast.error('Erro ao vincular')
-    }
+  const openEditDrawer = (user: Member) => {
+    setEditingUser(user)
+    setEditRole(user.access_role ?? 'user')
+    setDrawerOpen(true)
   }
 
-  const userClients = (userId: string) => {
+  const closeDrawer = () => {
+    setDrawerOpen(false)
+    setEditingUser(null)
+    setEditRole('user')
+    setSavingRole(false)
+    setLinkingId(null)
+    setUnlinkingId(null)
+  }
+
+  const handleUpdateRole = async () => {
+    if (!editingUser) return
+    setSavingRole(true)
+    const ok = await onSetRole(editingUser.id, editRole)
+    setSavingRole(false)
+    if (ok) { toast.success('Role atualizada'); closeDrawer() }
+    else toast.error('Erro ao alterar role')
+  }
+
+  const handleLink = async (userId: string, clientId: string, clientName: string) => {
+    setLinkingId(clientId)
+    const ok = await onLink(userId, clientId)
+    setLinkingId(null)
+    if (ok) toast.success(`${clientName} adicionado`)
+    else toast.error('Erro ao adicionar')
+  }
+
+  const handleUnlink = async (userId: string, clientId: string, clientName: string) => {
+    setUnlinkingId(clientId)
+    const ok = await onUnlink(userId, clientId)
+    setUnlinkingId(null)
+    if (ok) toast.success(`${clientName} removido`)
+    else toast.error('Erro ao remover')
+  }
+
+  const getUserClients = (userId: string) => {
     const clientIds = userClientsMap[userId] ?? []
     return clients.filter(c => clientIds.includes(c.id))
   }
 
-  const availableClients = (userId: string) => {
+  const getAvailableClients = (userId: string) => {
     const clientIds = userClientsMap[userId] ?? []
     return clients.filter(c => !clientIds.includes(c.id))
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Vincular usuário a cliente</h2>
-
-      <div className="flex gap-2 flex-wrap items-end">
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Usuário</span>
-          <select
-            className="border rounded px-2 py-1.5 text-sm bg-background min-w-[180px]"
-            value={selectedUser}
-            onChange={e => setSelectedUser(e.target.value)}
-          >
-            <option value="">Selecionar...</option>
-            {users.map(u => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Cliente</span>
-          <select
-            className="border rounded px-2 py-1.5 text-sm bg-background min-w-[180px]"
-            value={selectedClient}
-            onChange={e => setSelectedClient(e.target.value)}
-            disabled={!selectedUser}
-          >
-            <option value="">Selecionar...</option>
-            {selectedUser && availableClients(selectedUser).map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-        <Button onClick={handleLink} disabled={!selectedUser || !selectedClient}>
-          <Plus className="w-4 h-4 mr-1" />
-          Vincular
-        </Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Utilizadores</h2>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr className="text-left">
-              <th className="py-3 px-4 font-medium">Usuário</th>
-              <th className="py-3 px-4 font-medium">Cargo</th>
-              <th className="py-3 px-4 font-medium">Role</th>
-              <th className="py-3 px-4 font-medium">Clientes</th>
-              <th className="py-3 px-4 font-medium w-10"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(u => {
-              const ucs = userClients(u.id)
-              return (
-                <tr key={u.id} className="border-t hover:bg-muted/30">
-                  <td className="py-3 px-4 font-medium">{u.name}</td>
-                  <td className="py-3 px-4 text-muted-foreground">{u.role}</td>
-                  <td className="py-3 px-4">
-                    <select
-                      className="border rounded px-2 py-1 text-xs bg-background"
-                      value={u.access_role ?? 'user'}
-                      onChange={async e => {
-                        const ok = await onSetRole(u.id, e.target.value as 'admin' | 'user')
-                        if (ok) toast.success('Role atualizada')
-                        else toast.error('Erro ao alterar role')
-                      }}
-                    >
-                      <option value="user">user</option>
-                      <option value="admin">admin</option>
-                    </select>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex flex-wrap gap-1">
-                      {ucs.length === 0 ? (
-                        <span className="text-muted-foreground text-xs">Nenhum</span>
-                      ) : (
-                        ucs.map(c => (
-                          <span
-                            key={c.id}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-secondary text-secondary-foreground text-xs rounded-full"
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {users.map(u => {
+          const ucs = getUserClients(u.id)
+          return (
+            <Card key={u.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEditDrawer(u)}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium">
+                    {u.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">{u.name}</CardTitle>
+                    <CardDescription className="text-xs">{u.role}</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Building className="w-4 h-4" aria-hidden="true" />
+                  <span>{ucs.length} cliente{ucs.length !== 1 ? 's' : ''}</span>
+                </div>
+                {ucs.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {ucs.slice(0, 3).map(c => (
+                      <span key={c.id} className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full">
+                        {c.name}
+                      </span>
+                    ))}
+                    {ucs.length > 3 && (
+                      <span className="px-2 py-0.5 text-muted-foreground text-xs">+{ucs.length - 3}</span>
+                    )}
+                  </div>
+                )}
+                <div className="mt-3 pt-3 border-t">
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${
+                      u.access_role === 'admin'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                        : 'bg-muted'
+                    }`}
+                  >
+                    {u.access_role === 'admin' ? 'Administrador' : 'Utilizador'}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      <Drawer direction="right" open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <DrawerContent data-vaul-drawer-direction="right">
+          <DrawerHeader>
+            <DrawerTitle>Editar Utilizador</DrawerTitle>
+            <DrawerDescription>
+              Altere a role e associe clientes a este utilizador.
+            </DrawerDescription>
+          </DrawerHeader>
+
+          <div className="px-6 pb-6 space-y-6 overflow-y-auto max-h-[calc(100vh-200px)]">
+            <div className="space-y-3" role="group" aria-labelledby="role-group-label">
+              <Label id="role-group-label" className="text-base font-medium">Role</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={editRole === 'user' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEditRole('user')}
+                  className="flex-1"
+                  aria-pressed={editRole === 'user'}
+                  aria-label="Definir como Utilizador"
+                >
+                  <Check
+                    className={`w-4 h-4 mr-1 ${editRole === 'user' ? 'opacity-100' : 'opacity-0'}`}
+                    aria-hidden="true"
+                  />
+                  Utilizador
+                </Button>
+                <Button
+                  variant={editRole === 'admin' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEditRole('admin')}
+                  className="flex-1"
+                  aria-pressed={editRole === 'admin'}
+                  aria-label="Definir como Administrador"
+                >
+                  <Check
+                    className={`w-4 h-4 mr-1 ${editRole === 'admin' ? 'opacity-100' : 'opacity-0'}`}
+                    aria-hidden="true"
+                  />
+                  Administrador
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-base font-medium">Clientes associados</Label>
+              {editingUser && (
+                <>
+                  {getUserClients(editingUser.id).length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-lg">
+                      Nenhum cliente associado
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {getUserClients(editingUser.id).map(c => (
+                        <div
+                          key={c.id}
+                          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Building className="w-4 h-4" aria-hidden="true" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{c.name}</p>
+                              <p className="text-xs text-muted-foreground">/{c.slug}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            isLoading={unlinkingId === c.id}
+                            disabled={unlinkingId !== null}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleUnlink(editingUser.id, c.id, c.name)
+                            }}
+                            aria-label={`Remover ${c.name} deste utilizador`}
                           >
-                            {c.name}
-                          </span>
-                        ))
-                      )}
+                            <X className="w-4 h-4 text-muted-foreground hover:text-red-500" aria-hidden="true" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuLabel>Gerir clientes</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {availableClients(u.id).length > 0 ? (
-                          <>
-                            <DropdownMenuItem className="text-xs text-muted-foreground pointer-events-none">
-                              Adicionar cliente:
-                            </DropdownMenuItem>
-                            {availableClients(u.id).map(c => (
-                              <DropdownMenuItem
-                                key={c.id}
-                                onClick={async () => {
-                                  const ok = await onLink(u.id, c.id)
-                                  if (ok) toast.success(`${c.name} adicionado`)
-                                  else toast.error('Erro ao adicionar')
-                                }}
-                              >
-                                <Plus className="w-3 h-3 mr-2" />
-                                {c.name}
-                              </DropdownMenuItem>
-                            ))}
-                          </>
-                        ) : (
-                          <DropdownMenuItem className="text-xs text-muted-foreground pointer-events-none">
-                            Sem clientes disponíveis
-                          </DropdownMenuItem>
-                        )}
-                        {ucs.length > 0 && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-xs text-muted-foreground pointer-events-none">
-                              Remover cliente:
-                            </DropdownMenuItem>
-                            {ucs.map(c => (
-                              <DropdownMenuItem
-                                key={c.id}
-                                className="text-red-600"
-                                onClick={async () => {
-                                  if (!confirm(`Remover ${u.name} de ${c.name}?`)) return
-                                  const ok = await onUnlink(u.id, c.id)
-                                  if (ok) toast.success(`${c.name} removido`)
-                                  else toast.error('Erro ao remover')
-                                }}
-                              >
-                                <Trash2 className="w-3 h-3 mr-2" />
-                                {c.name}
-                              </DropdownMenuItem>
-                            ))}
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+                  )}
+
+                  {getAvailableClients(editingUser.id).length > 0 && (
+                    <div className="pt-4 border-t">
+                      <Label className="text-sm text-muted-foreground mb-2 block">Adicionar clientes</Label>
+                      <div className="space-y-2">
+                        {getAvailableClients(editingUser.id).map(c => (
+                          <div
+                            key={c.id}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Building className="w-4 h-4" aria-hidden="true" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">{c.name}</p>
+                                <p className="text-xs text-muted-foreground">/{c.slug}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              isLoading={linkingId === c.id}
+                              disabled={linkingId !== null}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleLink(editingUser.id, c.id, c.name)
+                              }}
+                              aria-label={`Adicionar ${c.name} a este utilizador`}
+                            >
+                              <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
+                              Adicionar
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          <DrawerFooter>
+            <Button variant="outline" onClick={closeDrawer} disabled={savingRole}>Cancelar</Button>
+            <Button onClick={handleUpdateRole} isLoading={savingRole}>Guardar</Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </div>
   )
 }
