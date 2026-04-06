@@ -97,6 +97,7 @@ export default function App() {
         darkMode={darkMode}
         onToggleDark={() => setDarkMode((d) => !d)}
         userEmail={user?.email}
+        userAvatarUrl={member?.avatar_url}
         onSignOut={signOut}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={handleToggleSidebar}

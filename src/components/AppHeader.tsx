@@ -17,6 +17,7 @@ interface AppHeaderProps {
   darkMode: boolean;
   onToggleDark: () => void;
   userEmail?: string;
+  userAvatarUrl?: string | null;
   onSignOut: () => void;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
@@ -35,6 +36,7 @@ export function AppHeader({
   darkMode,
   onToggleDark,
   userEmail,
+  userAvatarUrl,
   onSignOut,
   sidebarOpen,
   onToggleSidebar,
@@ -80,10 +82,14 @@ export function AppHeader({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors overflow-hidden"
                 aria-label="Menu do utilizador"
               >
-                {getInitials(userEmail)}
+                {userAvatarUrl ? (
+                  <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  getInitials(userEmail)
+                )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">

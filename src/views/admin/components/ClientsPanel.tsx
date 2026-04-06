@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
@@ -14,7 +14,7 @@ import {
 import { toast } from 'sonner'
 import type { DbClientRow } from '@/types/db'
 import type { Member } from '@/hooks/useSupabase'
-import { Plus, Trash2, Users } from 'lucide-react'
+import { Plus, Trash2, Users, Search, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 
 interface ClientsPanelProps {
   clients: DbClientRow[]
@@ -32,6 +32,8 @@ type ValidationErrors = {
   slug?: string
 }
 
+const PAGE_SIZE = 12
+
 export function ClientsPanel({
   clients, users, userClientsMap, onCreate, onUpdate, onDelete
 }: ClientsPanelProps) {
@@ -46,6 +48,24 @@ export function ClientsPanel({
   const [editSlug, setEditSlug] = useState('')
   const [editErrors, setEditErrors] = useState<ValidationErrors>({})
   const [saving, setSaving] = useState(false)
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [page, setPage] = useState(1)
+
+  const filteredClients = useMemo(() => {
+    if (!searchQuery.trim()) return clients
+    const q = searchQuery.toLowerCase()
+    return clients.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.slug.toLowerCase().includes(q)
+    )
+  }, [clients, searchQuery])
+
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / PAGE_SIZE))
+  const paginatedClients = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE
+    return filteredClients.slice(start, start + PAGE_SIZE)
+  }, [filteredClients, page])
 
   const validateFields = (n: string, s: string): ValidationErrors => {
     const errs: ValidationErrors = {}
@@ -126,6 +146,10 @@ export function ClientsPanel({
     return users.filter(u => userIds.includes(u.id))
   }
 
+  const getPendingUsers = (clientId: string) => {
+    return getClientUsers(clientId).filter(u => !u.auth_user_id)
+  }
+
   const nameId = 'client-name-input'
   const slugId = 'client-slug-input'
   const editNameId = 'edit-client-name'
@@ -133,8 +157,18 @@ export function ClientsPanel({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Clientes</h2>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 flex-1 max-w-md">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou slug..."
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
+              className="pl-9"
+            />
+          </div>
+        </div>
         <div className="flex gap-2 items-start">
           <div className="space-y-1">
             <Input
@@ -180,13 +214,26 @@ export function ClientsPanel({
         </div>
       </div>
 
+      <div className="text-sm text-muted-foreground">
+        Mostrando {filteredClients.length > 0 ? (page - 1) * PAGE_SIZE + 1 : 0} - {Math.min(page * PAGE_SIZE, filteredClients.length)} de {filteredClients.length} cliente(s)
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {clients.map(c => {
+        {paginatedClients.map(c => {
           const clientUsers = getClientUsers(c.id)
+          const pendingUsers = getPendingUsers(c.id)
           return (
             <Card key={c.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEditDrawer(c)}>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">{c.name}</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">{c.name}</CardTitle>
+                  {pendingUsers.length > 0 && (
+                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                      <Clock className="w-3 h-3" />
+                      {pendingUsers.length} pendente{pendingUsers.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
                 <CardDescription className="text-xs">/{c.slug}</CardDescription>
               </CardHeader>
               <CardContent>
@@ -211,7 +258,11 @@ export function ClientsPanel({
                 {clientUsers.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {clientUsers.slice(0, 3).map(u => (
-                      <span key={u.id} className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full">
+                      <span key={u.id} className={`px-2 py-0.5 text-xs rounded-full ${
+                        !u.auth_user_id
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
                         {u.name}
                       </span>
                     ))}
@@ -225,6 +276,30 @@ export function ClientsPanel({
           )
         })}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Página {page} de {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
 
       <Drawer direction="right" open={drawerOpen} onOpenChange={setDrawerOpen}>
         <DrawerContent data-vaul-drawer-direction="right">

@@ -14,6 +14,8 @@ export interface Member {
   name: string
   role: string
   avatar: string
+  avatar_url?: string | null
+  email?: string | null
   auth_user_id?: string | null
   access_role?: 'admin' | 'user'
 }

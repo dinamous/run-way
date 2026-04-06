@@ -36,15 +36,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [impersonatedClientId, setImpersonatedClientId] = useState<string | null>(null)
   const subscriptionRef = useRef<ReturnType<typeof supabase.auth.onAuthStateChange>['data']['subscription'] | null>(null)
 
-  async function loadProfile(authUid: string) {
+  async function loadProfile(authUid: string, userEmail?: string) {
     try {
-      const { data: memberData } = await supabase
+      let { data: memberData } = await supabase
         .from('members')
-        .select('id, name, role, avatar, auth_user_id, access_role')
+        .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
         .eq('auth_user_id', authUid)
         .single()
 
+      if (!memberData && userEmail) {
+        const { data: pendingMember } = await supabase
+          .from('members')
+          .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
+          .eq('email', userEmail.toLowerCase())
+          .is('auth_user_id', null)
+          .single()
+
+        if (pendingMember) {
+          const avatarFromSession = user?.user_metadata?.avatar_url
+          await supabase
+            .from('members')
+            .update({
+              auth_user_id: authUid,
+              avatar_url: avatarFromSession ?? pendingMember.avatar_url,
+            })
+            .eq('id', pendingMember.id)
+
+          memberData = { ...pendingMember, auth_user_id: authUid, avatar_url: avatarFromSession ?? pendingMember.avatar_url }
+        }
+      }
+
       if (!memberData) { setMember(null); setClients([]); return }
+
+      const avatarFromSession = user?.user_metadata?.avatar_url
+      if (avatarFromSession && !memberData.avatar_url) {
+        await supabase
+          .from('members')
+          .update({ avatar_url: avatarFromSession })
+          .eq('id', memberData.id)
+        memberData.avatar_url = avatarFromSession
+      }
 
       setMember(memberData as Member)
 
@@ -86,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (mounted && data.session) {
           setSession(data.session)
           setUser(data.session.user)
-          await loadProfile(data.session.user.id)
+          await loadProfile(data.session.user.id, data.session.user.email)
           setLoading(false)
         }
 
@@ -105,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 return
               }
 
-              await loadProfile(newSession.user.id)
+              await loadProfile(newSession.user.id, newSession.user.email ?? undefined)
             } else {
               setMember(null)
               setClients([])

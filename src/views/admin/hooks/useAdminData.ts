@@ -32,7 +32,7 @@ export function useAdminData() {
     if (!supabaseAdmin) return
     const { data } = await supabaseAdmin
       .from('members')
-      .select('id, name, role, avatar, auth_user_id, access_role')
+      .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
       .order('name')
     setUsers(data ?? [])
   }, [])
@@ -133,6 +133,69 @@ export function useAdminData() {
     return !error
   }, [fetchUsers])
 
+  const createUser = useCallback(async (
+    name: string,
+    role: string,
+    authUserId?: string | null,
+    accessRole?: 'admin' | 'user',
+    clientIds?: string[],
+    email?: string | null,
+    avatarUrl?: string | null
+  ) => {
+    if (!supabaseAdmin) return false
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    const { data: member, error: memberErr } = await supabaseAdmin.from('members').insert({
+      name,
+      role,
+      avatar: initials,
+      auth_user_id: authUserId ?? null,
+      access_role: accessRole ?? 'user',
+      email: email ?? null,
+      avatar_url: avatarUrl ?? null,
+    }).select().single()
+
+    if (memberErr || !member) return false
+
+    if (clientIds && clientIds.length > 0) {
+      const userClientRows = clientIds.map(cid => ({ user_id: member.id, client_id: cid }))
+      await supabaseAdmin.from('user_clients').insert(userClientRows)
+    }
+
+    await fetchUsers()
+    await fetchUserClientsMap()
+    return true
+  }, [fetchUsers, fetchUserClientsMap])
+
+  const setUserAuthId = useCallback(async (userId: string, authUserId: string | null, avatarUrl?: string | null) => {
+    if (!supabaseAdmin) return false
+    const { error } = await supabaseAdmin
+      .from('members')
+      .update({ auth_user_id: authUserId, avatar_url: avatarUrl ?? null })
+      .eq('id', userId)
+    if (!error) await fetchUsers()
+    return !error
+  }, [fetchUsers])
+
+  const listGoogleUsers = useCallback(async (search?: string) => {
+    if (!supabaseAdmin) return []
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers()
+    if (error || !data) return []
+    let users = data.users.filter(u => u.email)
+    if (search) {
+      const lower = search.toLowerCase()
+      users = users.filter(u =>
+        u.email?.toLowerCase().includes(lower) ||
+        u.user_metadata?.full_name?.toLowerCase().includes(lower)
+      )
+    }
+    return users.slice(0, 20).map(u => ({
+      id: u.id,
+      email: u.email!,
+      avatarUrl: u.user_metadata?.avatar_url ?? null,
+      name: u.user_metadata?.full_name ?? u.email!.split('@')[0],
+    }))
+  }, [])
+
   useEffect(() => {
     fetchClients()
     fetchUsers()
@@ -144,5 +207,6 @@ export function useAdminData() {
     fetchAuditLogs, fetchClients, fetchUsers,
     createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
+    createUser, setUserAuthId, listGoogleUsers,
   }
 }
