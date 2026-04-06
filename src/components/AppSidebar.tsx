@@ -1,4 +1,4 @@
-import { CalendarDays, Users, BarChart2, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, Users, BarChart2, ChevronLeft, ChevronRight, Home, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   TooltipProvider,
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
 
-export type ViewType = "dashboard" | "members" | "reports" | "admin" | "clients";
+export type ViewType = "home" | "dashboard" | "members" | "reports" | "admin" | "clients";
 
 interface AppSidebarProps {
   open: boolean;
@@ -19,10 +19,11 @@ interface AppSidebarProps {
 }
 
 const BASE_NAV_ITEMS: { view: ViewType; label: string; Icon: React.ElementType; requiresClient?: boolean }[] = [
+  { view: "home",      label: "Início",     Icon: Home },
   { view: "dashboard", label: "Calendário", Icon: CalendarDays, requiresClient: true },
   { view: "members",   label: "Membros",    Icon: Users, requiresClient: true },
   { view: "reports",   label: "Relatórios", Icon: BarChart2, requiresClient: true },
-  { view: "clients",   label: "Clientes",    Icon: Users, requiresClient: false },
+  { view: "clients",   label: "Clientes",   Icon: Building2, requiresClient: false },
 ];
 
 export function AppSidebar({ open, onToggle, view, onViewChange, hasClient = true }: AppSidebarProps) {

@@ -10,6 +10,7 @@ import { RequireAdmin } from "./components/RequireAdmin";
 import { LoginView } from "./views/login";
 import { UserClientsView } from "./views/user/UserClientsView";
 import { NoClientView } from "./components/NoClientView";
+import { HomeView } from "./views/home";
 import { useUserClients } from "./views/user/hooks/useUserClients";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
@@ -25,6 +26,7 @@ function canAccessFeature(
 ): boolean {
   if (view === "admin" && !isAdmin) return false;
   if (view === "admin") return true;
+  if (view === "home") return true;
   if (view === "clients") return true;
   if (!hasClient) return false;
   return true;
@@ -103,9 +105,14 @@ export default function App() {
     });
   };
 
-  const [view, setView] = useState<ViewType>("dashboard");
+  const [view, setView] = useState<ViewType>("home");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const handleSelectClient = useCallback((clientId: string | null | undefined) => {
+    setSelectedClientId(clientId);
+    setView("home");
+  }, []);
 
   const handleViewChange = useCallback((newView: ViewType) => {
     const hasClientSelected = effectiveClientId !== null;
@@ -167,7 +174,7 @@ export default function App() {
         onToggleSidebar={handleToggleSidebar}
         selectedClient={selectedClient}
         availableClients={clientOptions}
-        onSelectClient={setSelectedClientId}
+        onSelectClient={handleSelectClient}
         isAdmin={isAdmin}
       />
 
@@ -180,11 +187,18 @@ export default function App() {
           hasClient={hasClients}
         />
 
-        <main className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main key={view} className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 animate-blur-fade-in">
           {showNoClientView ? (
             <NoClientView hasClients={false} onGoToClients={() => setView("clients")} />
           ) : showSelectClient ? (
             <NoClientView hasClients={true} onGoToClients={() => setView("clients")} />
+          ) : view === "home" ? (
+            <HomeView
+              userName={member?.name ?? user?.email ?? ""}
+              clientName={selectedClient?.name}
+              hasClient={!!effectiveClientId}
+              onViewChange={handleViewChange}
+            />
           ) : view === "admin" ? (
             <RequireAdmin>
               <AdminView />

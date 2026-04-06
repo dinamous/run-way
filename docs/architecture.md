@@ -48,6 +48,7 @@ App.tsx (estado global: tasks, members, view, selectedClientId)
     ├── useSupabase({ memberId, clientId, isAdmin }) → CRUD tasks ↔ Supabase DB
     ├── clientMembers (useMemo) → membros filtrados pelo cliente ativo
     ├── AppHeader → seletor de cliente (ver abaixo)
+    ├── view="home"     → HomeView (tela inicial: saudação, SearchLauncher, QuickAccess)
     ├── view="clients"  → UserClientsView (perfil do cliente ativo)
     ├── view="dashboard" → DashboardView → Calendar/Timeline
     ├── view="members"  → MembersView (recebe clientMembers)
@@ -67,6 +68,15 @@ interface ClientOption {
 
 Usado em `AuthContext.clients`, `useUserClients.userClients` e `useUserClients.availableClients`. Ambos os fetches incluem `slug` na query Supabase.
 
+## View "Início" (`src/views/home/`)
+
+Tela inicial exibida após login e ao trocar de cliente. Composta por:
+- **`HomeView.tsx`** — layout: saudação com nome/data, `SearchLauncher` e grid de `QuickAccessCard`
+- **`components/SearchLauncher.tsx`** — input de busca de páginas com atalhos `/` e `Ctrl+K`
+- **`components/QuickAccessCard.tsx`** — card clicável; desabilitado (com tooltip) quando requer cliente
+
+Ao trocar de cliente no `AppHeader`, `handleSelectClient` em `App.tsx` redireciona automaticamente para `"home"`.
+
 ## View "Clientes" (`src/views/user/UserClientsView.tsx`)
 
 Página de perfil do cliente ativo. Recebe `client: ClientOption | null` e exibe:
@@ -74,6 +84,10 @@ Página de perfil do cliente ativo. Recebe `client: ClientOption | null` e exibe
 - Seções placeholder para Gerente, Contactos, Acessos, Contas e Documentação (a implementar futuramente)
 
 Não tem CRUD nem listagem de clientes — é uma página informativa do cliente selecionado no momento.
+
+## Animação de Transição de Views
+
+`<main>` em `App.tsx` usa `key={view}` + classe `.animate-blur-fade-in` (definida em `src/index.css`) para aplicar uma transição blur+fade de 300ms ao trocar de view.
 
 ## Seleção de Cliente (`selectedClientId` em `App.tsx`)
 
