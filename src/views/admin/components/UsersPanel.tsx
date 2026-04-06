@@ -496,12 +496,12 @@ export function UsersPanel({
           <div className="px-6 pb-6 space-y-6 overflow-y-auto max-h-[calc(100vh-200px)]">
             <div className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor={createNameId}>Nome</Label>
+                <Label htmlFor={createNameId}>Nome completo</Label>
                 <Input
                   id={createNameId}
                   value={createName}
                   onChange={e => { setCreateName(e.target.value); if (createErrors.name) setCreateErrors(prev => ({ ...prev, name: undefined })) }}
-                  placeholder="Nome completo"
+                  placeholder="Ex: Maria Silva"
                   aria-invalid={!!createErrors.name}
                   aria-describedby={createErrors.name ? `${createNameId}-error` : undefined}
                 />
@@ -510,10 +510,13 @@ export function UsersPanel({
                     {createErrors.name}
                   </p>
                 )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nome que aparecerá para outros usuários.
+                </p>
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor={createRoleId}>Cargo</Label>
+                <Label htmlFor={createRoleId}>Cargo / Função</Label>
                 <Input
                   id={createRoleId}
                   value={createRole}
@@ -527,16 +530,19 @@ export function UsersPanel({
                     {createErrors.role}
                   </p>
                 )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Cargo ou função do colaborador na empresa.
+                </p>
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor={createEmailId}>Email (opcional)</Label>
+                <Label htmlFor={createEmailId}>Email corporativo</Label>
                 <Input
                   id={createEmailId}
                   type="email"
                   value={createEmail}
                   onChange={e => { setCreateEmail(e.target.value); if (createErrors.email) setCreateErrors(prev => ({ ...prev, email: undefined })) }}
-                  placeholder="email@empresa.com"
+                  placeholder="Ex: maria@empresa.com"
                   aria-invalid={!!createErrors.email}
                   aria-describedby={createErrors.email ? `${createEmailId}-error` : undefined}
                 />
@@ -546,13 +552,16 @@ export function UsersPanel({
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  Vinculado automaticamente quando o utilizador fizer login com Google.
+                  Email do Google do colaborador. A conta será vinculada automaticamente no primeiro login.
                 </p>
               </div>
             </div>
 
             <div className="space-y-3">
-              <Label className="text-base font-medium">Acesso</Label>
+              <Label className="text-base font-medium">Nível de acesso</Label>
+              <p className="text-xs text-muted-foreground -mt-2">
+                Define o que o usuário pode fazer no sistema.
+              </p>
               <div className="flex gap-2">
                 <Button
                   variant={createAccessRole === 'user' ? 'default' : 'outline'}
@@ -579,6 +588,9 @@ export function UsersPanel({
 
             <div className="space-y-3">
               <Label className="text-base font-medium">Clientes</Label>
+              <p className="text-xs text-muted-foreground -mt-2">
+                Selecione os clientes que este usuário terá acesso.
+              </p>
               {clients.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-lg">
                   Nenhum cliente disponível
@@ -611,7 +623,10 @@ export function UsersPanel({
             </div>
 
             <div className="space-y-3">
-              <Label className="text-base font-medium">Conta Google (opcional)</Label>
+              <Label className="text-base font-medium">Conta Google</Label>
+              <p className="text-xs text-muted-foreground -mt-2">
+                Busque uma conta Google já cadastrada para vincular agora. Pode deixar para depois.
+              </p>
               <div className="relative" ref={googleDropdownRef}>
                 <Input
                   type="email"
@@ -658,9 +673,6 @@ export function UsersPanel({
                   </div>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Vincule agora ou faça depois através da edição do utilizador.
-              </p>
             </div>
           </div>
 

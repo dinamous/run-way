@@ -1,0 +1,64 @@
+{
+  "roles": {
+    "admin": {
+      "label": "Administrador",
+      "description": "Acesso total ao sistema",
+      "permissions": [
+        "view_all_clients",
+        "manage_clients",
+        "manage_users",
+        "view_audit_logs"
+      ]
+    },
+    "user": {
+      "label": "Usuário",
+      "description": "Acesso limitado aos clientes associados",
+      "permissions": [
+        "view_assigned_clients",
+        "manage_own_clients"
+      ]
+    }
+  },
+  "features": {
+    "dashboard": {
+      "label": "Dashboard",
+      "description": "Visualização de demandas e calendário",
+      "requiresClient": true,
+      "roles": ["admin", "user"]
+    },
+    "reports": {
+      "label": "Relatórios",
+      "description": "Análise e relatórios das demandas",
+      "requiresClient": true,
+      "roles": ["admin", "user"]
+    },
+    "members": {
+      "label": "Equipe",
+      "description": "Visualização da capacidade da equipe",
+      "requiresClient": true,
+      "roles": ["admin", "user"]
+    },
+    "clients": {
+      "label": "Meus Clientes",
+      "description": "Gerenciar clientes associados",
+      "requiresClient": false,
+      "roles": ["admin", "user"]
+    },
+    "admin": {
+      "label": "Administração",
+      "description": "Painel de administração",
+      "requiresClient": false,
+      "roles": ["admin"]
+    }
+  },
+  "accessRules": {
+    "noClient": {
+      "allowedViews": ["clients"],
+      "message": "Você não possui clientes associados. Por favor, contacte um administrador para solicitar acesso."
+    },
+    "noClientSelected": {
+      "allowedViews": ["clients"],
+      "message": "Selecione um cliente para acessar as funcionalidades."
+    }
+  }
+}

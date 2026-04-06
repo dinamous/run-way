@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import TaskModal from "./components/TaskModal";
 import { AppHeader } from "./components/AppHeader";
 import { AppSidebar } from "./components/AppSidebar";
@@ -9,39 +9,75 @@ import { AdminView } from "./views/admin";
 import { RequireAdmin } from "./components/RequireAdmin";
 import { LoginView } from "./views/login";
 import { UserClientsView } from "./views/user/UserClientsView";
+import { NoClientView } from "./components/NoClientView";
 import { useUserClients } from "./views/user/hooks/useUserClients";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
 import { Toaster, toast } from "sonner";
 import type { Task } from "./lib/steps";
+import type { ViewType } from "./components/AppSidebar";
+
+function canAccessFeature(
+  view: ViewType,
+  hasClient: boolean,
+  isAdmin: boolean
+): boolean {
+  if (view === "admin" && !isAdmin) return false;
+  if (view === "admin") return true;
+  if (view === "clients") return true;
+  if (!hasClient) return false;
+  return true;
+}
 
 export default function App() {
-  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients, impersonatedClientId } = useAuthContext();
+  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member } = useAuthContext();
 
-  const hasMultipleClients = clients.length > 1;
-  const hasOneClient = clients.length === 1;
-  const defaultClientId = hasOneClient ? clients[0].id : null;
+  const { userClients, availableClients } = useUserClients();
 
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const hasClients = userClients.length > 0;
+  const clientOptions = isAdmin ? availableClients : userClients;
+  
+  // undefined = não inicializado (usa primeiro cliente por padrão)
+  // null = admin selecionou "Todos os clientes"
+  // string = cliente específico selecionado
+  const [selectedClientId, setSelectedClientId] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
-    if (hasOneClient && !selectedClientId) {
-      setSelectedClientId(defaultClientId)
-    } else if (!hasMultipleClients && !hasOneClient) {
-      setSelectedClientId(null)
+    if (!authLoading && session) {
+      if (selectedClientId === undefined && hasClients) {
+        // Inicialização: seleciona o primeiro cliente disponível
+        setSelectedClientId(userClients[0].id);
+      } else if (!hasClients) {
+        // Usuário perdeu acesso a todos os clientes
+        setSelectedClientId(undefined);
+      } else if (typeof selectedClientId === 'string' && !userClients.find(c => c.id === selectedClientId)) {
+        // Cliente selecionado não está mais acessível
+        setSelectedClientId(userClients[0]?.id ?? undefined);
+      }
     }
-  }, [hasOneClient, hasMultipleClients, defaultClientId, selectedClientId])
+  }, [authLoading, session, hasClients, userClients]);
 
-  const effectiveClientId = isAdmin ? impersonatedClientId : selectedClientId
+  // null só é válido para admin (ver todos); não-admin sempre precisa de um cliente
+  const effectiveClientId = selectedClientId === undefined
+    ? (hasClients ? userClients[0].id : null)
+    : (isAdmin ? selectedClientId : (selectedClientId ?? (hasClients ? userClients[0].id : null)));
 
   const { tasks, members, createTask, updateTask, deleteTask } = useSupabase({
     memberId: member?.id,
     clientId: effectiveClientId,
     isAdmin,
   });
+
+  // Membros filtrados pelo cliente ativo: apenas quem tem steps atribuídos nas tarefas desse cliente.
+  // Quando effectiveClientId=null (admin vê tudo), mostra todos os membros.
+  const clientMembers = useMemo(() => {
+    if (effectiveClientId === null) return members;
+    const assignedIds = new Set<string>();
+    tasks.forEach(t => t.steps.forEach(s => s.assignees.forEach(id => assignedIds.add(id))));
+    return members.filter(m => assignedIds.has(m.id));
+  }, [tasks, members, effectiveClientId]);
   const { holidays } = useHolidays();
-  const { userClients, availableClients, linkToClient, unlinkFromClient } = useUserClients();
 
   const [darkMode, setDarkMode] = useState(() => {
     return (
@@ -67,9 +103,33 @@ export default function App() {
     });
   };
 
-  const [view, setView] = useState<"dashboard" | "members" | "reports" | "admin" | "clients">("dashboard");
+  const [view, setView] = useState<ViewType>("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const handleViewChange = useCallback((newView: ViewType) => {
+    const hasClientSelected = effectiveClientId !== null;
+    const canAccess = canAccessFeature(newView, hasClientSelected, isAdmin);
+    
+    if (!canAccess) {
+      if (newView !== "clients") {
+        toast.error("Selecione um cliente para acessar esta funcionalidade.");
+      }
+      setView("clients");
+    } else {
+      setView(newView);
+    }
+  }, [effectiveClientId, isAdmin]);
+
+  useEffect(() => {
+    if (!authLoading && session) {
+      const hasClientSelected = effectiveClientId !== null;
+      const canAccess = canAccessFeature(view, hasClientSelected, isAdmin);
+      if (!canAccess) {
+        setView("clients");
+      }
+    }
+  }, [authLoading, session, effectiveClientId, isAdmin, view]);
 
   if (authLoading) {
     return (
@@ -90,6 +150,10 @@ export default function App() {
     }
   };
 
+  const showNoClientView = !hasClients && view !== "clients";
+  const showSelectClient = hasClients && !effectiveClientId && view !== "clients";
+  const selectedClient = effectiveClientId ? clientOptions.find(c => c.id === effectiveClientId) : null;
+
   return (
     <div className="flex flex-col h-screen bg-background text-foreground font-sans">
       <Toaster richColors position="top-right" />
@@ -101,7 +165,10 @@ export default function App() {
         onSignOut={signOut}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={handleToggleSidebar}
-        selectedClient={selectedClientId ? clients.find(c => c.id === selectedClientId) : null}
+        selectedClient={selectedClient}
+        availableClients={clientOptions}
+        onSelectClient={setSelectedClientId}
+        isAdmin={isAdmin}
       />
 
       <div className="flex flex-row flex-1 overflow-hidden">
@@ -109,21 +176,21 @@ export default function App() {
           open={sidebarOpen}
           onToggle={handleToggleSidebar}
           view={view}
-          onViewChange={(v) => setView(v as typeof view)}
+          onViewChange={handleViewChange}
+          hasClient={hasClients}
         />
 
         <main className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8">
-          {view === "admin" ? (
+          {showNoClientView ? (
+            <NoClientView hasClients={false} onGoToClients={() => setView("clients")} />
+          ) : showSelectClient ? (
+            <NoClientView hasClients={true} onGoToClients={() => setView("clients")} />
+          ) : view === "admin" ? (
             <RequireAdmin>
               <AdminView />
             </RequireAdmin>
           ) : view === "clients" ? (
-            <UserClientsView
-              userClients={userClients}
-              availableClients={availableClients}
-              onLink={linkToClient}
-              onUnlink={unlinkFromClient}
-            />
+            <UserClientsView client={selectedClient ?? null} />
           ) : view === "dashboard" ? (
             <DashboardView
               tasks={tasks}
@@ -136,9 +203,9 @@ export default function App() {
               holidays={holidays}
             />
           ) : view === "members" ? (
-            <MembersView tasks={tasks} members={members} />
+            <MembersView tasks={tasks} members={clientMembers} />
           ) : (
-            <ReportsView tasks={tasks} members={members} />
+            <ReportsView tasks={tasks} members={clientMembers} />
           )}
         </main>
       </div>

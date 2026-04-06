@@ -67,6 +67,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
 
   // ── Fetch all tasks with nested steps + assignees ──────────────────────────
   const fetchTasks = useCallback(async (): Promise<boolean> => {
+    setTasks([])
     let query = supabase
       .from('tasks')
       .select(`

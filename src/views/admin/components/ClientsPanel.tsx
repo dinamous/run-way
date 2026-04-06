@@ -14,7 +14,7 @@ import {
 import { toast } from 'sonner'
 import type { DbClientRow } from '@/types/db'
 import type { Member } from '@/hooks/useSupabase'
-import { Plus, Trash2, Users, Search, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { Plus, Trash2, Users, Search, ChevronLeft, ChevronRight, Clock, Building } from 'lucide-react'
 
 interface ClientsPanelProps {
   clients: DbClientRow[]
@@ -32,17 +32,21 @@ type ValidationErrors = {
   slug?: string
 }
 
+type StatusFilter = 'all' | 'with_pending' | 'no_pending'
+
 const PAGE_SIZE = 12
 
 export function ClientsPanel({
   clients, users, userClientsMap, onCreate, onUpdate, onDelete
 }: ClientsPanelProps) {
-  const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
-  const [errors, setErrors] = useState<ValidationErrors>({})
+  const [createDrawerOpen, setCreateDrawerOpen] = useState(false)
+  const [createName, setCreateName] = useState('')
+  const [createSlug, setCreateSlug] = useState('')
+  const [createErrors, setCreateErrors] = useState<ValidationErrors>({})
   const [creating, setCreating] = useState(false)
+
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<DbClientRow | null>(null)
   const [editName, setEditName] = useState('')
   const [editSlug, setEditSlug] = useState('')
@@ -50,16 +54,42 @@ export function ClientsPanel({
   const [saving, setSaving] = useState(false)
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [page, setPage] = useState(1)
 
+  const getClientUsers = (clientId: string) => {
+    const userIds = Object.entries(userClientsMap)
+      .filter(([, clientIds]) => clientIds.includes(clientId))
+      .map(([userId]) => userId)
+    return users.filter(u => userIds.includes(u.id))
+  }
+
+  const getPendingUsers = (clientId: string) => {
+    return getClientUsers(clientId).filter(u => !u.auth_user_id)
+  }
+
   const filteredClients = useMemo(() => {
-    if (!searchQuery.trim()) return clients
-    const q = searchQuery.toLowerCase()
-    return clients.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      c.slug.toLowerCase().includes(q)
-    )
-  }, [clients, searchQuery])
+    let filtered = clients
+
+    if (statusFilter === 'with_pending') {
+      filtered = filtered.filter(c => getPendingUsers(c.id).length > 0)
+    } else if (statusFilter === 'no_pending') {
+      filtered = filtered.filter(c => {
+        const users_list = getClientUsers(c.id)
+        return users_list.length > 0 && getPendingUsers(c.id).length === 0
+      })
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        c.slug.toLowerCase().includes(q)
+      )
+    }
+
+    return filtered
+  }, [clients, searchQuery, statusFilter, userClientsMap, users])
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / PAGE_SIZE))
   const paginatedClients = useMemo(() => {
@@ -80,18 +110,34 @@ export function ClientsPanel({
     return errs
   }
 
+  const openCreateDrawer = () => {
+    setCreateName('')
+    setCreateSlug('')
+    setCreateErrors({})
+    setCreateDrawerOpen(true)
+  }
+
+  const closeCreateDrawer = () => {
+    setCreateDrawerOpen(false)
+    setCreating(false)
+  }
+
   const handleCreate = async () => {
-    const errs = validateFields(name, slug)
-    setErrors(errs)
+    const errs = validateFields(createName, createSlug)
+    setCreateErrors(errs)
     if (Object.keys(errs).length > 0) {
       toast.error('Corrija os erros antes de criar')
       return
     }
     setCreating(true)
-    const ok = await onCreate(name.trim(), slug.trim())
+    const ok = await onCreate(createName.trim(), createSlug.trim())
     setCreating(false)
-    if (ok) { toast.success(`Cliente "${name}" criado`); setName(''); setSlug(''); setErrors({}) }
-    else toast.error('Erro ao criar cliente')
+    if (ok) {
+      toast.success(`Cliente "${createName}" criado`)
+      closeCreateDrawer()
+    } else {
+      toast.error('Erro ao criar cliente')
+    }
   }
 
   const openEditDrawer = (client: DbClientRow) => {
@@ -99,11 +145,11 @@ export function ClientsPanel({
     setEditName(client.name)
     setEditSlug(client.slug)
     setEditErrors({})
-    setDrawerOpen(true)
+    setEditDrawerOpen(true)
   }
 
-  const closeDrawer = () => {
-    setDrawerOpen(false)
+  const closeEditDrawer = () => {
+    setEditDrawerOpen(false)
     setEditingClient(null)
     setEditName('')
     setEditSlug('')
@@ -122,7 +168,7 @@ export function ClientsPanel({
     setSaving(true)
     const ok = await onUpdate(editingClient.id, editName.trim(), editSlug.trim())
     setSaving(false)
-    if (ok) { toast.success('Cliente atualizado'); closeDrawer() }
+    if (ok) { toast.success('Cliente atualizado'); closeEditDrawer() }
     else toast.error('Erro ao atualizar cliente')
   }
 
@@ -133,32 +179,22 @@ export function ClientsPanel({
     setDeletingId(null)
     if (ok) {
       toast.success('Cliente eliminado')
-      if (editingClient?.id === client.id) closeDrawer()
+      if (editingClient?.id === client.id) closeEditDrawer()
     } else {
       toast.error('Erro ao eliminar cliente')
     }
   }
 
-  const getClientUsers = (clientId: string) => {
-    const userIds = Object.entries(userClientsMap)
-      .filter(([, clientIds]) => clientIds.includes(clientId))
-      .map(([userId]) => userId)
-    return users.filter(u => userIds.includes(u.id))
-  }
-
-  const getPendingUsers = (clientId: string) => {
-    return getClientUsers(clientId).filter(u => !u.auth_user_id)
-  }
-
-  const nameId = 'client-name-input'
-  const slugId = 'client-slug-input'
   const editNameId = 'edit-client-name'
   const editSlugId = 'edit-client-slug'
 
+  const createNameId = 'create-client-name'
+  const createSlugId = 'create-client-slug'
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 flex-1 max-w-md">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-1 min-w-[300px] max-w-2xl">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -168,50 +204,45 @@ export function ClientsPanel({
               className="pl-9"
             />
           </div>
-        </div>
-        <div className="flex gap-2 items-start">
-          <div className="space-y-1">
-            <Input
-              id={nameId}
-              placeholder="Nome do cliente"
-              value={name}
-              onChange={e => { setName(e.target.value); if (errors.name) setErrors(prev => ({ ...prev, name: undefined })) }}
-              aria-invalid={!!errors.name}
-              aria-describedby={errors.name ? `${nameId}-error` : undefined}
-              className="w-48"
-            />
-            {errors.name && (
-              <p id={`${nameId}-error`} role="alert" className="text-xs text-red-500 mt-1">
-                {errors.name}
-              </p>
-            )}
+          <div className="flex gap-1 bg-muted p-1 rounded-lg">
+            <button
+              onClick={() => { setStatusFilter('all'); setPage(1) }}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                statusFilter === 'all'
+                  ? 'bg-background shadow-sm font-medium'
+                  : 'hover:bg-background/50 text-muted-foreground'
+              }`}
+            >
+              Todos
+            </button>
+            <button
+              onClick={() => { setStatusFilter('with_pending'); setPage(1) }}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                statusFilter === 'with_pending'
+                  ? 'bg-background shadow-sm font-medium'
+                  : 'hover:bg-background/50 text-muted-foreground'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+              Com pendentes
+            </button>
+            <button
+              onClick={() => { setStatusFilter('no_pending'); setPage(1) }}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                statusFilter === 'no_pending'
+                  ? 'bg-background shadow-sm font-medium'
+                  : 'hover:bg-background/50 text-muted-foreground'
+              }`}
+            >
+              <Building className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+              Todos ativos
+            </button>
           </div>
-          <div className="space-y-1">
-            <Input
-              id={slugId}
-              placeholder="Slug"
-              value={slug}
-              onChange={e => { setSlug(e.target.value); if (errors.slug) setErrors(prev => ({ ...prev, slug: undefined })) }}
-              aria-invalid={!!errors.slug}
-              aria-describedby={errors.slug ? `${slugId}-error` : undefined}
-              className="w-32"
-            />
-            {errors.slug && (
-              <p id={`${slugId}-error`} role="alert" className="text-xs text-red-500 mt-1">
-                {errors.slug}
-              </p>
-            )}
-          </div>
-          <Button
-            onClick={handleCreate}
-            disabled={!name.trim() || !slug.trim()}
-            isLoading={creating}
-            aria-label="Criar novo cliente"
-          >
-            <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
-            Criar
-          </Button>
         </div>
+        <Button onClick={openCreateDrawer} aria-label="Criar novo cliente">
+          <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
+          Novo cliente
+        </Button>
       </div>
 
       <div className="text-sm text-muted-foreground">
@@ -301,7 +332,70 @@ export function ClientsPanel({
         </div>
       )}
 
-      <Drawer direction="right" open={drawerOpen} onOpenChange={setDrawerOpen}>
+      <Drawer direction="right" open={createDrawerOpen} onOpenChange={setCreateDrawerOpen}>
+        <DrawerContent data-vaul-drawer-direction="right">
+          <DrawerHeader>
+            <DrawerTitle>Criar Cliente</DrawerTitle>
+            <DrawerDescription>
+              Crie um novo cliente para organizar demandas.
+            </DrawerDescription>
+          </DrawerHeader>
+
+          <div className="px-6 pb-6 space-y-6 overflow-y-auto max-h-[calc(100vh-200px)]">
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor={createNameId}>Nome</Label>
+                <Input
+                  id={createNameId}
+                  value={createName}
+                  onChange={e => { setCreateName(e.target.value); if (createErrors.name) setCreateErrors(prev => ({ ...prev, name: undefined })) }}
+                  placeholder="Nome do cliente"
+                  aria-invalid={!!createErrors.name}
+                  aria-describedby={createErrors.name ? `${createNameId}-error` : undefined}
+                />
+                {createErrors.name && (
+                  <p id={`${createNameId}-error`} role="alert" className="text-xs text-red-500 mt-1">
+                    {createErrors.name}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor={createSlugId}>URL</Label>
+                <Input
+                  id={createSlugId}
+                  value={createSlug}
+                  onChange={e => { setCreateSlug(e.target.value); if (createErrors.slug) setCreateErrors(prev => ({ ...prev, slug: undefined })) }}
+                  placeholder="empresa-x"
+                  aria-invalid={!!createErrors.slug}
+                  aria-describedby={createErrors.slug ? `${createSlugId}-error` : undefined}
+                />
+                {createErrors.slug && (
+                  <p id={`${createSlugId}-error`} role="alert" className="text-xs text-red-500 mt-1">
+                    {createErrors.slug}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Identificador único usado na URL do sistema. Use letras minúsculas, números e hífens (ex: minha-empresa).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <DrawerFooter className="flex-row justify-end gap-2">
+            <Button variant="outline" onClick={closeCreateDrawer} disabled={creating}>Cancelar</Button>
+            <Button
+              onClick={handleCreate}
+              isLoading={creating}
+              disabled={!createName.trim() || !createSlug.trim()}
+            >
+              Criar
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer direction="right" open={editDrawerOpen} onOpenChange={setEditDrawerOpen}>
         <DrawerContent data-vaul-drawer-direction="right">
           <DrawerHeader>
             <DrawerTitle>Editar Cliente</DrawerTitle>
@@ -329,7 +423,7 @@ export function ClientsPanel({
                 )}
               </div>
               <div className="space-y-1">
-                <Label htmlFor={editSlugId}>Slug</Label>
+                <Label htmlFor={editSlugId}>URL</Label>
                 <Input
                   id={editSlugId}
                   value={editSlug}
@@ -343,6 +437,9 @@ export function ClientsPanel({
                     {editErrors.slug}
                   </p>
                 )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Identificador único usado na URL. Use letras minúsculas, números e hífens.
+                </p>
               </div>
             </div>
 
@@ -352,7 +449,7 @@ export function ClientsPanel({
           </div>
 
           <DrawerFooter className="flex-row justify-end gap-2">
-            <Button variant="outline" onClick={closeDrawer} disabled={saving}>Cancelar</Button>
+            <Button variant="outline" onClick={closeEditDrawer} disabled={saving}>Cancelar</Button>
             <Button onClick={handleUpdate} isLoading={saving} disabled={!editName.trim() || !editSlug.trim()}>
               Guardar
             </Button>

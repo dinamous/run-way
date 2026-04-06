@@ -1,80 +1,100 @@
-import { useState } from 'react'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
-import { toast } from 'sonner'
+import { Globe, Building2, Users, FileText, Key, Mail } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
 import type { ClientOption } from '@/contexts/AuthContext'
 
 interface UserClientsViewProps {
-  userClients: ClientOption[]
-  availableClients: ClientOption[]
-  onLink: (clientId: string) => Promise<boolean>
-  onUnlink: (clientId: string) => Promise<boolean>
+  client: ClientOption | null
 }
 
-export function UserClientsView({
-  userClients,
-  availableClients,
-  onLink,
-  onUnlink,
-}: UserClientsViewProps) {
-  const [selectedClient, setSelectedClient] = useState('')
-
-  const unlinkedClients = availableClients.filter(
-    c => !userClients.some(uc => uc.id === c.id)
+function InfoRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium">{value ?? <span className="text-muted-foreground/50 italic">Não definido</span>}</span>
+    </div>
   )
+}
 
-  const handleLink = async () => {
-    if (!selectedClient) return
-    const ok = await onLink(selectedClient)
-    if (ok) {
-      toast.success('Cliente adicionado')
-      setSelectedClient('')
-    } else {
-      toast.error('Erro ao adicionar cliente')
-    }
+function PlaceholderSection({ icon: Icon, title, description }: {
+  icon: React.ElementType
+  title: string
+  description: string
+}) {
+  return (
+    <Card className="opacity-60">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4 text-muted-foreground" />
+          <CardTitle className="text-base">{title}</CardTitle>
+        </div>
+        <CardDescription className="text-xs">{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-muted-foreground italic">Em breve</p>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function UserClientsView({ client }: UserClientsViewProps) {
+  if (!client) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
+        <Building2 className="w-10 h-10 opacity-30" />
+        <p className="text-lg font-medium">Nenhum cliente selecionado</p>
+        <p className="text-sm">Selecione um cliente no menu superior para ver os detalhes.</p>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Os Meus Clientes</h1>
-
-      <div className="flex gap-2 flex-wrap items-end">
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Adicionar cliente</span>
-          <select
-            className="border rounded px-2 py-1.5 text-sm bg-background min-w-[200px]"
-            value={selectedClient}
-            onChange={e => setSelectedClient(e.target.value)}
-          >
-            <option value="">Selecionar cliente...</option>
-            {unlinkedClients.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-        <Button onClick={handleLink} disabled={!selectedClient}>
-          Adicionar
-        </Button>
+    <div className="space-y-6 max-w-3xl">
+      <div>
+        <h1 className="text-2xl font-bold">{client.name}</h1>
+        <p className="text-muted-foreground text-sm mt-1">Informações e configurações do cliente.</p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {userClients.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nenhum cliente associado.</p>
-        ) : (
-          userClients.map(c => (
-            <Badge
-              key={c.id}
-              className="cursor-pointer px-3 py-1.5 text-sm"
-              onClick={async () => {
-                if (!confirm(`Remover acesso a "${c.name}"?`)) return
-                const ok = await onUnlink(c.id)
-                if (!ok) toast.error('Erro ao remover cliente')
-              }}
-            >
-              {c.name} ✕
-            </Badge>
-          ))
-        )}
+      {/* Informações gerais */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="text-base">Geral</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <InfoRow label="Nome" value={client.name} />
+          <InfoRow label="Domínio" value={client.slug ? `/${client.slug}` : null} />
+        </CardContent>
+      </Card>
+
+      {/* Seções futuras */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <PlaceholderSection
+          icon={Users}
+          title="Gerente"
+          description="Responsável pelo cliente"
+        />
+        <PlaceholderSection
+          icon={Mail}
+          title="Contactos"
+          description="Emails e contactos do cliente"
+        />
+        <PlaceholderSection
+          icon={Key}
+          title="Acessos"
+          description="Credenciais e acessos associados"
+        />
+        <PlaceholderSection
+          icon={Globe}
+          title="Contas"
+          description="Contas de serviços e plataformas"
+        />
+        <PlaceholderSection
+          icon={FileText}
+          title="Documentação"
+          description="Documentos e referências do cliente"
+        />
       </div>
     </div>
   )

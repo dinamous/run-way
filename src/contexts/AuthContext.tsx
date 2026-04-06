@@ -6,6 +6,7 @@ import type { Member } from '@/hooks/useSupabase'
 export interface ClientOption {
   id: string
   name: string
+  slug?: string
 }
 
 interface AuthContextValue {
@@ -79,6 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setMember(memberData as Member)
 
+      const { data: allClients } = await supabase
+        .from('clients')
+        .select('id, name, slug')
+        .order('name')
+
       if (memberData.access_role !== 'admin') {
         const { data: uc } = await supabase
           .from('user_clients')
@@ -88,16 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const clientIds = (uc ?? []).map((r: { client_id: string }) => r.client_id)
 
         if (clientIds.length > 0) {
-          const { data: clientsData } = await supabase
-            .from('clients')
-            .select('id, name')
-            .in('id', clientIds)
-          setClients(clientsData ?? [])
+          setClients((allClients ?? []).filter(c => clientIds.includes(c.id)))
         } else {
           setClients([])
         }
       } else {
-        setClients([])
+        setClients(allClients ?? [])
       }
     } catch (err) {
       console.warn('[AuthContext] Erro ao carregar perfil:', err)

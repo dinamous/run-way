@@ -21,7 +21,7 @@ export function useUserClients() {
 
     const [{ data: uc }, { data: allClients }] = await Promise.all([
       supabase.from('user_clients').select('client_id').eq('user_id', member.id),
-      supabase.from('clients').select('id, name').order('name'),
+      supabase.from('clients').select('id, name, slug').order('name'),
     ])
 
     const clientIds = (uc ?? []).map((r: { client_id: string }) => r.client_id)

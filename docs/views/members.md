@@ -77,6 +77,10 @@ Após coletar os steps do membro, agrupa por `task.id` usando um `Map<string, { 
 | `Badge` (`@/components/ui`) | Badge de status do membro |
 | `MembersViewProps` (`@/types/props`) | Tipagem das props |
 
+## Filtragem por cliente
+
+`members` recebido pela view já é `clientMembers` (derivado em `App.tsx`): contém apenas membros com steps atribuídos nas tarefas do cliente ativo. Quando admin visualiza "Todos os clientes", recebe todos os membros.
+
 ## Notas
 
 - `todayStr()` gera a data atual em `YYYY-MM-DD` sem depender de timezone (usa `getFullYear/getMonth/getDate`)

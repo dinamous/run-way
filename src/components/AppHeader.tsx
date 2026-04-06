@@ -1,4 +1,4 @@
-import { Sun, Moon, CalendarDays, PanelLeft, LogOut, User } from "lucide-react";
+import { Sun, Moon, CalendarDays, PanelLeft, LogOut, User, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -22,6 +22,9 @@ interface AppHeaderProps {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
   selectedClient?: ClientOption | null;
+  availableClients?: ClientOption[];
+  onSelectClient?: (clientId: string | null | undefined) => void;
+  isAdmin?: boolean;
 }
 
 function getInitials(email?: string): string {
@@ -41,7 +44,12 @@ export function AppHeader({
   sidebarOpen,
   onToggleSidebar,
   selectedClient,
+  availableClients = [],
+  onSelectClient,
+  isAdmin,
 }: AppHeaderProps) {
+  const showClientSelector = availableClients.length > 1 || (isAdmin && availableClients.length > 0);
+
   return (
     <header className="bg-card border-b border-border sticky top-0 z-10 print:hidden">
       <div className="px-4 h-16 flex items-center justify-between">
@@ -65,11 +73,49 @@ export function AppHeader({
         </div>
 
         <div className="flex items-center gap-3">
-          {selectedClient && (
+          {showClientSelector ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-muted transition-colors">
+                  {selectedClient ? (
+                    <>
+                      <span className="text-muted-foreground">Cliente:</span>
+                      <span className="font-medium">{selectedClient.name}</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">Selecionar cliente...</span>
+                  )}
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {isAdmin && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => onSelectClient?.(null)}
+                      className={!selectedClient ? "font-semibold" : ""}
+                    >
+                      Todos os clientes
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                {availableClients.map(client => (
+                  <DropdownMenuItem
+                    key={client.id}
+                    onClick={() => onSelectClient?.(client.id)}
+                    className={selectedClient?.id === client.id ? "font-semibold" : ""}
+                  >
+                    {client.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : selectedClient ? (
             <span className="text-sm text-muted-foreground">
               Cliente: <span className="font-medium text-foreground">{selectedClient.name}</span>
             </span>
-          )}
+          ) : null}
 
           <button
             onClick={onToggleDark}

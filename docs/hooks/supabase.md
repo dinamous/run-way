@@ -4,7 +4,7 @@
 **Cliente:** `src/lib/supabase.ts`
 
 ## Funções principais
-- `fetchTasks()` — carrega tarefas com steps e assignees
+- `fetchTasks()` — limpa `tasks` para `[]` antes de buscar, depois carrega tarefas com steps e assignees (garante que não há dados do cliente anterior durante o carregamento)
 - `createTask(data)` — insere tarefa + steps + assignees
 - `updateTask(data)` — atualiza tarefa (atualmente: delete+insert steps — ver TODO)
 - `deleteTask(id)` — remove tarefa e dados associados
