@@ -25,7 +25,7 @@ type AdminTab = 'clients' | 'users' | 'audit'
 
 export function AdminView() {
   const [tab, setTab] = useState<AdminTab>('clients')
-  const { impersonatedClientId, setImpersonatedClientId } = useAuthContext()
+  const { member, impersonatedClientId, setImpersonatedClientId } = useAuthContext()
   const {
     clients, users, auditLogs, loading, loadingInitial, error, userClientsMap,
     refreshAll,
@@ -33,7 +33,7 @@ export function AdminView() {
     createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
     createUser, setUserAuthId, listGoogleUsers,
-  } = useAdminData()
+  } = useAdminData({ actorUserId: member?.id ?? null })
 
   if (!supabaseAdmin) {
     return (

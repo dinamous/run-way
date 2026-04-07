@@ -73,13 +73,14 @@ export function AuditLogsPanel({ logs, clients, users, loading, onFetch }: Audit
             <option value="">Todas</option>
             <option value="task">task</option>
             <option value="step">step</option>
+            <option value="client">client</option>
           </select>
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Demanda</span>
+          <span className="text-xs text-muted-foreground">Nome da entidade</span>
           <Input
-            placeholder="Nome da demanda"
+            placeholder="Nome da entidade"
             value={entityName}
             onChange={e => setEntityName(e.target.value)}
             className="w-40 h-8 text-sm"
@@ -108,7 +109,7 @@ export function AuditLogsPanel({ logs, clients, users, loading, onFetch }: Audit
             <tr className="border-b text-left text-muted-foreground text-xs">
               <th className="py-2 pr-3">Data/Hora</th>
               <th className="py-2 pr-3">Usuário</th>
-              <th className="py-2 pr-3">Demanda</th>
+                <th className="py-2 pr-3">Entidade nome</th>
               <th className="py-2 pr-3">Entidade</th>
               <th className="py-2 pr-3">Ação</th>
               <th className="py-2 pr-3">Campo</th>

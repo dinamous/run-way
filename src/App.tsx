@@ -21,6 +21,7 @@ import { Toaster, toast } from "sonner";
 import type { Task } from "./lib/steps";
 import type { ViewType } from "@/store/useUIStore";
 import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
+import { ConfirmModal } from "@/components/ui";
 
 export default function App() {
   const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients } = useAuthContext();
@@ -85,6 +86,8 @@ export default function App() {
   const openTaskModal = useUIStore((s) => s.openTaskModal);
   const closeTaskModal = useUIStore((s) => s.closeTaskModal);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null);
+  const [closeTaskModalOnDelete, setCloseTaskModalOnDelete] = useState(false);
 
   const handleSelectClient = useCallback((clientId: string | null | undefined) => {
     setClient(clientId);
@@ -127,10 +130,28 @@ export default function App() {
     return <LoginView onSignIn={signIn} error={authError} />;
   }
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Tem a certeza que deseja eliminar esta tarefa?")) {
-      const ok = await deleteTask(id);
-      if (!ok) toast.error("Erro ao eliminar tarefa");
+  const requestDeleteTask = (id: string, closeModalAfterDelete = false) => {
+    setPendingDeleteTaskId(id);
+    setCloseTaskModalOnDelete(closeModalAfterDelete);
+  };
+
+  const handleConfirmDeleteTask = async () => {
+    if (!pendingDeleteTaskId) return;
+
+    const taskId = pendingDeleteTaskId;
+    const shouldCloseModal = closeTaskModalOnDelete;
+
+    setPendingDeleteTaskId(null);
+    setCloseTaskModalOnDelete(false);
+
+    const ok = await deleteTask(taskId);
+    if (!ok) {
+      toast.error("Erro ao eliminar tarefa");
+      return;
+    }
+
+    if (shouldCloseModal) {
+      closeTaskModal();
     }
   };
 
@@ -184,7 +205,7 @@ export default function App() {
           ) : view === "dashboard" ? (
             <DashboardView
               onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
-              onDelete={handleDelete}
+              onDelete={(id: string) => requestDeleteTask(id)}
               onUpdateTask={updateTask}
               onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
               onExport={() => window.print()}
@@ -204,11 +225,7 @@ export default function App() {
           members={members}
           onClose={closeTaskModal}
           onDelete={async (id: string) => {
-            if (confirm("Tem a certeza que deseja eliminar esta demanda?")) {
-              const ok = await deleteTask(id);
-              if (!ok) { toast.error("Erro ao eliminar tarefa"); return; }
-              closeTaskModal();
-            }
+            requestDeleteTask(id, true);
           }}
           onSave={async (taskData) => {
             let ok: boolean;
@@ -231,6 +248,20 @@ export default function App() {
             closeTaskModal();
           }}
           holidays={holidays}
+        />
+      )}
+
+      {pendingDeleteTaskId && (
+        <ConfirmModal
+          title="Eliminar demanda"
+          message="Tem a certeza que deseja eliminar esta demanda?"
+          confirmLabel="Eliminar demanda"
+          cancelLabel="Cancelar"
+          onConfirm={handleConfirmDeleteTask}
+          onCancel={() => {
+            setPendingDeleteTaskId(null);
+            setCloseTaskModalOnDelete(false);
+          }}
         />
       )}
     </div>

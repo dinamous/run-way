@@ -39,13 +39,23 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pendingSubmitData, setPendingSubmitData] = useState<Parameters<typeof onSave>[0] | null>(null);
   const [confirmMessage, setConfirmMessage] = useState('');
+  const [showDirtyCloseConfirm, setShowDirtyCloseConfirm] = useState(false);
 
   const formSnapshot = { title, clickupLink, blocked, blockedAt, steps };
-  const { isDirty, submitting, withSubmit, confirmClose } = useFormState(
+  const { isDirty, submitting, withSubmit } = useFormState(
     formSnapshot,
     !task,
     title.length >= 3,
   );
+
+  const handleRequestClose = () => {
+    if (!isDirty) {
+      onClose();
+      return;
+    }
+
+    setShowDirtyCloseConfirm(true);
+  };
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -162,7 +172,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
             {task ? 'Editar Demanda' : 'Nova Demanda'}
           </h2>
           <button
-            onClick={() => confirmClose() && onClose()}
+            onClick={handleRequestClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >✕</button>
         </div>
@@ -387,7 +397,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => confirmClose() && onClose()} type="button">Cancelar</Button>
+            <Button variant="outline" onClick={handleRequestClose} type="button">Cancelar</Button>
             <Button type="submit" form="task-form" disabled={!isDirty || submitting}>
               <Save className="w-4 h-4 mr-1.5" />
               {submitting ? 'A guardar…' : task ? 'Salvar Alterações' : 'Criar Demanda'}
@@ -403,6 +413,20 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
             onSecondaryConfirm={handlePostponeWeekend}
             onConfirm={handleConfirmWeekend}
             onCancel={handleCancelWeekend}
+          />
+        )}
+
+        {showDirtyCloseConfirm && (
+          <ConfirmModal
+            title="Descartar alterações"
+            message="Você tem alterações não guardadas. Tem certeza que quer fechar?"
+            confirmLabel="Descartar e fechar"
+            cancelLabel="Continuar editando"
+            onConfirm={() => {
+              setShowDirtyCloseConfirm(false);
+              onClose();
+            }}
+            onCancel={() => setShowDirtyCloseConfirm(false)}
           />
         )}
 

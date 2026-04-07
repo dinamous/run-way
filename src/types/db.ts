@@ -51,7 +51,7 @@ export interface DbAuditLogRow {
   id: string
   user_id: string | null
   client_id: string | null
-  entity: 'task' | 'step'
+  entity: 'task' | 'step' | 'client'
   entity_id: string
   entity_name: string | null
   action: 'create' | 'update' | 'delete'

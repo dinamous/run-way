@@ -16,7 +16,12 @@ export interface AuditFilters {
   to?: string     // YYYY-MM-DD
 }
 
-export function useAdminData() {
+interface UseAdminDataOptions {
+  actorUserId?: string | null
+}
+
+export function useAdminData(options: UseAdminDataOptions = {}) {
+  const { actorUserId } = options
   const selectedClientId = useClientStore((state) => state.selectedClientId)
   const invalidateTasks = useTaskStore((state) => state.invalidate)
   const fetchTasks = useTaskStore((state) => state.fetchTasks)
@@ -151,10 +156,26 @@ export function useAdminData() {
     }
   }, [fetchClients, reloadAppStores])
 
-  const deleteClient = useCallback(async (id: string) => {
+  const deleteClient = useCallback(async (id: string, name: string) => {
     if (!supabaseAdmin) return false
+    const deletedClient = clients.find(client => client.id === id)
     const { error } = await supabaseAdmin.from('clients').delete().eq('id', id)
     if (error) return false
+
+    if (actorUserId) {
+      await supabaseAdmin.from('audit_logs').insert({
+        user_id: actorUserId,
+        client_id: deletedClient?.id ?? id,
+        entity: 'client',
+        entity_id: id,
+        entity_name: deletedClient?.name ?? name,
+        action: 'delete',
+        field: null,
+        from_value: null,
+        to_value: null,
+      })
+    }
+
     try {
       setError(null)
       await fetchClients()
@@ -164,7 +185,7 @@ export function useAdminData() {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchClients, reloadAppStores])
+  }, [actorUserId, clients, fetchClients, reloadAppStores])
 
   // Vínculo user ↔ client
   const linkUserToClient = useCallback(async (userId: string, clientId: string) => {
