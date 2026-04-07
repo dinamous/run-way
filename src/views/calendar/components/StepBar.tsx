@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import {
   normaliseTask, isStepBlocked,
   STEP_META,
-  type BarItem, type DragPreview, type DragState, type Task,
+  type BarItem, type DragPreview, type DragState, type Task, type CalendarViewMode,
 } from '../../../utils/dashboardUtils';
 
 interface StepBarProps {
@@ -14,6 +14,8 @@ interface StepBarProps {
   dragPreview: DragPreview | null;
   onStartDrag: (e: React.MouseEvent, bar: BarItem, type: DragState['type'], task: Task) => void;
   onClick: () => void;
+  viewMode?: CalendarViewMode;
+  demandColor?: string;
 }
 
 const STEP_BORDER_COLORS: Record<string, string> = {
@@ -27,9 +29,18 @@ const STEP_BORDER_COLORS: Record<string, string> = {
   'publicacao': '#bafc50',
 };
 
-const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBarOfStep, dragPreview, onStartDrag, onClick }) => {
+const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBarOfStep, dragPreview, onStartDrag, onClick, viewMode = 'step', demandColor }) => {
   const meta = STEP_META[bar.stepType];
   const colW = 100 / 7;
+  const isDemandMode = viewMode === 'demand';
+
+  const getContrastColor = (hexColor: string): string => {
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? '#1f2937' : '#ffffff';
+  };
 
   let adjStart = bar.startCol;
   let adjEnd = bar.endCol;
@@ -48,10 +59,19 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
   const isDragging = dragPreview?.taskId === bar.taskId && dragPreview?.stepType === bar.stepType;
   const norm = normaliseTask(task);
   const blocked = isStepBlocked(norm, bar.stepStart);
-  const bgClass = blocked ? 'bg-red-500 dark:bg-red-600 text-white' : meta.bar.replace(/border\s+\S+/g, '');
+  
+  let bgClass: string;
+  let borderColor: string;
+  
+  if (isDemandMode && demandColor) {
+    bgClass = 'text-white';
+    borderColor = demandColor;
+  } else {
+    bgClass = blocked ? 'bg-red-500 dark:bg-red-600 text-white' : meta.bar.replace(/border\s+\S+/g, '');
+    borderColor = blocked ? '#dc2626' : (STEP_BORDER_COLORS[bar.stepType] ?? '#d1d5db');
+  }
+  
   const stepKey = `${bar.taskId}-${bar.stepType}`;
-
-  const borderColor = blocked ? '#dc2626' : (STEP_BORDER_COLORS[bar.stepType] ?? '#d1d5db');
 
   let borderRadius = '0px';
   if (isFirstBarOfStep && isLastBarOfStep) {
@@ -65,6 +85,8 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
   const showLeftDeco = isFirstBarOfStep;
   const showRightDeco = isLastBarOfStep;
 
+  const cursorStyle = isDemandMode ? 'default' : (isDragging ? 'grabbing' : 'grab');
+
   return (
     <div
       className={`absolute ${bgClass} text-[11px] font-semibold flex items-center overflow-hidden z-10 group/bar select-none ${isDragging ? 'shadow-lg' : 'hover:brightness-110'}`}
@@ -75,15 +97,16 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
         left: `calc(${left}% + ${showLeftDeco ? 3 : 0}px)`,
         width: `calc(${width}% - ${(showLeftDeco ? 3 : 0) + (showRightDeco ? 3 : 0)}px)`,
         borderRadius,
-        borderLeft: showLeftDeco ? `2px solid ${borderColor}` : 'none',
-        borderRight: showRightDeco ? `2px solid ${borderColor}` : 'none',
+        borderLeft: showLeftDeco ? `2px solid ${borderColor}` : (isDemandMode && isFirstBarOfStep ? `3px solid ${borderColor}` : 'none'),
+        borderRight: showRightDeco ? `2px solid ${borderColor}` : (isDemandMode && isLastBarOfStep ? `3px solid ${borderColor}` : 'none'),
         borderTop: showLeftDeco || showRightDeco ? `1px solid ${borderColor}` : 'none',
         borderBottom: showLeftDeco || showRightDeco ? `1px solid ${borderColor}` : 'none',
-        cursor: isDragging ? 'grabbing' : 'grab',
+        backgroundColor: isDemandMode && demandColor ? demandColor : undefined,
+        cursor: cursorStyle,
         transition: isDragging ? 'none' : 'filter 0.1s',
       }}
-      title={`${task.title} · ${meta.label}${blocked ? ' · BLOQUEADO' : ''}`}
-      onMouseDown={e => onStartDrag(e, bar, 'move', task)}
+      title={`${task.title}${isDemandMode ? '' : ` · ${meta.label}`}${blocked ? ' · BLOQUEADO' : ''}`}
+      onMouseDown={e => !isDemandMode && onStartDrag(e, bar, 'move', task)}
       onMouseEnter={(e) => {
         document.querySelectorAll(`[data-step-key="${stepKey}"]`).forEach(el => {
           if (el !== e.currentTarget) el.classList.add('brightness-110');
@@ -96,14 +119,14 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
       }}
       onClick={onClick}
     >
-      {showLeftDeco && (
+      {showLeftDeco && !isDemandMode && (
         <div
           className={`absolute left-0 top-0 bottom-0 w-2 ${meta.handle} cursor-ew-resize z-20`}
           style={{ borderRadius: 'inherit' }}
           onMouseDown={e => { e.stopPropagation(); onStartDrag(e, bar, 'resize-start', task); }}
         />
       )}
-      {showLeftDeco && (
+      {showLeftDeco && !isDemandMode && (
         <span className="flex items-center gap-1 px-1.5 truncate leading-none pointer-events-none min-w-0">
           {blocked
             ? <AlertTriangle className="w-3 h-3 shrink-0" />
@@ -112,7 +135,15 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
           <span className="truncate text-[11px]">{task.title}</span>
         </span>
       )}
-      {showRightDeco && (
+      {isDemandMode && demandColor && (
+        <span 
+          className="flex items-center gap-1 px-1.5 truncate leading-none pointer-events-none min-w-0"
+          style={{ color: getContrastColor(demandColor) }}
+        >
+          <span className="truncate text-[11px]">{task.title}</span>
+        </span>
+      )}
+      {showRightDeco && !isDemandMode && (
         <div
           className={`absolute right-0 top-0 bottom-0 w-2 ${meta.handle} cursor-ew-resize z-20`}
           style={{ borderRadius: 'inherit' }}

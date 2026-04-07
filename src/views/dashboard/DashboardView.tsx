@@ -60,6 +60,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
     filterStatus, setFilterStatus,
     filterSteps,
     filterPeriodDays, setFilterPeriodDays,
+    viewMode, setViewMode,
     hasActiveFilters,
     clearFilters, toggleStepFilter,
     filteredTasks, blockedCount, activeCount,
@@ -128,6 +129,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         showPeriodFilter={calView === 'timeline'}
         filterPeriodDays={filterPeriodDays}
         onChangePeriodDays={setFilterPeriodDays}
+        viewMode={viewMode}
+        onChangeViewMode={setViewMode}
         onExport={onExport}
         onOpenNew={onOpenNew}
         hasActiveFilters={hasActiveFilters}
@@ -168,6 +171,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         showPeriodFilter={calView === 'timeline'}
         filterPeriodDays={filterPeriodDays}
         onChangePeriodDays={setFilterPeriodDays}
+        showViewMode={calView === 'calendar'}
+        viewMode={viewMode}
+        onChangeViewMode={setViewMode}
         onExport={onExport}
         onOpenNew={onOpenNew}
         hasActiveFilters={hasActiveFilters}
@@ -177,7 +183,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
       />
 
       {calView === 'calendar' ? (
-        <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
+        <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} viewMode={viewMode} />
       ) : (
         <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} daysRange={filterPeriodDays} />
       )}

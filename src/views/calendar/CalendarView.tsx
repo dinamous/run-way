@@ -8,7 +8,7 @@ import DayHeaders from './components/DayHeaders';
 import WeekRow from './components/WeekRow';
 import { ConfirmModal } from '@/components/ui';
 
-const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask, holidays }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask, holidays, viewMode = 'step' }) => {
   const { today, monthDate, weeks, prevMonth, nextMonth, goToday } = useCalendarNavigation();
   const { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag, postponeDragToBusinessDay } = useCalendarDrag(tasks, onUpdateTask, holidays);
   const rowHeight = `calc(var(--cal-day-header-h) + ${MAX_SLOTS} * var(--cal-slot-height) + var(--cal-row-padding))`;
@@ -45,6 +45,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask
                 onStartDrag={startDrag}
                 onEdit={onEdit}
                 holidays={holidays}
+                viewMode={viewMode}
               />
             ))}
           </div>

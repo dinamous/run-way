@@ -2,6 +2,7 @@ import { Button } from '@/components/ui';
 import { X, Plus, Download } from 'lucide-react';
 import { STEP_TYPES_ORDER, STEP_META, type StepType } from '@/lib/steps';
 import type { Member } from '@/types/member';
+import type { CalendarViewMode } from '../hooks/useTaskFilters';
 
 interface FilterBarProps {
   members: Member[];
@@ -14,6 +15,9 @@ interface FilterBarProps {
   showPeriodFilter?: boolean;
   filterPeriodDays: number;
   onChangePeriodDays: (value: number) => void;
+  showViewMode?: boolean;
+  viewMode: CalendarViewMode;
+  onChangeViewMode: (mode: CalendarViewMode) => void;
   onExport: () => void;
   onOpenNew: () => void;
   hasActiveFilters: boolean;
@@ -33,6 +37,9 @@ export function FilterBar({
   showPeriodFilter = false,
   filterPeriodDays,
   onChangePeriodDays,
+  showViewMode = false,
+  viewMode = 'step',
+  onChangeViewMode,
   onExport,
   onOpenNew,
   hasActiveFilters,
@@ -81,24 +88,44 @@ export function FilterBar({
             {STEP_TYPES_ORDER.map(type => renderStepButton(type))}
           </div>
 
-          {showPeriodFilter && (
+          {showViewMode && (
             <div className="flex items-center gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">Período:</span>
+              <span className="text-xs font-semibold text-muted-foreground">Visualizar por:</span>
               <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
-                {[15, 30, 60, 90].map(days => (
-                  <button
-                    key={days}
-                    onClick={() => onChangePeriodDays(days)}
-                    className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${filterPeriodDays === days ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    {days}
-                  </button>
-                ))}
+                <button
+                  onClick={() => onChangeViewMode('step')}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'step' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Etapa
+                </button>
+                <button
+                  onClick={() => onChangeViewMode('demand')}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'demand' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Demanda
+                </button>
               </div>
             </div>
           )}
 
-          {hasActiveFilters && (
+        {showPeriodFilter && (
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-semibold text-muted-foreground">Período:</span>
+            <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+              {[15, 30, 60, 90].map(days => (
+                <button
+                  key={days}
+                  onClick={() => onChangePeriodDays(days)}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${filterPeriodDays === days ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  {days}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {hasActiveFilters && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{filteredCount}/{totalCount}</span>
               <button onClick={onClear} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
@@ -141,6 +168,26 @@ export function FilterBar({
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           {STEP_TYPES_ORDER.map(type => renderStepButton(type))}
         </div>
+
+        {showViewMode && (
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-semibold text-muted-foreground">Visualizar por:</span>
+            <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+              <button
+                onClick={() => onChangeViewMode('step')}
+                className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'step' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Etapa
+              </button>
+              <button
+                onClick={() => onChangeViewMode('demand')}
+                className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'demand' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Demanda
+              </button>
+            </div>
+          </div>
+        )}
 
         {showPeriodFilter && (
           <div className="flex items-center gap-1">

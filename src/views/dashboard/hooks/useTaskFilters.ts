@@ -4,11 +4,14 @@ import { normaliseTask, todayStr } from '@/utils/dashboardUtils';
 import { getCurrentStep } from '@/lib/steps';
 import type { Task } from '@/types/task';
 
+export type CalendarViewMode = 'step' | 'demand';
+
 export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initialAssignee = '') {
   const [filterAssignee, setFilterAssignee] = useState(() => initialAssignee);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterSteps, setFilterSteps] = useState<StepType[]>([]);
   const [filterPeriodDays, setFilterPeriodDays] = useState(60);
+  const [viewMode, setViewMode] = useState<CalendarViewMode>('step');
   const periodStart = useMemo(() => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -102,7 +105,7 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
     }).length;
   }, [tasks]);
 
-  return {
+return {
     filterAssignee,
     setFilterAssignee,
     filterStatus,
@@ -110,6 +113,8 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
     filterSteps,
     filterPeriodDays,
     setFilterPeriodDays,
+    viewMode,
+    setViewMode,
     hasActiveFilters,
     clearFilters,
     toggleStepFilter,

@@ -15,7 +15,7 @@ import {
 export const PT_MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 export const PT_DAYS_SHORT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
-export const MAX_SLOTS = 3;
+export const MAX_SLOTS = 10;
 export const SLOT_HEIGHT = 28;
 export const DAY_HEADER_H = 32;
 export const ROW_PADDING = 8;
@@ -105,6 +105,8 @@ export function getTaskStatusDisplay(task: Task | LegacyTask): { label: string; 
 
 // ─── Bar layout ───────────────────────────────────────────────────────────────
 
+export type CalendarViewMode = 'step' | 'demand';
+
 export interface BarItem {
   taskId: string;
   taskTitle: string;
@@ -116,7 +118,7 @@ export interface BarItem {
   slot: number;
 }
 
-export function layoutWeekBars(weekDays: Date[], tasks: (Task | LegacyTask)[]): BarItem[] {
+export function layoutWeekBars(weekDays: Date[], tasks: (Task | LegacyTask)[], viewMode: CalendarViewMode = 'step'): BarItem[] {
   const weekStart = weekDays[0];
   const weekEnd = weekDays[6];
 
@@ -125,13 +127,65 @@ export function layoutWeekBars(weekDays: Date[], tasks: (Task | LegacyTask)[]): 
 
   for (const task of tasks) {
     const steps = getVisibleSteps(task);
-    for (const step of steps) {
-      const pStart = toLocalDate(step.start);
-      const pEnd = toLocalDate(step.end);
-      if (pEnd < weekStart || pStart > weekEnd) continue;
-      const startCol = Math.max(0, Math.round((pStart.getTime() - weekStart.getTime()) / 86400000));
-      const endCol   = Math.min(6, Math.round((pEnd.getTime() - weekStart.getTime()) / 86400000));
-      raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', stepType: step.type, stepStart: step.start, stepEnd: step.end, startCol, endCol });
+    
+    if (viewMode === 'demand') {
+      const sortedSteps = steps.filter(s => s.start && s.end).sort((a, b) => toLocalDate(a.start!).getTime() - toLocalDate(b.start!).getTime());
+      
+      let currentGroup: typeof steps[0] | null = null;
+      let groupStart = '';
+      let groupEnd = '';
+      
+      for (const step of sortedSteps) {
+        const stepStart = step.start!;
+        const stepEnd = step.end!;
+        
+        if (!currentGroup) {
+          currentGroup = step;
+          groupStart = stepStart;
+          groupEnd = stepEnd;
+          continue;
+        }
+        
+        const prevEnd = toLocalDate(groupEnd);
+        const currStart = toLocalDate(stepStart);
+        const gapDays = Math.round((currStart.getTime() - prevEnd.getTime()) / 86400000);
+        
+        if (gapDays > 2) {
+          if (groupStart && groupEnd) {
+            const pStart = toLocalDate(groupStart);
+            const pEnd = toLocalDate(groupEnd);
+            if (pEnd >= weekStart && pStart <= weekEnd) {
+              const startCol = Math.max(0, Math.round((pStart.getTime() - weekStart.getTime()) / 86400000));
+              const endCol = Math.min(6, Math.round((pEnd.getTime() - weekStart.getTime()) / 86400000));
+              raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', stepType: 'desenvolvimento', stepStart: groupStart, stepEnd: groupEnd, startCol, endCol });
+            }
+          }
+          currentGroup = step;
+          groupStart = stepStart;
+          groupEnd = stepEnd;
+        } else {
+          if (stepEnd > groupEnd) groupEnd = stepEnd;
+        }
+      }
+      
+      if (currentGroup && groupStart && groupEnd) {
+        const pStart = toLocalDate(groupStart);
+        const pEnd = toLocalDate(groupEnd);
+        if (pEnd >= weekStart && pStart <= weekEnd) {
+          const startCol = Math.max(0, Math.round((pStart.getTime() - weekStart.getTime()) / 86400000));
+          const endCol = Math.min(6, Math.round((pEnd.getTime() - weekStart.getTime()) / 86400000));
+          raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', stepType: 'desenvolvimento', stepStart: groupStart, stepEnd: groupEnd, startCol, endCol });
+        }
+      }
+    } else {
+      for (const step of steps) {
+        const pStart = toLocalDate(step.start);
+        const pEnd = toLocalDate(step.end);
+        if (pEnd < weekStart || pStart > weekEnd) continue;
+        const startCol = Math.max(0, Math.round((pStart.getTime() - weekStart.getTime()) / 86400000));
+        const endCol   = Math.min(6, Math.round((pEnd.getTime() - weekStart.getTime()) / 86400000));
+        raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', stepType: step.type, stepStart: step.start, stepEnd: step.end, startCol, endCol });
+      }
     }
   }
 
