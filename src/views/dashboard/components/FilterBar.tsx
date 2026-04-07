@@ -1,4 +1,5 @@
-import { X } from 'lucide-react';
+import { Button } from '@/components/ui';
+import { X, Plus, Download } from 'lucide-react';
 import { STEP_TYPES_ORDER, STEP_META, type StepType } from '@/lib/steps';
 import type { Member } from '@/types/member';
 
@@ -13,6 +14,8 @@ interface FilterBarProps {
   showPeriodFilter?: boolean;
   filterPeriodDays: number;
   onChangePeriodDays: (value: number) => void;
+  onExport: () => void;
+  onOpenNew: () => void;
   hasActiveFilters: boolean;
   onClear: () => void;
   filteredCount: number;
@@ -30,6 +33,8 @@ export function FilterBar({
   showPeriodFilter = false,
   filterPeriodDays,
   onChangePeriodDays,
+  onExport,
+  onOpenNew,
   hasActiveFilters,
   onClear,
   filteredCount,
@@ -92,12 +97,20 @@ export function FilterBar({
         )}
         {hasActiveFilters && (
           <>
-            <span className="text-xs text-muted-foreground ml-auto">{filteredCount}/{totalCount}</span>
+            <span className="text-xs text-muted-foreground">{filteredCount}/{totalCount}</span>
             <button onClick={onClear} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
               <X className="w-3 h-3" /> Limpar
             </button>
           </>
         )}
+        <div className="ml-auto flex items-center gap-2">
+        <Button size="sm" variant="outline" onClick={onExport}>
+          <Download className="w-4 h-4 mr-1.5" /> PDF
+        </Button>
+        <Button size="sm" onClick={onOpenNew}>
+          <Plus className="w-4 h-4 mr-1.5" /> Nova Demanda
+        </Button>
+        </div>
       </div>
     </div>
   );

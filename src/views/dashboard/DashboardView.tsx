@@ -102,11 +102,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
       <DashboardHeader
         calView={calView}
         onChangeView={setCalView}
-        onExport={onExport}
-        onOpenNew={onOpenNew}
       />
       <MetricsBar
         totalCount={(tasks ?? []).length}
+        visibleCount={filteredTasks.length}
         activeCount={activeCount}
         blockedCount={blockedCount}
       />
@@ -121,6 +120,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         showPeriodFilter={calView === 'timeline'}
         filterPeriodDays={filterPeriodDays}
         onChangePeriodDays={setFilterPeriodDays}
+        onExport={onExport}
+        onOpenNew={onOpenNew}
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         filteredCount={filteredTasks.length}
@@ -140,11 +141,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
       <DashboardHeader
         calView={calView}
         onChangeView={setCalView}
-        onExport={onExport}
-        onOpenNew={onOpenNew}
       />
       <MetricsBar
         totalCount={(tasks ?? []).length}
+        visibleCount={filteredTasks.length}
         activeCount={activeCount}
         blockedCount={blockedCount}
       />
@@ -160,6 +160,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         showPeriodFilter={calView === 'timeline'}
         filterPeriodDays={filterPeriodDays}
         onChangePeriodDays={setFilterPeriodDays}
+        onExport={onExport}
+        onOpenNew={onOpenNew}
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         filteredCount={filteredTasks.length}
