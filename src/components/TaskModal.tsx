@@ -13,7 +13,7 @@ import {
 } from '../lib/steps';
 import type { TaskModalProps } from '../types/props';
 import { useFormState } from '../hooks/useFormState';
-import { isWeekendOrHoliday, getHolidayName } from '../utils/holidayUtils';
+import { isWeekendOrHoliday, getHolidayName, nextNonHolidayBusinessDay } from '../utils/holidayUtils';
 
 const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClose, onSave, onDelete, holidays }) => {
   const { selectedClientId } = useClientStore();
@@ -105,6 +105,33 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
 
   const handleCancelWeekend = () => {
     setPendingSubmitData(null);
+  };
+
+  const handlePostponeWeekend = () => {
+    if (!pendingSubmitData) return;
+
+    const adjustedTaskData = {
+      ...pendingSubmitData,
+      steps: pendingSubmitData.steps.map(step => {
+        if (!step.active) return step;
+
+        const adjustedStart = step.start && isWeekendOrHoliday(step.start, holidays)
+          ? nextNonHolidayBusinessDay(step.start, holidays)
+          : step.start;
+        let adjustedEnd = step.end && isWeekendOrHoliday(step.end, holidays)
+          ? nextNonHolidayBusinessDay(step.end, holidays)
+          : step.end;
+
+        if (adjustedStart && adjustedEnd && adjustedEnd < adjustedStart) {
+          adjustedEnd = adjustedStart;
+        }
+
+        return { ...step, start: adjustedStart, end: adjustedEnd };
+      }),
+    };
+
+    setPendingSubmitData(null);
+    withSubmit(() => onSave(adjustedTaskData));
   };
 
   const toggleStep = (type: StepType) => {
@@ -372,6 +399,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
           <ConfirmModal
             title="Datas em fim de semana ou feriado"
             message={confirmMessage}
+            secondaryConfirmLabel="Prolongar para próximo dia útil"
+            onSecondaryConfirm={handlePostponeWeekend}
             onConfirm={handleConfirmWeekend}
             onCancel={handleCancelWeekend}
           />

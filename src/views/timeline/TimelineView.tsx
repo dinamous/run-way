@@ -13,7 +13,7 @@ import { ConfirmModal } from '@/components/ui';
 
 const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask, holidays }) => {
   const { daysRange, setDaysRange, days, today } = useTimelineDays();
-  const { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag } = usePhaseDrag(tasks, onUpdateTask, holidays);
+  const { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag, postponeDragToBusinessDay } = usePhaseDrag(tasks, onUpdateTask, holidays);
   const containerRef = useRef<HTMLDivElement>(null);
   const { setInfoRef, setCalRef } = useRowHeightSync(tasks.length);
   const { infoHeaderRef, calHeaderRef } = useHeaderHeightSync();
@@ -78,6 +78,8 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onD
         <ConfirmModal
           title="Fase em fim de semana ou feriado"
           message="A fase foi movida para uma data em fim de semana ou feriado. Deseja manter mesmo assim?"
+          secondaryConfirmLabel="Prolongar para próximo dia útil"
+          onSecondaryConfirm={postponeDragToBusinessDay}
           onConfirm={confirmDrag}
           onCancel={cancelDrag}
         />
