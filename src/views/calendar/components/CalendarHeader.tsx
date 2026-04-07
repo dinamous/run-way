@@ -10,14 +10,14 @@ interface CalendarHeaderProps {
 }
 
 const CalendarHeader: React.FC<CalendarHeaderProps> = ({ monthDate, onPrevMonth, onNextMonth, onGoToday }) => (
-  <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted">
-    <div className="flex items-center gap-3">
+  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3.5 border-b border-border bg-muted">
+    <div className="flex items-center justify-between sm:justify-start gap-3">
       <h3 className="text-base font-semibold text-foreground">
         {PT_MONTHS[monthDate.getMonth()]} {monthDate.getFullYear()}
       </h3>
       <button onClick={onGoToday} className="text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-card transition-colors">Hoje</button>
     </div>
-    <div className="flex items-center gap-1">
+    <div className="flex items-center justify-end gap-1">
       <button onClick={onPrevMonth} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><ChevronLeft className="w-4 h-4" /></button>
       <button onClick={onNextMonth} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><ChevronRight className="w-4 h-4" /></button>
     </div>

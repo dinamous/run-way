@@ -45,7 +45,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
     fetchMembers,
     invalidate: invalidateMembers,
   } = useMemberStore();
-  const [calView, setCalView] = useState<'calendar' | 'timeline'>('calendar');
+  const [calView, setCalView] = useState<'calendar' | 'timeline'>('timeline');
 
   useEffect(() => {
     fetchTasks(selectedClientId, isAdmin);
@@ -55,10 +55,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
   const {
     filterAssignee, setFilterAssignee,
     filterStatus, setFilterStatus,
-    filterSteps, hasActiveFilters,
+    filterSteps,
+    filterPeriodDays, setFilterPeriodDays,
+    hasActiveFilters,
     clearFilters, toggleStepFilter,
     filteredTasks, blockedCount, activeCount,
-  } = useTaskFilters(tasks ?? []);
+  } = useTaskFilters(tasks ?? [], calView === 'timeline');
 
   const hasData = tasks.length > 0 || members.length > 0;
   const isLoading = tasksLoading || membersLoading;
@@ -116,6 +118,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         onChangeStatus={setFilterStatus}
         filterSteps={filterSteps}
         onToggleStep={toggleStepFilter}
+        showPeriodFilter={calView === 'timeline'}
+        filterPeriodDays={filterPeriodDays}
+        onChangePeriodDays={setFilterPeriodDays}
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         filteredCount={filteredTasks.length}
@@ -152,6 +157,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         onChangeStatus={setFilterStatus}
         filterSteps={filterSteps}
         onToggleStep={toggleStepFilter}
+        showPeriodFilter={calView === 'timeline'}
+        filterPeriodDays={filterPeriodDays}
+        onChangePeriodDays={setFilterPeriodDays}
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         filteredCount={filteredTasks.length}
@@ -161,7 +169,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
       {calView === 'calendar' ? (
         <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
       ) : (
-        <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
+        <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} daysRange={filterPeriodDays} />
       )}
 
       <StepsLegend />

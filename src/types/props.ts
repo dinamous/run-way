@@ -54,6 +54,7 @@ export interface TimelineViewProps {
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
   holidays: Holiday[];
+  daysRange: number;
 }
 
 // ─── MembersView ─────────────────────────────────────────────────────────────

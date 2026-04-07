@@ -21,23 +21,27 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask
         onNextMonth={nextMonth}
         onGoToday={goToday}
       />
-      <DayHeaders />
-      <div>
-        {weeks.map((week, wi) => (
-          <WeekRow
-            key={wi}
-            week={week}
-            tasks={tasks}
-            today={today}
-            currentMonth={monthDate.getMonth()}
-            rowHeight={rowHeight}
-            dragPreview={dragPreview}
-            didDragRef={didDragRef}
-            onStartDrag={startDrag}
-            onEdit={onEdit}
-            holidays={holidays}
-          />
-        ))}
+      <div className="overflow-x-auto">
+        <div className="min-w-[720px]">
+          <DayHeaders />
+          <div>
+            {weeks.map((week, wi) => (
+              <WeekRow
+                key={wi}
+                week={week}
+                tasks={tasks}
+                today={today}
+                currentMonth={monthDate.getMonth()}
+                rowHeight={rowHeight}
+                dragPreview={dragPreview}
+                didDragRef={didDragRef}
+                onStartDrag={startDrag}
+                onEdit={onEdit}
+                holidays={holidays}
+              />
+            ))}
+          </div>
+        </div>
       </div>
       {pendingDragUpdate && (
         <ConfirmModal

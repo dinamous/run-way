@@ -10,6 +10,9 @@ interface FilterBarProps {
   onChangeStatus: (value: string) => void;
   filterSteps: StepType[];
   onToggleStep: (type: StepType) => void;
+  showPeriodFilter?: boolean;
+  filterPeriodDays: number;
+  onChangePeriodDays: (value: number) => void;
   hasActiveFilters: boolean;
   onClear: () => void;
   filteredCount: number;
@@ -24,6 +27,9 @@ export function FilterBar({
   onChangeStatus,
   filterSteps,
   onToggleStep,
+  showPeriodFilter = false,
+  filterPeriodDays,
+  onChangePeriodDays,
   hasActiveFilters,
   onClear,
   filteredCount,
@@ -49,7 +55,7 @@ export function FilterBar({
           <option value="bloqueado">Bloqueado</option>
           <option value="nao-bloqueado">Não bloqueado</option>
         </select>
-        <div className="w-px h-4 bg-border mx-0.5" />
+        
         {STEP_TYPES_ORDER.map(type => {
           const meta = STEP_META[type];
           const active = filterSteps.includes(type);
@@ -63,6 +69,27 @@ export function FilterBar({
             </button>
           );
         })}
+
+        {showPeriodFilter && (
+          <>
+            <div className="w-px h-4 bg-border mx-0.5" />
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-semibold text-muted-foreground">Período:</span>
+              <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+                {[15, 30, 60, 90].map(days => (
+                  <button
+                    key={days}
+                    onClick={() => onChangePeriodDays(days)}
+                    className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${filterPeriodDays === days ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    {days}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="w-px h-4 bg-border mx-0.5" />
+          </>
+        )}
         {hasActiveFilters && (
           <>
             <span className="text-xs text-muted-foreground ml-auto">{filteredCount}/{totalCount}</span>

@@ -11,8 +11,8 @@ import TaskInfoPanelWrapper from './components/TaskInfoPanelWrapper';
 import TaskCalendarRows from './components/TaskCalendarRows';
 import { ConfirmModal } from '@/components/ui';
 
-const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask, holidays }) => {
-  const { daysRange, setDaysRange, days, today } = useTimelineDays();
+const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask, holidays, daysRange }) => {
+  const { days, today } = useTimelineDays(daysRange);
   const { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag, postponeDragToBusinessDay } = usePhaseDrag(tasks, onUpdateTask, holidays);
   const containerRef = useRef<HTMLDivElement>(null);
   const { setInfoRef, setCalRef } = useRowHeightSync(tasks.length);
@@ -20,7 +20,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onD
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm w-full">
-      <TimelineHeader daysRange={daysRange} onRangeChange={setDaysRange} />
+      <TimelineHeader daysRange={daysRange} />
 
       <div className="flex w-full">
         {/* Fixed info column */}
