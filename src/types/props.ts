@@ -26,8 +26,6 @@ export interface TaskModalProps {
 // ─── DashboardView ────────────────────────────────────────────────────────────
 
 export interface DashboardViewProps {
-  tasks: Task[];
-  members: Member[];
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
@@ -61,13 +59,11 @@ export interface TimelineViewProps {
 // ─── MembersView ─────────────────────────────────────────────────────────────
 
 export interface MembersViewProps {
-  tasks: Task[];
   members: Member[];
 }
 
 // ─── ReportsView ─────────────────────────────────────────────────────────────
 
 export interface ReportsViewProps {
-  tasks: Task[];
   members: Member[];
 }

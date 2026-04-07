@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAppStore } from '@/store/appStore';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
 import { useTaskFilters } from './hooks/useTaskFilters';
@@ -8,7 +9,8 @@ import { MetricsBar } from './components/MetricsBar';
 import { StepsLegend } from './components/StepsLegend';
 import type { DashboardViewProps } from '@/types/props';
 
-const DashboardView: React.FC<DashboardViewProps> = ({ tasks = [], members = [], onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
+  const { tasks, members } = useAppStore()
   const [calView, setCalView] = useState<'calendar' | 'timeline'>('calendar');
   const {
     filterAssignee, setFilterAssignee,

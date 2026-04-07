@@ -4,56 +4,123 @@
 
 ```
 src/
-├── App.tsx                    # Root: providers, estado global, header, roteamento
+├── App.tsx                    # Root: providers, roteamento, inicialização do cliente
 ├── main.tsx                   # Entry point
-├── pages/
-│   └── LoginPage.tsx          # Página de login (Supabase Auth)
 ├── components/
 │   ├── TaskModal.tsx          # Modal criar/editar demanda
+│   ├── AppHeader.tsx          # Header com seletor de cliente
+│   ├── AppSidebar.tsx         # Sidebar de navegação
 │   └── ui/                    # Design system (Button, Input, Label, Badge)
 ├── views/
-│   ├── DashboardView.tsx      # Header + filtros + toggle Calendar/Timeline
-│   ├── CalendarView.tsx       # Calendário mensal com drag-drop
-│   ├── TimelineView.tsx       # Gantt com drag-drop por fase
-│   ├── dashboardUtils.ts     # Constantes, helpers, tipos partilhados
-│   ├── MembersView.tsx        # Capacidade por membro
-│   └── ReportsView.tsx        # Relatórios
+│   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess
+│   ├── dashboard/             # DashboardView → Calendar/Timeline
+│   ├── calendar/              # CalendarView — calendário mensal com drag-drop
+│   ├── timeline/              # TimelineView — Gantt com drag-drop por fase
+│   ├── MembersView/           # Capacidade por membro
+│   ├── reports/               # ReportsView — relatórios
+│   ├── admin/                 # AdminView (apenas admins)
+│   ├── login/                 # LoginView
+│   └── user/                  # UserClientsView + useUserClients
+├── store/
+│   ├── useUIStore.ts          # Estado de UI: view ativa, modal aberto/fechado
+│   ├── useClientStore.ts      # Cliente selecionado (persist localStorage)
+│   ├── useDataStore.ts        # Cache de tasks/members, fetchData, invalidate
+│   └── appStore.ts            # Re-export de compatibilidade: useAppStore = useDataStore
 ├── hooks/
-│   ├── useSupabase.ts         # CRUD tarefas via Supabase
-│   ├── useAuth.ts             # Autenticação Supabase
+│   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask)
+│   ├── useHolidays.ts         # Feriados
 │   └── useFormState.ts        # Estado do formulário TaskModal
+├── contexts/
+│   └── AuthContext.tsx        # Sessão, member, clients, isAdmin
 ├── lib/
 │   ├── supabase.ts            # Cliente Supabase
 │   ├── steps.ts               # Definição e lógica de steps
 │   └── utils.ts               # Utilitários gerais
 ├── types/
-│   ├── index.ts               # Barrel export
-│   ├── task.ts                # Tipo Task
-│   ├── member.ts              # Tipo Member
 │   ├── props.ts               # Props de componentes
 │   └── db.ts                  # Tipos Supabase/DB
-├── utils/
-│   └── dateUtils.ts           # Dias úteis, cascata de fases
-└── data/
-    └── mock.ts                # Dados mock
+└── utils/
+    └── dateUtils.ts           # Dias úteis, cascata de fases
 ```
 
 ## Fluxo de Dados
 
 ```
 AuthContext (AuthProvider)
-    ↓ sessão válida + member + clients do utilizador (id, name, slug)
-App.tsx (estado global: tasks, members, view, selectedClientId)
-    ├── useUserClients() → lista de clientes do utilizador (id, name, slug)
-    ├── useSupabase({ memberId, clientId, isAdmin }) → CRUD tasks ↔ Supabase DB
+    ↓ session, member, clients (filtrado por access_role), isAdmin
+App.tsx (inicialização, roteamento, clientMembers)
+    ├── useClientStore  → selectedClientId (persist)
+    ├── useDataStore    → tasks, members, fetchData, invalidate
+    ├── useUIStore      → view, isTaskModalOpen
+    ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
     ├── clientMembers (useMemo) → membros filtrados pelo cliente ativo
-    ├── AppHeader → seletor de cliente (ver abaixo)
-    ├── view="home"     → HomeView (tela inicial: saudação, SearchLauncher, QuickAccess)
-    ├── view="clients"  → UserClientsView (perfil do cliente ativo)
+    ├── view="home"      → HomeView
+    ├── view="clients"   → UserClientsView
     ├── view="dashboard" → DashboardView → Calendar/Timeline
-    ├── view="members"  → MembersView (recebe clientMembers)
-    ├── view="reports"  → ReportsView (recebe clientMembers)
+    ├── view="members"   → MembersView (recebe clientMembers)
+    ├── view="reports"   → ReportsView (recebe clientMembers)
     └── TaskModal → criar/editar (useFormState → cascata de fases)
+```
+
+## Stores (`src/store/`)
+
+### `useUIStore`
+Estado de navegação e modal. Não persiste.
+```ts
+view: ViewType                  // 'home' | 'dashboard' | 'members' | 'reports' | 'admin' | 'clients'
+setView(view)
+isTaskModalOpen: boolean
+openTaskModal() / closeTaskModal()
+```
+
+### `useClientStore`
+Cliente selecionado. **Persiste no localStorage** (`client-store`). Não persiste `undefined`.
+```ts
+selectedClientId: string | null | undefined
+setClient(id)
+```
+| Valor | Significado |
+|---|---|
+| `undefined` | Não inicializado — aguarda resolução da auth |
+| `null` | Admin vê todos os clientes (sem filtro no fetch) |
+| `string` | Cliente específico selecionado |
+
+### `useDataStore`
+Cache de dados. Guard: `fetchData` retorna imediatamente se `clientId === undefined`.
+```ts
+tasks: Task[]
+members: Member[]
+loading: boolean
+error: string | null
+fetchData(clientId, isAdmin)    // guard: não fetcha se clientId === undefined
+invalidate()                    // limpa cache (tasks, members, cachedClientId)
+```
+
+### `appStore.ts`
+Re-export de compatibilidade: `useAppStore = useDataStore`. Consumers existentes (views, `useSupabase`) não precisam de alteração.
+
+## Fluxo de Inicialização (sem race condition)
+
+```
+1. AuthContext resolve → loading=false, clients=[...] (já filtrado por access_role)
+2. App.tsx useEffect: selectedClientId===undefined && hasClients
+   → setClient(clients[0].id)  ← só corre depois de auth estar pronto
+3. useClientStore persiste clientId no localStorage
+4. useEffect separado: effectiveClientId !== undefined
+   → fetchData(clientId, isAdmin)  ← nunca dispara com clientId=undefined
+5. useDataStore popula tasks/members → views renderizam
+```
+
+**Chave:** `App.tsx` usa `AuthContext.clients` diretamente (não `useUserClients`). `useUserClients` existe apenas em `UserClientsView` para `linkToClient`/`unlinkFromClient`.
+
+## Troca de Cliente
+
+```
+handleSelectClient(newId)
+  → invalidate()          ← limpa tasks/members imediatamente (sem vazamento)
+  → setClient(newId)      ← persiste no localStorage
+  → setView("home")
+  → useEffect dispara fetchData(newId)
 ```
 
 ## `ClientOption` (tipo em `src/contexts/AuthContext.ts`)
@@ -62,64 +129,42 @@ App.tsx (estado global: tasks, members, view, selectedClientId)
 interface ClientOption {
   id: string
   name: string
-  slug?: string   // identificador de URL (ex: "minha-empresa")
+  slug?: string
 }
 ```
 
-Usado em `AuthContext.clients`, `useUserClients.userClients` e `useUserClients.availableClients`. Ambos os fetches incluem `slug` na query Supabase.
-
-## View "Início" (`src/views/home/`)
-
-Tela inicial exibida após login e ao trocar de cliente. Composta por:
-- **`HomeView.tsx`** — layout: saudação com nome/data, `SearchLauncher` e grid de `QuickAccessCard`
-- **`components/SearchLauncher.tsx`** — input de busca de páginas com atalhos `/` e `Ctrl+K`
-- **`components/QuickAccessCard.tsx`** — card clicável; desabilitado (com tooltip) quando requer cliente
-
-Ao trocar de cliente no `AppHeader`, `handleSelectClient` em `App.tsx` redireciona automaticamente para `"home"`.
-
-## View "Clientes" (`src/views/user/UserClientsView.tsx`)
-
-Página de perfil do cliente ativo. Recebe `client: ClientOption | null` e exibe:
-- Nome e domínio (slug) do cliente
-- Seções placeholder para Gerente, Contactos, Acessos, Contas e Documentação (a implementar futuramente)
-
-Não tem CRUD nem listagem de clientes — é uma página informativa do cliente selecionado no momento.
-
-## Animação de Transição de Views
-
-`<main>` em `App.tsx` usa `key={view}` + classe `.animate-blur-fade-in` (definida em `src/index.css`) para aplicar uma transição blur+fade de 300ms ao trocar de view.
-
-## Seleção de Cliente (`selectedClientId` em `App.tsx`)
-
-O estado `selectedClientId` tem três valores semânticos distintos:
-
-| Valor | Significado |
-|---|---|
-| `undefined` | Não inicializado — usa o primeiro cliente por padrão |
-| `null` | Admin selecionou "Todos os clientes" (sem filtro no `fetchTasks`) |
-| `string` | Cliente específico selecionado |
-
-O `effectiveClientId` derivado deste estado é passado para `useSupabase`. Quando `isAdmin=true` e `effectiveClientId=null`, o `fetchTasks` não aplica filtro de cliente e retorna todas as tarefas.
-
-**Seletor no `AppHeader`:** Visível para qualquer utilizador com 2+ clientes disponíveis, ou para admin com 1+ cliente. Não-admins não têm a opção "Todos os clientes".
+`AuthContext.clients` já vem filtrado por `access_role`:
+- **admin** → todos os clientes
+- **user** → apenas os associados via `user_clients`
 
 ## Membros filtrados por cliente (`clientMembers` em `App.tsx`)
 
 `clientMembers` é derivado via `useMemo` a partir de `tasks` e `members`:
-- Filtra `members` para mostrar apenas quem tem steps atribuídos (`step_assignees`) nas tarefas do cliente ativo.
+- Filtra `members` para mostrar apenas quem tem steps atribuídos nas tarefas do cliente ativo.
 - Quando `effectiveClientId === null` (admin vê todos), retorna `members` completo.
-- Passado para `MembersView` e `ReportsView`. O `TaskModal` continua a receber `members` completo (para permitir atribuir qualquer membro a uma tarefa).
+- Passado para `MembersView` e `ReportsView`. O `TaskModal` recebe `members` completo.
+
+## Views lendo da store
+
+`DashboardView`, `MembersView` e `ReportsView` leem `tasks` e `members` diretamente de `useAppStore()` (alias de `useDataStore`). Não recebem essas props via `App.tsx`.
 
 ## Papéis de Acesso
 
-- **admin** (`access_role = 'admin'`): vê todos os clientes; pode selecionar cliente específico ou "Todos"
-- **user**: vê apenas os clientes associados via `user_clients`; pode alternar entre eles se tiver 2+
+- **admin** (`access_role = 'admin'`): vê todos os clientes; pode selecionar cliente específico ou `null` (todos)
+- **user**: vê apenas os clientes associados via `user_clients`
+
+## Animação de Transição de Views
+
+`<main>` usa `key={view}` + classe `.animate-blur-fade-in` (definida em `src/index.css`) para transição blur+fade de 300ms ao trocar de view.
 
 ## Persistência
+
 - **Primária:** Supabase (PostgreSQL) — fonte de verdade
 - **Auth:** Supabase Auth — sessão gerida pelo SDK
+- **Cliente selecionado:** localStorage via `zustand/persist` (`client-store`)
 
 ## Decisões
-- Sem router — navegação via `useState` (poucas views)
-- Sem state manager externo — volume não justifica
+
+- Sem router — navegação via `useUIStore.view` (poucas views)
+- State manager: Zustand (3 stores separadas por responsabilidade)
 - `any` intencional em dados do DB sem schema fixo em runtime

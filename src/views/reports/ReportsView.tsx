@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useAppStore } from '@/store/appStore';
 import { BarChart2 } from 'lucide-react';
 import type { ReportsViewProps } from '@/types/props';
 import { todayStr, enrichTask, computeMemberLoad } from './utils';
@@ -11,7 +12,8 @@ import StepLoadChart from './components/StepLoadChart';
 import StateDistribution from './components/StateDistribution';
 import AlertsSection from './components/AlertsSection';
 
-const ReportsView: React.FC<ReportsViewProps> = ({ tasks, members }) => {
+const ReportsView: React.FC<ReportsViewProps> = ({ members }) => {
+  const { tasks } = useAppStore()
   const today = todayStr();
 
   const enriched = useMemo(

@@ -16,7 +16,8 @@
       "Skill(claude-api)",
       "Skill(claude-api:*)",
       "Bash(npm update:*)",
-      "Bash(claude --version)"
+      "Bash(claude --version)",
+      "Bash(npm ls:*)"
     ]
   },
   "hooks": {

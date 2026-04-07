@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAppStore } from '@/store/appStore';
 import type { MembersViewProps } from '@/types/props';
 import MemberCard from './components/MemberCard';
 
@@ -7,7 +8,8 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const MembersView: React.FC<MembersViewProps> = ({ tasks, members }) => {
+const MembersView: React.FC<MembersViewProps> = ({ members }) => {
+  const { tasks } = useAppStore()
   const today = todayStr();
   return (
     <div className="space-y-6 max-w-4xl mx-auto">

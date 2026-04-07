@@ -1,4 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useClientStore } from "@/store/useClientStore";
+import { useDataStore } from "@/store/useDataStore";
+import { useUIStore } from "@/store/useUIStore";
 import TaskModal from "./components/TaskModal";
 import { AppHeader } from "./components/AppHeader";
 import { AppSidebar } from "./components/AppSidebar";
@@ -11,13 +14,12 @@ import { LoginView } from "./views/login";
 import { UserClientsView } from "./views/user/UserClientsView";
 import { NoClientView } from "./components/NoClientView";
 import { HomeView } from "./views/home";
-import { useUserClients } from "./views/user/hooks/useUserClients";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
 import { Toaster, toast } from "sonner";
 import type { Task } from "./lib/steps";
-import type { ViewType } from "./components/AppSidebar";
+import type { ViewType } from "@/store/useUIStore";
 
 function canAccessFeature(
   view: ViewType,
@@ -33,39 +35,44 @@ function canAccessFeature(
 }
 
 export default function App() {
-  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member } = useAuthContext();
+  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients } = useAuthContext();
 
-  const { userClients, availableClients } = useUserClients();
+  // clients do AuthContext já vem filtrado por access_role:
+  // admin → todos os clientes; não-admin → apenas os do usuário
+  const hasClients = clients.length > 0;
 
-  const hasClients = userClients.length > 0;
-  const clientOptions = isAdmin ? availableClients : userClients;
-  
-  // undefined = não inicializado (usa primeiro cliente por padrão)
-  // null = admin selecionou "Todos os clientes"
-  // string = cliente específico selecionado
-  const [selectedClientId, setSelectedClientId] = useState<string | null | undefined>(undefined);
-
-  useEffect(() => {
-    if (!authLoading && session) {
-      if (selectedClientId === undefined && hasClients) {
-        // Inicialização: seleciona o primeiro cliente disponível
-        setSelectedClientId(userClients[0].id);
-      } else if (!hasClients) {
-        // Usuário perdeu acesso a todos os clientes
-        setSelectedClientId(undefined);
-      } else if (typeof selectedClientId === 'string' && !userClients.find(c => c.id === selectedClientId)) {
-        // Cliente selecionado não está mais acessível
-        setSelectedClientId(userClients[0]?.id ?? undefined);
-      }
-    }
-  }, [authLoading, session, hasClients, userClients]);
+  const { selectedClientId, setClient } = useClientStore();
+  const { tasks, members, fetchData, invalidate } = useDataStore();
 
   // null só é válido para admin (ver todos); não-admin sempre precisa de um cliente
   const effectiveClientId = selectedClientId === undefined
-    ? (hasClients ? userClients[0].id : null)
-    : (isAdmin ? selectedClientId : (selectedClientId ?? (hasClients ? userClients[0].id : null)));
+    ? (hasClients ? clients[0].id : null)
+    : (isAdmin ? selectedClientId : (selectedClientId ?? (hasClients ? clients[0].id : null)));
 
-  const { tasks, members, createTask, updateTask, deleteTask } = useSupabase({
+  // Inicialização: aguarda auth + clients estarem prontos antes de definir cliente
+  useEffect(() => {
+    if (authLoading || !session) return;
+
+    if (selectedClientId === undefined && hasClients) {
+      // Primeira vez — seleciona o primeiro cliente disponível
+      setClient(clients[0].id);
+    } else if (!hasClients) {
+      // Usuário sem clientes
+      setClient(undefined);
+    } else if (typeof selectedClientId === 'string' && !clients.find(c => c.id === selectedClientId)) {
+      // Cliente persistido não está mais acessível
+      setClient(clients[0]?.id ?? undefined);
+    }
+  }, [authLoading, session, hasClients, clients, selectedClientId, setClient]);
+
+  // Fetch só dispara quando effectiveClientId está resolvido (não undefined)
+  useEffect(() => {
+    if (!authLoading && session && effectiveClientId !== undefined) {
+      fetchData(effectiveClientId, isAdmin);
+    }
+  }, [authLoading, session, effectiveClientId, isAdmin, fetchData]);
+
+  const { createTask, updateTask, deleteTask } = useSupabase({
     memberId: member?.id,
     clientId: effectiveClientId,
     isAdmin,
@@ -79,6 +86,7 @@ export default function App() {
     tasks.forEach(t => t.steps.forEach(s => s.assignees.forEach(id => assignedIds.add(id))));
     return members.filter(m => assignedIds.has(m.id));
   }, [tasks, members, effectiveClientId]);
+
   const { holidays } = useHolidays();
 
   const [darkMode, setDarkMode] = useState(() => {
@@ -105,19 +113,23 @@ export default function App() {
     });
   };
 
-  const [view, setView] = useState<ViewType>("home");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const view = useUIStore((s) => s.view);
+  const setView = useUIStore((s) => s.setView);
+  const isModalOpen = useUIStore((s) => s.isTaskModalOpen);
+  const openTaskModal = useUIStore((s) => s.openTaskModal);
+  const closeTaskModal = useUIStore((s) => s.closeTaskModal);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const handleSelectClient = useCallback((clientId: string | null | undefined) => {
-    setSelectedClientId(clientId);
+    invalidate();
+    setClient(clientId);
     setView("home");
-  }, []);
+  }, [invalidate, setClient, setView]);
 
   const handleViewChange = useCallback((newView: ViewType) => {
     const hasClientSelected = effectiveClientId !== null;
     const canAccess = canAccessFeature(newView, hasClientSelected, isAdmin);
-    
+
     if (!canAccess) {
       if (newView !== "clients") {
         toast.error("Selecione um cliente para acessar esta funcionalidade.");
@@ -126,7 +138,7 @@ export default function App() {
     } else {
       setView(newView);
     }
-  }, [effectiveClientId, isAdmin]);
+  }, [effectiveClientId, isAdmin, setView]);
 
   useEffect(() => {
     if (!authLoading && session) {
@@ -136,7 +148,7 @@ export default function App() {
         setView("clients");
       }
     }
-  }, [authLoading, session, effectiveClientId, isAdmin, view]);
+  }, [authLoading, session, effectiveClientId, isAdmin, view, setView]);
 
   if (authLoading) {
     return (
@@ -159,7 +171,7 @@ export default function App() {
 
   const showNoClientView = !hasClients && view !== "clients";
   const showSelectClient = hasClients && !effectiveClientId && view !== "clients";
-  const selectedClient = effectiveClientId ? clientOptions.find(c => c.id === effectiveClientId) : null;
+  const selectedClient = effectiveClientId ? clients.find(c => c.id === effectiveClientId) : null;
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground font-sans">
@@ -172,8 +184,8 @@ export default function App() {
         onSignOut={signOut}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={handleToggleSidebar}
-        selectedClient={selectedClient}
-        availableClients={clientOptions}
+        selectedClient={selectedClient ?? null}
+        availableClients={clients}
         onSelectClient={handleSelectClient}
         isAdmin={isAdmin}
       />
@@ -207,19 +219,17 @@ export default function App() {
             <UserClientsView client={selectedClient ?? null} />
           ) : view === "dashboard" ? (
             <DashboardView
-              tasks={tasks}
-              members={members}
-              onEdit={(task: Task) => { setEditingTask(task); setIsModalOpen(true); }}
+              onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
               onDelete={handleDelete}
               onUpdateTask={updateTask}
-              onOpenNew={() => { setEditingTask(null); setIsModalOpen(true); }}
+              onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
               onExport={() => window.print()}
               holidays={holidays}
             />
           ) : view === "members" ? (
-            <MembersView tasks={tasks} members={clientMembers} />
+            <MembersView members={clientMembers} />
           ) : (
-            <ReportsView tasks={tasks} members={clientMembers} />
+            <ReportsView members={clientMembers} />
           )}
         </main>
       </div>
@@ -228,12 +238,12 @@ export default function App() {
         <TaskModal
           task={editingTask}
           members={members}
-          onClose={() => setIsModalOpen(false)}
+          onClose={closeTaskModal}
           onDelete={async (id: string) => {
             if (confirm("Tem a certeza que deseja eliminar esta demanda?")) {
               const ok = await deleteTask(id);
               if (!ok) { toast.error("Erro ao eliminar tarefa"); return; }
-              setIsModalOpen(false);
+              closeTaskModal();
             }
           }}
           onSave={async (taskData) => {
@@ -249,7 +259,7 @@ export default function App() {
               });
             }
             if (!ok) { toast.error("Erro ao guardar tarefa"); return; }
-            setIsModalOpen(false);
+            closeTaskModal();
           }}
           holidays={holidays}
         />

@@ -7,8 +7,8 @@ import {
   TooltipContent,
 } from "@/components/ui";
 import { useAuthContext } from "@/contexts/AuthContext";
-
-export type ViewType = "home" | "dashboard" | "members" | "reports" | "admin" | "clients";
+import type { ViewType } from "@/store/useUIStore";
+export type { ViewType } from "@/store/useUIStore";
 
 interface AppSidebarProps {
   open: boolean;
