@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import type { Task, Step } from '@/lib/steps'
 import { toast } from 'sonner'
 import { logAudit } from '@/lib/audit'
-import { useAppStore } from '@/store/appStore'
+import { useTaskStore } from '@/store/useTaskStore'
 
 const devLog = import.meta.env.DEV
   ? (...args: unknown[]) => console.warn(...args)
@@ -86,12 +86,11 @@ async function upsertSteps(taskId: string, steps: Step[]): Promise<boolean> {
 
 export function useSupabase(options: UseSupabaseOptions = {}) {
   const { memberId, clientId, isAdmin } = options
-  const { invalidate, fetchData } = useAppStore()
 
   const refresh = useCallback(async () => {
-    invalidate()
-    await fetchData(clientId, isAdmin ?? false)
-  }, [clientId, isAdmin, invalidate, fetchData])
+    useTaskStore.getState().invalidate()
+    await useTaskStore.getState().fetchTasks(clientId, isAdmin ?? false)
+  }, [clientId, isAdmin])
 
   const createTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt'>): Promise<boolean> => {
     const { data: taskRow, error: taskErr } = await supabase
@@ -135,11 +134,10 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
   }, [memberId, refresh])
 
   const updateTask = useCallback(async (taskData: Task): Promise<boolean> => {
-    const store = useAppStore.getState()
-    const previousTasks = store.tasks
+    const previousTasks = useTaskStore.getState().tasks
     const prevTask = previousTasks.find(t => t.id === taskData.id)
 
-    useAppStore.setState(s => ({
+    useTaskStore.setState(s => ({
       tasks: s.tasks.map(t => t.id === taskData.id ? taskData : t)
     }))
 
@@ -154,7 +152,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       .eq('id', taskData.id)
 
     if (taskErr) {
-      useAppStore.setState({ tasks: previousTasks })
+      useTaskStore.setState({ tasks: previousTasks })
       toast.error(taskErr.message)
       return false
     }
@@ -168,7 +166,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         .not('id', 'in', `(${keptIds.join(',')})`)
 
       if (deleteErr) {
-        useAppStore.setState({ tasks: previousTasks })
+        useTaskStore.setState({ tasks: previousTasks })
         toast.error(deleteErr.message)
         return false
       }
@@ -179,7 +177,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         .eq('task_id', taskData.id)
 
       if (deleteErr) {
-        useAppStore.setState({ tasks: previousTasks })
+        useTaskStore.setState({ tasks: previousTasks })
         toast.error(deleteErr.message)
         return false
       }
@@ -226,7 +224,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
   }, [memberId, refresh])
 
   const deleteTask = useCallback(async (id: string): Promise<boolean> => {
-    const deletedTask = useAppStore.getState().tasks.find(t => t.id === id)
+    const deletedTask = useTaskStore.getState().tasks.find(t => t.id === id)
 
     const { error } = await supabase.from('tasks').delete().eq('id', id)
     if (error) {
@@ -234,7 +232,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       return false
     }
 
-    useAppStore.setState(s => ({ tasks: s.tasks.filter(t => t.id !== id) }))
+    useTaskStore.setState(s => ({ tasks: s.tasks.filter(t => t.id !== id) }))
     toast.success(`Demanda "${deletedTask?.title ?? id}" eliminada`)
 
     if (memberId && deletedTask) {

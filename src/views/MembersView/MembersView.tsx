@@ -1,6 +1,8 @@
-import React from 'react';
-import { useAppStore } from '@/store/appStore';
-import type { MembersViewProps } from '@/types/props';
+import React, { useEffect } from 'react';
+import { useTaskStore } from '@/store/useTaskStore';
+import { useMemberStore } from '@/store/useMemberStore';
+import { useClientStore } from '@/store/useClientStore';
+import { useAuthContext } from '@/contexts/AuthContext';
 import MemberCard from './components/MemberCard';
 
 function todayStr() {
@@ -8,9 +10,18 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const MembersView: React.FC<MembersViewProps> = ({ members }) => {
-  const { tasks } = useAppStore()
+const MembersView: React.FC = () => {
+  const { isAdmin } = useAuthContext();
+  const { selectedClientId } = useClientStore();
+  const { tasks, fetchTasks } = useTaskStore();
+  const { members, fetchMembers } = useMemberStore();
   const today = todayStr();
+
+  useEffect(() => {
+    fetchTasks(selectedClientId, isAdmin);
+    fetchMembers(selectedClientId);
+  }, [selectedClientId, isAdmin, fetchTasks, fetchMembers]);
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useClientStore } from "@/store/useClientStore";
-import { useDataStore } from "@/store/useDataStore";
 import { useUIStore } from "@/store/useUIStore";
+import { useTaskStore } from "@/store/useTaskStore";
+import { useMemberStore } from "@/store/useMemberStore";
 import TaskModal from "./components/TaskModal";
 import { AppHeader } from "./components/AppHeader";
 import { AppSidebar } from "./components/AppSidebar";
@@ -37,55 +38,32 @@ function canAccessFeature(
 export default function App() {
   const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients } = useAuthContext();
 
-  // clients do AuthContext já vem filtrado por access_role:
-  // admin → todos os clientes; não-admin → apenas os do usuário
   const hasClients = clients.length > 0;
 
   const { selectedClientId, setClient } = useClientStore();
-  const { tasks, members, fetchData, invalidate } = useDataStore();
+  const { members } = useMemberStore();
 
-  // null só é válido para admin (ver todos); não-admin sempre precisa de um cliente
   const effectiveClientId = selectedClientId === undefined
     ? (hasClients ? clients[0].id : null)
     : (isAdmin ? selectedClientId : (selectedClientId ?? (hasClients ? clients[0].id : null)));
 
-  // Inicialização: aguarda auth + clients estarem prontos antes de definir cliente
   useEffect(() => {
     if (authLoading || !session) return;
 
     if (selectedClientId === undefined && hasClients) {
-      // Primeira vez — seleciona o primeiro cliente disponível
       setClient(clients[0].id);
     } else if (!hasClients) {
-      // Usuário sem clientes
       setClient(undefined);
     } else if (typeof selectedClientId === 'string' && !clients.find(c => c.id === selectedClientId)) {
-      // Cliente persistido não está mais acessível
       setClient(clients[0]?.id ?? undefined);
     }
   }, [authLoading, session, hasClients, clients, selectedClientId, setClient]);
-
-  // Fetch só dispara quando effectiveClientId está resolvido (não undefined)
-  useEffect(() => {
-    if (!authLoading && session && effectiveClientId !== undefined) {
-      fetchData(effectiveClientId, isAdmin);
-    }
-  }, [authLoading, session, effectiveClientId, isAdmin, fetchData]);
 
   const { createTask, updateTask, deleteTask } = useSupabase({
     memberId: member?.id,
     clientId: effectiveClientId,
     isAdmin,
   });
-
-  // Membros filtrados pelo cliente ativo: apenas quem tem steps atribuídos nas tarefas desse cliente.
-  // Quando effectiveClientId=null (admin vê tudo), mostra todos os membros.
-  const clientMembers = useMemo(() => {
-    if (effectiveClientId === null) return members;
-    const assignedIds = new Set<string>();
-    tasks.forEach(t => t.steps.forEach(s => s.assignees.forEach(id => assignedIds.add(id))));
-    return members.filter(m => assignedIds.has(m.id));
-  }, [tasks, members, effectiveClientId]);
 
   const { holidays } = useHolidays();
 
@@ -121,10 +99,11 @@ export default function App() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const handleSelectClient = useCallback((clientId: string | null | undefined) => {
-    invalidate();
+    useTaskStore.getState().invalidate();
+    useMemberStore.getState().invalidate();
     setClient(clientId);
     setView("home");
-  }, [invalidate, setClient, setView]);
+  }, [setClient, setView]);
 
   const handleViewChange = useCallback((newView: ViewType) => {
     const hasClientSelected = effectiveClientId !== null;
@@ -227,9 +206,9 @@ export default function App() {
               holidays={holidays}
             />
           ) : view === "members" ? (
-            <MembersView members={clientMembers} />
+            <MembersView />
           ) : (
-            <ReportsView members={clientMembers} />
+            <ReportsView />
           )}
         </main>
       </div>

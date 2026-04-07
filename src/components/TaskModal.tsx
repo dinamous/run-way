@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useMemberStore } from '@/store/useMemberStore';
+import { useClientStore } from '@/store/useClientStore';
 import { Input, Label, Button, ConfirmModal } from './ui';
 import { Save, ExternalLink, Trash2, Users, AlertCircle } from 'lucide-react';
 import {
@@ -13,7 +15,16 @@ import type { TaskModalProps } from '../types/props';
 import { useFormState } from '../hooks/useFormState';
 import { isWeekendOrHoliday, getHolidayName } from '../utils/holidayUtils';
 
-const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, onDelete, holidays }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClose, onSave, onDelete, holidays }) => {
+  const { selectedClientId } = useClientStore();
+  const { fetchMembers, members: storeMembers } = useMemberStore();
+
+  useEffect(() => {
+    fetchMembers(selectedClientId);
+  }, [selectedClientId, fetchMembers]);
+
+  const resolvedMembers = storeMembers.length > 0 ? storeMembers : propMembers;
+
   const init = migrateLegacyTask(task ?? {});
 
   const [title, setTitle] = useState<string>(task?.title ?? '');
@@ -252,7 +263,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
                           {step.active && step.assignees.length > 0 && (
                             <div className="flex -space-x-1 shrink-0">
                               {step.assignees.map(aid => {
-                                const m = members.find(m => m.id === aid);
+                                const m = resolvedMembers.find(m => m.id === aid);
                                 return m ? (
                                   <div
                                     key={aid}
@@ -276,7 +287,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members, onClose, onSave, o
                                 <span className="opacity-60">(opcional)</span>
                               </span>
                               <div className="flex gap-1.5 flex-wrap">
-                                {members.map(m => {
+                                {resolvedMembers.map(m => {
                                   const sel = step.assignees.includes(m.id);
                                   return (
                                     <button

@@ -18,6 +18,4 @@ export type {
   DashboardViewProps,
   CalendarViewProps,
   TimelineViewProps,
-  MembersViewProps,
-  ReportsViewProps,
 } from './props';

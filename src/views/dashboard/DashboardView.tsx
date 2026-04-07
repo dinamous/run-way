@@ -1,5 +1,8 @@
-import { useState } from 'react';
-import { useAppStore } from '@/store/appStore';
+import { useEffect, useState } from 'react';
+import { useTaskStore } from '@/store/useTaskStore';
+import { useMemberStore } from '@/store/useMemberStore';
+import { useClientStore } from '@/store/useClientStore';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
 import { useTaskFilters } from './hooks/useTaskFilters';
@@ -10,8 +13,17 @@ import { StepsLegend } from './components/StepsLegend';
 import type { DashboardViewProps } from '@/types/props';
 
 const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
-  const { tasks, members } = useAppStore()
+  const { isAdmin } = useAuthContext();
+  const { selectedClientId } = useClientStore();
+  const { tasks, fetchTasks } = useTaskStore();
+  const { members, fetchMembers } = useMemberStore();
   const [calView, setCalView] = useState<'calendar' | 'timeline'>('calendar');
+
+  useEffect(() => {
+    fetchTasks(selectedClientId, isAdmin);
+    fetchMembers(selectedClientId);
+  }, [selectedClientId, isAdmin, fetchTasks, fetchMembers]);
+
   const {
     filterAssignee, setFilterAssignee,
     filterStatus, setFilterStatus,

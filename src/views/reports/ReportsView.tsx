@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react';
-import { useAppStore } from '@/store/appStore';
+import React, { useMemo, useEffect } from 'react';
+import { useTaskStore } from '@/store/useTaskStore';
+import { useMemberStore } from '@/store/useMemberStore';
+import { useClientStore } from '@/store/useClientStore';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { BarChart2 } from 'lucide-react';
-import type { ReportsViewProps } from '@/types/props';
 import { todayStr, enrichTask, computeMemberLoad } from './utils';
 import type { StepType } from '@/lib/steps';
 import KpiCards from './components/KpiCards';
@@ -12,9 +14,17 @@ import StepLoadChart from './components/StepLoadChart';
 import StateDistribution from './components/StateDistribution';
 import AlertsSection from './components/AlertsSection';
 
-const ReportsView: React.FC<ReportsViewProps> = ({ members }) => {
-  const { tasks } = useAppStore()
+const ReportsView: React.FC = () => {
+  const { isAdmin } = useAuthContext();
+  const { selectedClientId } = useClientStore();
+  const { tasks, fetchTasks } = useTaskStore();
+  const { members, fetchMembers } = useMemberStore();
   const today = todayStr();
+
+  useEffect(() => {
+    fetchTasks(selectedClientId, isAdmin);
+    fetchMembers(selectedClientId);
+  }, [selectedClientId, isAdmin, fetchTasks, fetchMembers]);
 
   const enriched = useMemo(
     () => tasks.map(task => enrichTask(task, today, members)),

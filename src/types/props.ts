@@ -58,12 +58,4 @@ export interface TimelineViewProps {
 
 // ─── MembersView ─────────────────────────────────────────────────────────────
 
-export interface MembersViewProps {
-  members: Member[];
-}
-
-// ─── ReportsView ─────────────────────────────────────────────────────────────
-
-export interface ReportsViewProps {
-  members: Member[];
-}
+export interface MembersViewProps {}

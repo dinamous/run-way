@@ -3,9 +3,6 @@ import { devtools } from 'zustand/middleware'
 import { supabase } from '@/lib/supabase'
 import type { Task, Step, StepType } from '@/lib/steps'
 import type { DbTaskRow } from '@/types/db'
-import type { Member } from '@/hooks/useSupabase'
-
-// ─── Mappers ──────────────────────────────────────────────────────────────────
 
 function dbRowToTask(row: DbTaskRow): Task {
   const steps: Step[] = (row.task_steps ?? [])
@@ -33,8 +30,6 @@ function dbRowToTask(row: DbTaskRow): Task {
     steps,
   }
 }
-
-// ─── Fetchers ─────────────────────────────────────────────────────────────────
 
 async function fetchTasksFromDb(
   clientId: string | null,
@@ -65,41 +60,25 @@ async function fetchTasksFromDb(
   return (data ?? []).map(dbRowToTask)
 }
 
-async function fetchMembersFromDb(): Promise<Member[]> {
-  const { data, error } = await supabase
-    .from('members')
-    .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
-    .order('name')
-
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
-
-// ─── Store ────────────────────────────────────────────────────────────────────
-
-interface DataState {
+interface TaskState {
   tasks: Task[]
-  members: Member[]
   loading: boolean
   error: string | null
   cachedClientId: string | null | undefined
 
-  fetchData: (clientId: string | null | undefined, isAdmin: boolean) => Promise<void>
-  invalidate: () => void
+  fetchTasks(clientId: string | null | undefined, isAdmin: boolean): Promise<void>
+  invalidate(): void
 }
 
-export const useDataStore = create<DataState>()(devtools((set, get) => ({
+export const useTaskStore = create<TaskState>()(devtools((set, get) => ({
   tasks: [],
-  members: [],
   loading: false,
   error: null,
   cachedClientId: undefined,
 
-  fetchData: async (clientId, isAdmin) => {
-    // Guard: não fetcha se clientId ainda não está resolvido
+  fetchTasks: async (clientId, isAdmin) => {
     if (clientId === undefined) return
 
-    // Cache hit: já temos dados deste cliente
     const state = get()
     if (
       clientId === state.cachedClientId &&
@@ -110,20 +89,17 @@ export const useDataStore = create<DataState>()(devtools((set, get) => ({
     set({ loading: true, error: null })
 
     try {
-      const [tasks, members] = await Promise.all([
-        fetchTasksFromDb(clientId, isAdmin),
-        fetchMembersFromDb(),
-      ])
-      set({ tasks, members, cachedClientId: clientId, loading: false })
+      const tasks = await fetchTasksFromDb(clientId, isAdmin)
+      set({ tasks, cachedClientId: clientId, loading: false })
     } catch (err) {
       set({
-        error: err instanceof Error ? err.message : 'Erro ao carregar dados',
+        error: err instanceof Error ? err.message : 'Erro ao carregar tarefas',
         loading: false,
       })
     }
   },
 
   invalidate: () => {
-    set({ tasks: [], members: [], cachedClientId: undefined, error: null })
+    set({ tasks: [], cachedClientId: undefined, error: null })
   },
-}), { name: 'DataStore' }))
+}), { name: 'TaskStore' }))
