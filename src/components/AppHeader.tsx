@@ -1,4 +1,4 @@
-import { Sun, Moon, CalendarDays, PanelLeft, LogOut, User, ChevronDown } from "lucide-react";
+import { Sun, Moon, CalendarDays, LogOut, User, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -19,8 +19,6 @@ interface AppHeaderProps {
   userEmail?: string;
   userAvatarUrl?: string | null;
   onSignOut: () => void;
-  sidebarOpen: boolean;
-  onToggleSidebar: () => void;
   selectedClient?: ClientOption | null;
   availableClients?: ClientOption[];
   onSelectClient?: (clientId: string | null | undefined) => void;
@@ -41,8 +39,6 @@ export function AppHeader({
   userEmail,
   userAvatarUrl,
   onSignOut,
-  sidebarOpen,
-  onToggleSidebar,
   selectedClient,
   availableClients = [],
   onSelectClient,
@@ -54,15 +50,7 @@ export function AppHeader({
     <header className="bg-card border-b border-border sticky top-0 z-10 print:hidden">
       <div className="px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <button
-            onClick={onToggleSidebar}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label={sidebarOpen ? "Fechar sidebar" : "Abrir sidebar"}
-          >
-            <PanelLeft className="w-4 h-4" />
-          </button>
-
-          <div className="flex items-center gap-2">
+                   <div className="flex items-center gap-2">
             <div className="bg-primary p-2 rounded-lg">
               <CalendarDays className="w-5 h-5 text-primary-foreground" />
             </div>

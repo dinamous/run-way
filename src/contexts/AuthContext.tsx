@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [impersonatedClientId, setImpersonatedClientId] = useState<string | null>(null)
   const subscriptionRef = useRef<ReturnType<typeof supabase.auth.onAuthStateChange>['data']['subscription'] | null>(null)
+  const bootstrappedUserIdRef = useRef<string | null>(null)
 
   async function loadProfile(authUid: string, userEmail?: string) {
     try {
@@ -120,11 +121,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(data.session)
           setUser(data.session.user)
           await loadProfile(data.session.user.id, data.session.user.email)
+          bootstrappedUserIdRef.current = data.session.user.id
           setLoading(false)
         }
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (_event, newSession) => {
+          async (event, newSession) => {
             if (!mounted) return
 
             if (newSession?.user) {
@@ -138,10 +140,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 return
               }
 
-              await loadProfile(newSession.user.id, newSession.user.email ?? undefined)
+              const shouldSkipProfileLoad =
+                event === 'INITIAL_SESSION' &&
+                bootstrappedUserIdRef.current === newSession.user.id
+
+              if (!shouldSkipProfileLoad) {
+                await loadProfile(newSession.user.id, newSession.user.email ?? undefined)
+              }
             } else {
               setMember(null)
               setClients([])
+              bootstrappedUserIdRef.current = null
             }
 
             setSession(newSession)

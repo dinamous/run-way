@@ -30,6 +30,10 @@ async function upsertSteps(taskId: string, steps: Step[]): Promise<boolean> {
   for (const step of steps) {
     const isNew = !step.id
 
+    if (isNew && !step.active) {
+      continue
+    }
+
     let stepId: string
 
     if (isNew) {
@@ -93,6 +97,8 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
   }, [clientId, isAdmin])
 
   const createTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt'>): Promise<boolean> => {
+    const resolvedClientId = taskData.clientId ?? clientId ?? null
+
     const { data: taskRow, error: taskErr } = await supabase
       .from('tasks')
       .insert({
@@ -100,7 +106,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         clickup_link: taskData.clickupLink ?? null,
         blocked: taskData.status.blocked,
         blocked_at: taskData.status.blockedAt ?? null,
-        client_id: taskData.clientId ?? null,
+        client_id: resolvedClientId,
       })
       .select('id')
       .single()
@@ -121,7 +127,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     if (memberId) {
       await logAudit({
         userId: memberId,
-        clientId: taskData.clientId ?? null,
+        clientId: resolvedClientId,
         entity: 'task',
         entityId: taskRow.id,
         entityName: taskData.title,
@@ -131,14 +137,15 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
 
     await refresh()
     return true
-  }, [memberId, refresh])
+  }, [clientId, memberId, refresh])
 
   const updateTask = useCallback(async (taskData: Task): Promise<boolean> => {
+    const resolvedClientId = taskData.clientId ?? clientId ?? null
     const previousTasks = useTaskStore.getState().tasks
     const prevTask = previousTasks.find(t => t.id === taskData.id)
 
     useTaskStore.setState(s => ({
-      tasks: s.tasks.map(t => t.id === taskData.id ? taskData : t)
+      tasks: s.tasks.map(t => t.id === taskData.id ? { ...taskData, clientId: resolvedClientId ?? undefined } : t)
     }))
 
     const { error: taskErr } = await supabase
@@ -148,6 +155,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         clickup_link: taskData.clickupLink ?? null,
         blocked: taskData.status.blocked,
         blocked_at: taskData.status.blockedAt ?? null,
+        client_id: resolvedClientId,
       })
       .eq('id', taskData.id)
 
@@ -195,7 +203,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       if (prevTask.status?.blocked !== taskData.status?.blocked) {
         await logAudit({
           userId: memberId,
-          clientId: taskData.clientId ?? null,
+          clientId: resolvedClientId,
           entity: 'task',
           entityId: taskData.id,
           entityName: taskData.title,
@@ -208,7 +216,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       if (prevTask.title !== taskData.title) {
         await logAudit({
           userId: memberId,
-          clientId: taskData.clientId ?? null,
+          clientId: resolvedClientId,
           entity: 'task',
           entityId: taskData.id,
           entityName: taskData.title,
@@ -221,7 +229,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     }
 
     return true
-  }, [memberId, refresh])
+  }, [clientId, memberId, refresh])
 
   const deleteTask = useCallback(async (id: string): Promise<boolean> => {
     const deletedTask = useTaskStore.getState().tasks.find(t => t.id === id)

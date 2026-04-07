@@ -15,30 +15,25 @@ async function fetchMembersFromDb(clientId: string | null | undefined): Promise<
     return data ?? []
   }
 
+  const { data: userClients, error: ucError } = await supabase
+    .from('user_clients')
+    .select('user_id')
+    .eq('client_id', clientId)
+
+  if (ucError) throw new Error(ucError.message)
+
+  const memberIds = (userClients ?? []).map(uc => uc.user_id)
+
+  if (memberIds.length === 0) return []
+
   const { data, error } = await supabase
     .from('members')
-    .select(`
-      id, name, role, avatar, avatar_url, email, auth_user_id, access_role,
-      step_assignees!inner (
-        task_steps!inner (
-          tasks!inner ( client_id )
-        )
-      )
-    `)
-    .eq('step_assignees.task_steps.tasks.client_id', clientId)
+    .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
+    .in('id', memberIds)
     .order('name')
 
   if (error) throw new Error(error.message)
-
-  const seen = new Set<string>()
-  return (data ?? []).filter(m => {
-    if (seen.has(m.id)) return false
-    seen.add(m.id)
-    return true
-  }).map(m => {
-    const { step_assignees: _sa, ...rest } = m as any
-    return rest as Member
-  })
+  return data ?? []
 }
 
 interface MemberState {
@@ -67,14 +62,15 @@ export const useMemberStore = create<MemberStore>()(
         if (clientId === undefined) return
 
         const state = get()
-        if (
-          clientId === state.cachedClientId &&
-          state.members.length > 0 &&
-          !state.loading
-        ) return
+        if (state.loading) return
+
+        const shouldFetch =
+          clientId !== state.cachedClientId ||
+          state.members.length === 0
+
+        if (!shouldFetch) return
 
         set({ loading: true, error: null })
-
         try {
           const members = await fetchMembersFromDb(clientId)
           set({ members, cachedClientId: clientId, loading: false })

@@ -35,7 +35,23 @@ async function fetchTasksFromDb(
   clientId: string | null,
   isAdmin: boolean
 ): Promise<Task[]> {
-  let query = supabase
+  if (clientId === null) {
+    if (!isAdmin) return []
+    const { data, error } = await supabase
+      .from('tasks')
+      .select(`
+        id, title, clickup_link, blocked, blocked_at, created_at, client_id,
+        task_steps (
+          id, type, step_order, active, start_date, end_date,
+          step_assignees ( member_id )
+        )
+      `)
+      .order('created_at', { ascending: false })
+    if (error) throw new Error(error.message)
+    return (data ?? []).map(dbRowToTask)
+  }
+
+  const { data, error } = await supabase
     .from('tasks')
     .select(`
       id, title, clickup_link, blocked, blocked_at, created_at, client_id,
@@ -44,18 +60,9 @@ async function fetchTasksFromDb(
         step_assignees ( member_id )
       )
     `)
+    .eq('client_id', clientId)
     .order('created_at', { ascending: false })
 
-  if (!isAdmin || clientId) {
-    const ids = clientId ? [clientId] : []
-    if (ids.length > 0) {
-      query = query.in('client_id', ids)
-    } else if (!isAdmin) {
-      return []
-    }
-  }
-
-  const { data, error } = await query
   if (error) throw new Error(error.message)
   return (data ?? []).map(dbRowToTask)
 }
@@ -86,14 +93,15 @@ export const useTaskStore = create<TaskStore>()(
         if (clientId === undefined) return
 
         const state = get()
-        if (
-          clientId === state.cachedClientId &&
-          state.tasks.length > 0 &&
-          !state.loading
-        ) return
+        if (state.loading) return
+
+        const shouldFetch =
+          clientId !== state.cachedClientId ||
+          state.tasks.length === 0
+
+        if (!shouldFetch) return
 
         set({ loading: true, error: null })
-
         try {
           const tasks = await fetchTasksFromDb(clientId, isAdmin)
           set({ tasks, cachedClientId: clientId, loading: false })

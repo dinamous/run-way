@@ -161,8 +161,6 @@ export default function App() {
         userEmail={user?.email}
         userAvatarUrl={member?.avatar_url}
         onSignOut={signOut}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={handleToggleSidebar}
         selectedClient={selectedClient ?? null}
         availableClients={clients}
         onSelectClient={handleSelectClient}
@@ -228,11 +226,16 @@ export default function App() {
           onSave={async (taskData) => {
             let ok: boolean;
             if (editingTask) {
-              ok = await updateTask({ ...editingTask, ...taskData });
+              ok = await updateTask({
+                ...editingTask,
+                ...taskData,
+                clientId: effectiveClientId ?? editingTask.clientId,
+              });
             } else {
               ok = await createTask({
                 title: taskData.title,
                 clickupLink: taskData.clickupLink,
+                clientId: effectiveClientId ?? undefined,
                 status: taskData.status,
                 steps: taskData.steps,
               });

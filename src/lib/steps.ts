@@ -204,7 +204,29 @@ export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; steps
       existingStatus && typeof existingStatus === 'object'
         ? existingStatus
         : { blocked: false };
-    return { status, steps: task.steps };
+
+    const stepByType = new Map(task.steps.map(step => [step.type, step]));
+    const steps = STEP_TYPES_ORDER.map((type, order) => {
+      const existing = stepByType.get(type);
+      if (existing) {
+        return {
+          ...existing,
+          order,
+        };
+      }
+
+      return {
+        id: '',
+        type,
+        start: '',
+        end: '',
+        assignees: [],
+        active: false,
+        order,
+      };
+    });
+
+    return { status, steps };
   }
 
   const legacyMap: Partial<Record<string, StepType>> = {

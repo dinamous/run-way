@@ -41,7 +41,7 @@ export function useFormState<T>(
    */
   function confirmClose(): boolean {
     if (!isDirty) return true
-    return window.confirm('Tens alterações não guardadas. Tens a certeza que queres fechar?')
+    return window.confirm('Você tem alterações não guardadas. Tem certeza que quer fechar?')
   }
 
   return { isDirty, submitting, withSubmit, reset, confirmClose }
