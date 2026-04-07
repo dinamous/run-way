@@ -4,8 +4,8 @@ import { normaliseTask, todayStr } from '@/utils/dashboardUtils';
 import { getCurrentStep } from '@/lib/steps';
 import type { Task } from '@/types/task';
 
-export function useTaskFilters(tasks: Task[], enablePeriodFilter = false) {
-  const [filterAssignee, setFilterAssignee] = useState('');
+export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initialAssignee = '') {
+  const [filterAssignee, setFilterAssignee] = useState(() => initialAssignee);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterSteps, setFilterSteps] = useState<StepType[]>([]);
   const [filterPeriodDays, setFilterPeriodDays] = useState(60);

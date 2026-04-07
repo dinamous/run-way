@@ -1,19 +1,18 @@
 # MembersView
 
-**Ficheiro:** `src/views/MembersView.tsx`
+**Ficheiros:**
+- `src/views/MembersView/MembersView.tsx`
+- `src/views/MembersView/components/MemberCard.tsx`
 
 ## Props
 
 ```ts
-interface MembersViewProps {
-  tasks: (Task | LegacyTask)[];
-  members: Member[];
-}
+interface MembersViewProps {}
 ```
 
 ## Responsabilidade
 
-Exibe um card por membro com indicador de carga atual (steps ativos hoje) e lista de demandas alocadas.
+Exibe um card por membro com resumo informativo de alocação e atalho para abrir o Dashboard em modo calendário filtrado por responsável.
 
 ## Normalização de Tasks
 
@@ -34,6 +33,12 @@ Para cada membro, coleta todos os steps onde:
 
 A **carga atual** (`activeCount`) é o subconjunto desses steps cujo intervalo inclui hoje (`step.start <= today && step.end >= today`).
 
+Também calcula métricas leves por membro:
+- `taskEntries.length`: total de demandas atribuídas
+- `dueSoonCount`: steps com fim entre hoje e +7 dias
+- `blockedCount`: demandas bloqueadas entre as atribuídas
+- `nextDeadline`: próximo step por `step.end` para mostrar "Próxima entrega"
+
 | `activeCount` | Status | Cor do badge |
 |---|---|---|
 | 0 | Capacidade Livre | Verde (`bg-green-500`) |
@@ -51,11 +56,15 @@ Após coletar os steps do membro, agrupa por `task.id` usando um `Map<string, { 
 │  [Avatar]  Nome                         [Badge status]│
 │            Role                                       │
 │                                                       │
+│  Resumo rápido: Demandas | Ativos hoje | +7 dias | Bloq│
+│  Próxima entrega: DD/MM · Nome da etapa               │
+│                                                       │
 │  Demandas com steps (N) — X steps ativos hoje         │
 │  ┌────────────────────────────────────────────────┐   │
 │  │ ● Título da task                   [Bloqueado] │   │
 │  │   [TAG] [TAG] [TAG]                            │   │
 │  └────────────────────────────────────────────────┘   │
+│  [Abrir calendário do membro]                         │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -66,6 +75,7 @@ Após coletar os steps do membro, agrupa por `task.id` usando um `Map<string, { 
   - Step ativo hoje: cor do tipo (`meta.color`) com borda
   - Step fora do intervalo atual: muted
 - **Tooltip de cada tag:** `"YYYY-MM-DD → YYYY-MM-DD"` via `title`
+- **CTA do card:** botão "Abrir calendário do membro" configura redirecionamento no `useUIStore` (`dashboardRedirect`) e navega para `view='dashboard'`
 
 ## Dependências Internas
 
@@ -75,6 +85,8 @@ Após coletar os steps do membro, agrupa por `task.id` usando um `Map<string, { 
 | `migrateLegacyTask` | Converte tasks antigas para o modelo de steps |
 | `getCurrentStep` | Retorna o step ativo no dia fornecido |
 | `Badge` (`@/components/ui`) | Badge de status do membro |
+| `Button` (`@/components/ui`) | CTA para abrir calendário filtrado |
+| `useUIStore` | Passagem de `dashboardRedirect` (assignee + modo `calendar`) |
 | `MembersViewProps` (`@/types/props`) | Tipagem das props |
 
 ## Filtragem por cliente
@@ -85,4 +97,4 @@ Após coletar os steps do membro, agrupa por `task.id` usando um `Map<string, { 
 
 - `todayStr()` gera a data atual em `YYYY-MM-DD` sem depender de timezone (usa `getFullYear/getMonth/getDate`)
 - O grid é `md:grid-cols-2` — dois cards por linha em telas médias
-- `normalizeTask` é chamada duas vezes para cada entry da lista (coleta + renderização) — não há impacto perceptível dado o volume esperado de dados
+- A lista visual de demandas no card mostra até 4 itens; restante aparece como `+N demandas`

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
 import { useClientStore } from '@/store/useClientStore';
+import { useUIStore } from '@/store/useUIStore';
 import { useAuthContext } from '@/contexts/AuthContext';
 import MemberCard from './components/MemberCard';
 import { ViewState } from '@/components/ViewState';
@@ -31,6 +32,8 @@ function todayStr() {
 const MembersView: React.FC = () => {
   const { isAdmin } = useAuthContext();
   const { selectedClientId } = useClientStore();
+  const setView = useUIStore((s) => s.setView);
+  const setDashboardRedirect = useUIStore((s) => s.setDashboardRedirect);
   const {
     tasks,
     loading: tasksLoading,
@@ -91,11 +94,20 @@ const MembersView: React.FC = () => {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">Capacity da Equipe</h2>
-        <p className="text-muted-foreground">Alocação por step ativo por membro.</p>
+        <p className="text-muted-foreground">Visão informativa por membro com atalhos para abrir o calendário filtrado.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {members.map(member => (
-          <MemberCard key={member.id} member={member} tasks={tasks} today={today} />
+          <MemberCard
+            key={member.id}
+            member={member}
+            tasks={tasks}
+            today={today}
+            onOpenCalendar={(memberId: string) => {
+              setDashboardRedirect({ assigneeId: memberId, mode: 'calendar' });
+              setView('dashboard');
+            }}
+          />
         ))}
       </div>
     </div>

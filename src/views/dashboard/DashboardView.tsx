@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
 import { useClientStore } from '@/store/useClientStore';
+import { useUIStore } from '@/store/useUIStore';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
@@ -31,6 +32,8 @@ const DASHBOARD_BONES = {
 const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
   const { isAdmin } = useAuthContext();
   const { selectedClientId } = useClientStore();
+  const dashboardRedirect = useUIStore((s) => s.dashboardRedirect);
+  const clearDashboardRedirect = useUIStore((s) => s.clearDashboardRedirect);
   const {
     tasks,
     loading: tasksLoading,
@@ -45,7 +48,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
     fetchMembers,
     invalidate: invalidateMembers,
   } = useMemberStore();
-  const [calView, setCalView] = useState<'calendar' | 'timeline'>('timeline');
+  const [calView, setCalView] = useState<'calendar' | 'timeline'>(() => dashboardRedirect?.mode ?? 'timeline');
 
   useEffect(() => {
     fetchTasks(selectedClientId, isAdmin);
@@ -60,7 +63,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
     hasActiveFilters,
     clearFilters, toggleStepFilter,
     filteredTasks, blockedCount, activeCount,
-  } = useTaskFilters(tasks ?? [], calView === 'timeline');
+  } = useTaskFilters(tasks ?? [], calView === 'timeline', dashboardRedirect?.assigneeId ?? '');
+
+  useEffect(() => {
+    if (!dashboardRedirect) return;
+    clearDashboardRedirect();
+  }, [dashboardRedirect, clearDashboardRedirect]);
 
   const hasData = tasks.length > 0 || members.length > 0;
   const isLoading = tasksLoading || membersLoading;
