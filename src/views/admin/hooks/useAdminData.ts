@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/supabase'
 import type { DbClientRow, DbAuditLogRow } from '@/types/db'
 import type { Member } from '@/hooks/useSupabase'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
+import { useTaskStore } from '@/store/useTaskStore'
+import { useMemberStore } from '@/store/useMemberStore'
+import { useClientStore } from '@/store/useClientStore'
 
 export interface AuditFilters {
   clientId?: string
@@ -14,6 +17,12 @@ export interface AuditFilters {
 }
 
 export function useAdminData() {
+  const selectedClientId = useClientStore((state) => state.selectedClientId)
+  const invalidateTasks = useTaskStore((state) => state.invalidate)
+  const fetchTasks = useTaskStore((state) => state.fetchTasks)
+  const invalidateMembers = useMemberStore((state) => state.invalidate)
+  const fetchMembers = useMemberStore((state) => state.fetchMembers)
+
   const [clients, setClients] = useState<DbClientRow[]>([])
   const [users, setUsers] = useState<Member[]>([])
   const [auditLogs, setAuditLogs] = useState<DbAuditLogRow[]>([])
@@ -101,6 +110,16 @@ export function useAdminData() {
     }
   }, [fetchClients, fetchUsers, fetchUserClientsMap])
 
+  const reloadAppStores = useCallback(async () => {
+    invalidateTasks()
+    invalidateMembers()
+
+    await Promise.all([
+      fetchTasks(selectedClientId, true),
+      fetchMembers(selectedClientId),
+    ])
+  }, [fetchMembers, fetchTasks, invalidateMembers, invalidateTasks, selectedClientId])
+
   // CRUD clients
   const createClient = useCallback(async (name: string, slug: string) => {
     if (!supabaseAdmin) return false
@@ -109,12 +128,13 @@ export function useAdminData() {
     try {
       setError(null)
       await fetchClients()
+      await reloadAppStores()
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchClients])
+  }, [fetchClients, reloadAppStores])
 
   const updateClient = useCallback(async (id: string, name: string, slug: string) => {
     if (!supabaseAdmin) return false
@@ -123,12 +143,13 @@ export function useAdminData() {
     try {
       setError(null)
       await fetchClients()
+      await reloadAppStores()
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchClients])
+  }, [fetchClients, reloadAppStores])
 
   const deleteClient = useCallback(async (id: string) => {
     if (!supabaseAdmin) return false
@@ -137,12 +158,13 @@ export function useAdminData() {
     try {
       setError(null)
       await fetchClients()
+      await reloadAppStores()
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchClients])
+  }, [fetchClients, reloadAppStores])
 
   // Vínculo user ↔ client
   const linkUserToClient = useCallback(async (userId: string, clientId: string) => {
@@ -155,12 +177,13 @@ export function useAdminData() {
       setError(null)
       await fetchUsers()
       await fetchUserClientsMap()
+      await reloadAppStores()
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, fetchUserClientsMap])
+  }, [fetchUsers, fetchUserClientsMap, reloadAppStores])
 
   const unlinkUserFromClient = useCallback(async (userId: string, clientId: string) => {
     if (!supabaseAdmin) return false
@@ -173,12 +196,13 @@ export function useAdminData() {
       setError(null)
       await fetchUsers()
       await fetchUserClientsMap()
+      await reloadAppStores()
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, fetchUserClientsMap])
+  }, [fetchUsers, fetchUserClientsMap, reloadAppStores])
 
   const setUserRole = useCallback(async (userId: string, role: 'admin' | 'user') => {
     if (!supabaseAdmin) return false
@@ -190,12 +214,13 @@ export function useAdminData() {
     try {
       setError(null)
       await fetchUsers()
+      await reloadAppStores()
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers])
+  }, [fetchUsers, reloadAppStores])
 
   const createUser = useCallback(async (
     name: string,
@@ -229,12 +254,13 @@ export function useAdminData() {
       await fetchUsers()
       await fetchUserClientsMap()
       setError(null)
+      await reloadAppStores()
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, fetchUserClientsMap])
+  }, [fetchUsers, fetchUserClientsMap, reloadAppStores])
 
   const setUserAuthId = useCallback(async (userId: string, authUserId: string | null, avatarUrl?: string | null) => {
     if (!supabaseAdmin) return false
@@ -246,12 +272,13 @@ export function useAdminData() {
     try {
       setError(null)
       await fetchUsers()
+      await reloadAppStores()
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers])
+  }, [fetchUsers, reloadAppStores])
 
   const listGoogleUsers = useCallback(async (search?: string) => {
     if (!supabaseAdmin) return []

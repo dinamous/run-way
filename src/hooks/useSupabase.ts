@@ -27,66 +27,54 @@ interface UseSupabaseOptions {
   isAdmin?: boolean
 }
 
-async function upsertSteps(taskId: string, steps: Step[]): Promise<boolean> {
-  for (const step of steps) {
-    const isNew = !step.id
+async function createAllSteps(taskId: string, steps: Step[]): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('task_steps')
+    .insert(
+      steps.map(step => ({
+        task_id: taskId,
+        type: step.type,
+        step_order: step.order,
+        active: step.active,
+        start_date: step.start || null,
+        end_date: step.end || null,
+      }))
+    )
+    .select('id,type')
 
-    if (isNew && !step.active) {
-      continue
-    }
+  if (error || !data) {
+    devLog('[createAllSteps] Erro ao inserir steps:', error?.message)
+    return false
+  }
 
-    let stepId: string
+  const stepIdByType = new Map(data.map(row => [row.type, row.id]))
+  const assigneeRows = steps.flatMap(step => {
+    const stepId = stepIdByType.get(step.type)
+    if (!stepId || step.assignees.length === 0) return []
+    return step.assignees.map(memberId => ({ step_id: stepId, member_id: memberId }))
+  })
 
-    if (isNew) {
-      const { data, error } = await supabase
-        .from('task_steps')
-        .insert({
-          task_id: taskId,
-          type: step.type,
-          step_order: step.order,
-          active: step.active,
-          start_date: step.start || null,
-          end_date: step.end || null,
-        })
-        .select('id')
-        .single()
-
-      if (error || !data) {
-        devLog('[upsertSteps] Erro ao inserir step:', error?.message)
-        return false
-      }
-      stepId = data.id
-    } else {
-      const { error } = await supabase
-        .from('task_steps')
-        .update({
-          type: step.type,
-          step_order: step.order,
-          active: step.active,
-          start_date: step.start || null,
-          end_date: step.end || null,
-        })
-        .eq('id', step.id)
-
-      if (error) {
-        devLog('[upsertSteps] Erro ao atualizar step:', error.message)
-        return false
-      }
-      stepId = step.id
-    }
-
-    await supabase.from('step_assignees').delete().eq('step_id', stepId)
-    if (step.assignees.length > 0) {
-      const { error: assigneeErr } = await supabase.from('step_assignees').insert(
-        step.assignees.map(mid => ({ step_id: stepId, member_id: mid }))
-      )
-      if (assigneeErr) {
-        devLog('[upsertSteps] Erro ao inserir assignees:', assigneeErr.message)
-        return false
-      }
+  if (assigneeRows.length > 0) {
+    const { error: assigneeErr } = await supabase.from('step_assignees').insert(assigneeRows)
+    if (assigneeErr) {
+      devLog('[createAllSteps] Erro ao inserir assignees:', assigneeErr.message)
+      return false
     }
   }
+
   return true
+}
+
+function didTaskFieldsChange(prevTask: Task | undefined, nextTask: Task, resolvedClientId: string | null): boolean {
+  if (!prevTask) return true
+
+  return (
+    prevTask.title !== nextTask.title
+    || (prevTask.clickupLink ?? null) !== (nextTask.clickupLink ?? null)
+    || prevTask.status.blocked !== nextTask.status.blocked
+    || (prevTask.status.blockedAt ?? null) !== (nextTask.status.blockedAt ?? null)
+    || (prevTask.clientId ?? null) !== resolvedClientId
+  )
 }
 
 export function useSupabase(options: UseSupabaseOptions = {}) {
@@ -117,7 +105,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       return false
     }
 
-    const ok = await upsertSteps(taskRow.id, taskData.steps)
+    const ok = await createAllSteps(taskRow.id, taskData.steps)
     if (!ok) {
       toast.error('Tarefa criada mas erro ao guardar etapas')
       await refresh()
@@ -145,58 +133,126 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     const previousTasks = useTaskStore.getState().tasks
     const prevTask = previousTasks.find(t => t.id === taskData.id)
 
+    if (!prevTask) {
+      toast.error('Não foi possível comparar alterações da demanda')
+      await refresh()
+      return false
+    }
+
     useTaskStore.setState(s => ({
       tasks: s.tasks.map(t => t.id === taskData.id ? { ...taskData, clientId: resolvedClientId ?? undefined } : t)
     }))
 
-    const { error: taskErr } = await supabase
-      .from('tasks')
-      .update({
-        title: taskData.title,
-        clickup_link: taskData.clickupLink ?? null,
-        blocked: taskData.status.blocked,
-        blocked_at: taskData.status.blockedAt ?? null,
-        client_id: resolvedClientId,
+    if (didTaskFieldsChange(prevTask, taskData, resolvedClientId)) {
+      const { error: taskErr } = await supabase
+        .from('tasks')
+        .update({
+          title: taskData.title,
+          clickup_link: taskData.clickupLink ?? null,
+          blocked: taskData.status.blocked,
+          blocked_at: taskData.status.blockedAt ?? null,
+          client_id: resolvedClientId,
+        })
+        .eq('id', taskData.id)
+
+      if (taskErr) {
+        useTaskStore.setState({ tasks: previousTasks })
+        toast.error(toSafeUiErrorMessage(taskErr.message))
+        return false
+      }
+    }
+
+    const prevByType = new Map((prevTask?.steps ?? []).map(step => [step.type, step]))
+    const updates = taskData.steps
+      .map(step => {
+        const prevStep = prevByType.get(step.type)
+        const stepId = step.id || prevStep?.id || ''
+
+        if (!stepId || !prevStep) return null
+
+        const stepChanged = (
+          prevStep.type !== step.type
+          || prevStep.order !== step.order
+          || prevStep.active !== step.active
+          || (prevStep.start || '') !== (step.start || '')
+          || (prevStep.end || '') !== (step.end || '')
+        )
+
+        if (!stepChanged) return null
+
+        return {
+          id: stepId,
+          data: {
+            type: step.type,
+            step_order: step.order,
+            active: step.active,
+            start_date: step.start || null,
+            end_date: step.end || null,
+          },
+        }
       })
-      .eq('id', taskData.id)
+      .filter((item): item is { id: string; data: { type: Step['type']; step_order: number; active: boolean; start_date: string | null; end_date: string | null } } => item !== null)
 
-    if (taskErr) {
-      useTaskStore.setState({ tasks: previousTasks })
-      toast.error(toSafeUiErrorMessage(taskErr.message))
-      return false
-    }
-
-    const keptIds = taskData.steps.map(s => s.id).filter(Boolean)
-    if (keptIds.length > 0) {
-      const { error: deleteErr } = await supabase
+    for (const update of updates) {
+      const { error } = await supabase
         .from('task_steps')
-        .delete()
-        .eq('task_id', taskData.id)
-        .not('id', 'in', `(${keptIds.join(',')})`)
+        .update(update.data)
+        .eq('id', update.id)
 
-      if (deleteErr) {
+      if (error) {
         useTaskStore.setState({ tasks: previousTasks })
-        toast.error(toSafeUiErrorMessage(deleteErr.message))
-        return false
-      }
-    } else {
-      const { error: deleteErr } = await supabase
-        .from('task_steps')
-        .delete()
-        .eq('task_id', taskData.id)
-
-      if (deleteErr) {
-        useTaskStore.setState({ tasks: previousTasks })
-        toast.error(toSafeUiErrorMessage(deleteErr.message))
+        toast.error(toSafeUiErrorMessage(error.message))
         return false
       }
     }
 
-    const ok = await upsertSteps(taskData.id, taskData.steps)
-    if (!ok) {
-      toast.error('Tarefa atualizada mas erro ao guardar etapas')
-      await refresh()
-      return false
+    const assigneesToAdd: Array<{ step_id: string; member_id: string }> = []
+    const assigneesToRemoveByStep = new Map<string, string[]>()
+
+    for (const step of taskData.steps) {
+      const prevStep = prevByType.get(step.type)
+      const stepId = step.id || prevStep?.id || ''
+      if (!stepId || !prevStep) continue
+
+      const prevAssignees = new Set(prevStep.assignees)
+      const nextAssignees = new Set(step.assignees)
+
+      const toAdd = step.assignees.filter(memberId => !prevAssignees.has(memberId))
+      const toRemove = prevStep.assignees.filter(memberId => !nextAssignees.has(memberId))
+
+      if (toAdd.length > 0) {
+        assigneesToAdd.push(...toAdd.map(memberId => ({ step_id: stepId, member_id: memberId })))
+      }
+
+      if (toRemove.length > 0) {
+        assigneesToRemoveByStep.set(stepId, toRemove)
+      }
+    }
+
+    for (const [stepId, memberIds] of assigneesToRemoveByStep.entries()) {
+      const { error } = await supabase
+        .from('step_assignees')
+        .delete()
+        .eq('step_id', stepId)
+        .in('member_id', memberIds)
+
+      if (error) {
+        useTaskStore.setState({ tasks: previousTasks })
+        toast.error(toSafeUiErrorMessage(error.message))
+        return false
+      }
+    }
+
+    if (assigneesToAdd.length > 0) {
+      const { error } = await supabase
+        .from('step_assignees')
+        .insert(assigneesToAdd)
+
+      if (error) {
+        useTaskStore.setState({ tasks: previousTasks })
+        toast.error(toSafeUiErrorMessage(error.message))
+        return false
+      }
     }
 
     toast.success(`Demanda "${taskData.title}" atualizada`)

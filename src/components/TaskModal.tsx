@@ -141,7 +141,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
         </div>
 
         <div className="px-6 py-5 overflow-y-auto flex-1 space-y-6 custom-scrollbar">
-          <form id="task-form" onSubmit={handleSubmit}>
+          <form id="task-form" onSubmit={handleSubmit} noValidate>
             <div className="space-y-6">
 
               {/* Título */}
@@ -165,7 +165,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
                 <div className="relative">
                   <Input
                     id="clickup"
-                    type="url"
+                    type="text"
+                    inputMode="url"
                     value={clickupLink}
                     onChange={e => setClickupLink(e.target.value)}
                     placeholder="https://app.clickup.com/t/..."

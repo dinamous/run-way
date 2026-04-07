@@ -45,6 +45,95 @@ interface UsersPanelProps {
 
 const PAGE_SIZE = 12
 
+const ROLE_SUGGESTIONS = [
+  // Criação
+  'Diretor de Arte',
+  'Redator',
+  'Designer Gráfico',
+  'Designer Motion',
+  'Editor de Vídeo',
+  'Fotógrafo',
+  'Ilustrador',
+  'UX Designer',
+  'UI Designer',
+  'Product Designer',
+
+  // Social / Conteúdo
+  'Social Media',
+  'Content Creator',
+  'Copywriter',
+  'Community Manager',
+
+  // Planejamento / Estratégia
+  'Planejamento',
+  'Estratégia',
+  'Branding',
+  'Analista de Branding',
+
+  // Mídia / Performance
+  'Mídia',
+  'Analista de Mídia',
+  'Analista de Performance',
+  'Analista de Tráfego',
+  'Gestor de Tráfego',
+  'Especialista em Ads',
+
+  // Atendimento / Account
+  'Atendimento',
+  'Account Executive',
+  'Account Manager',
+  'Gerente de Contas',
+  'Diretor de Contas',
+  'Customer Success',
+
+  // Projetos / Operações
+  'Gestor de Projetos',
+  'Project Manager',
+  'Scrum Master',
+  'Produtor',
+  'Produtor Executivo',
+  'Coordenador de Projetos',
+  'Head de Operações',
+
+  // Liderança
+  'Diretor de Criação',
+  'Diretor de Marketing',
+  'Head de Criação',
+  'Head de Mídia',
+  'Head de Conteúdo',
+  'Head de Performance',
+  'Gerente de Marketing',
+  'Gerente de Projetos',
+  'Gerente de Mídia',
+
+  // Desenvolvimento / Tech
+  'Front-end Developer',
+  'Back-end Developer',
+  'Full Stack Developer',
+  'Web Developer',
+  'Mobile Developer',
+  'Tech Lead',
+  'CTO',
+  'QA / Tester',
+  'DevOps',
+
+  // Dados / BI
+  'Analista de Dados',
+  'BI Analyst',
+  'Data Scientist',
+
+  // Estágio / Júnior
+  'Estagiário de Criação',
+  'Estagiário de Marketing',
+  'Estagiário de Mídia',
+  'Estagiário de Social Media',
+  'Estagiário de Design',
+  'Estagiário de Desenvolvimento',
+  'Assistente de Marketing',
+  'Assistente de Atendimento',
+  'Assistente de Mídia',
+]
+
 type ValidationErrors = {
   name?: string
   role?: string
@@ -319,6 +408,7 @@ export function UsersPanel({
 
   const createNameId = 'create-user-name'
   const createRoleId = 'create-user-role'
+  const createRoleSuggestionsId = 'create-user-role-suggestions'
   const createEmailId = 'create-user-email'
 
   return (
@@ -521,17 +611,23 @@ export function UsersPanel({
                   id={createRoleId}
                   value={createRole}
                   onChange={e => { setCreateRole(e.target.value); if (createErrors.role) setCreateErrors(prev => ({ ...prev, role: undefined })) }}
-                  placeholder="Ex: Designer, Desenvolvedor"
+                  placeholder="Ex: Social Media"
+                  list={createRoleSuggestionsId}
                   aria-invalid={!!createErrors.role}
                   aria-describedby={createErrors.role ? `${createRoleId}-error` : undefined}
                 />
+                <datalist id={createRoleSuggestionsId}>
+                  {ROLE_SUGGESTIONS.map(role => (
+                    <option key={role} value={role} />
+                  ))}
+                </datalist>
                 {createErrors.role && (
                   <p id={`${createRoleId}-error`} role="alert" className="text-xs text-red-500 mt-1">
                     {createErrors.role}
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  Cargo ou função do colaborador na empresa.
+                  Escolha uma sugestão ou digite livremente.
                 </p>
               </div>
 
