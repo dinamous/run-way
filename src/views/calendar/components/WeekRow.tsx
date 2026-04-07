@@ -13,7 +13,7 @@ interface WeekRowProps {
   tasks: Task[];
   today: Date;
   currentMonth: number;
-  rowHeight: number;
+  rowHeight: string;
   dragPreview: DragPreview | null;
   didDragRef: React.RefObject<boolean>;
   onStartDrag: (e: React.MouseEvent, bar: BarItem, type: DragState['type'], task: Task) => void;

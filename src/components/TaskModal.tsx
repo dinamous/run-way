@@ -387,22 +387,27 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border bg-muted/50 flex justify-between items-center">
-          <div>
-            {task && onDelete && (
-              <Button variant="destructive" type="button" onClick={() => onDelete(task.id)}>
-                <Trash2 className="w-4 h-4 mr-1.5" />
-                Apagar
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleRequestClose} type="button">Cancelar</Button>
-            <Button type="submit" form="task-form" disabled={!isDirty || submitting}>
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-border bg-muted/50 flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
+            <Button className="w-full text-xs sm:text-sm" variant="outline" onClick={handleRequestClose} type="button">Cancelar</Button>
+            <Button className="w-full text-xs sm:text-sm" type="submit" form="task-form" disabled={!isDirty || submitting}>
               <Save className="w-4 h-4 mr-1.5" />
-              {submitting ? 'A guardar…' : task ? 'Salvar Alterações' : 'Criar Demanda'}
+              <span className="sm:hidden">{submitting ? 'A guardar…' : task ? 'Salvar' : 'Criar'}</span>
+              <span className="hidden sm:inline">{submitting ? 'A guardar…' : task ? 'Salvar Alterações' : 'Criar Demanda'}</span>
             </Button>
           </div>
+          {task && onDelete && (
+            <Button
+              className="w-full sm:w-auto text-xs sm:text-sm text-muted-foreground hover:text-destructive"
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => onDelete(task.id)}
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Apagar demanda
+            </Button>
+          )}
         </div>
 
         {pendingSubmitData && (

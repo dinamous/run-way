@@ -72,6 +72,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     return localStorage.getItem("sidebarOpen") !== "false";
   });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const handleToggleSidebar = () => {
     setSidebarOpen((prev) => {
@@ -95,6 +96,7 @@ export default function App() {
   }, [setClient, setView]);
 
   const handleViewChange = useCallback((newView: ViewType) => {
+    setMobileSidebarOpen(false);
     const hasClientSelected = effectiveClientId !== null;
     const canAccess = canAccessView(newView, accessRole, hasClientSelected);
 
@@ -172,16 +174,24 @@ export default function App() {
         availableClients={clients}
         onSelectClient={handleSelectClient}
         isAdmin={isAdmin}
+        onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
       />
 
       <div className="flex flex-row flex-1 overflow-hidden">
           <AppSidebar
             open={sidebarOpen}
             onToggle={handleToggleSidebar}
+            mobileOpen={mobileSidebarOpen}
+            onCloseMobile={() => setMobileSidebarOpen(false)}
             view={view}
             onViewChange={handleViewChange}
             hasClient={hasClients}
             role={accessRole}
+            darkMode={darkMode}
+            onToggleDark={() => setDarkMode((d) => !d)}
+            userEmail={user?.email}
+            userAvatarUrl={member?.avatar_url}
+            onSignOut={signOut}
           />
 
         <main key={view} className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 animate-blur-fade-in">

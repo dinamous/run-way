@@ -1,4 +1,4 @@
-import { Sun, Moon, CalendarDays, LogOut, User, ChevronDown } from "lucide-react";
+import { Sun, Moon, CalendarDays, LogOut, User, ChevronDown, Menu } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -23,6 +23,7 @@ interface AppHeaderProps {
   availableClients?: ClientOption[];
   onSelectClient?: (clientId: string | null | undefined) => void;
   isAdmin?: boolean;
+  onToggleMobileSidebar?: () => void;
 }
 
 function getInitials(email?: string): string {
@@ -43,6 +44,7 @@ export function AppHeader({
   availableClients = [],
   onSelectClient,
   isAdmin,
+  onToggleMobileSidebar,
 }: AppHeaderProps) {
   const showClientSelector = availableClients.length > 1 || (isAdmin && availableClients.length > 0);
 
@@ -50,7 +52,14 @@ export function AppHeader({
     <header className="bg-card border-b border-border sticky top-0 z-10 print:hidden">
       <div className="px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-                   <div className="flex items-center gap-2">
+          <button
+            onClick={onToggleMobileSidebar}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors md:hidden"
+            aria-label="Abrir menu"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-2">
             <div className="bg-primary p-2 rounded-lg">
               <CalendarDays className="w-5 h-5 text-primary-foreground" />
             </div>
@@ -60,15 +69,15 @@ export function AppHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {showClientSelector ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-muted transition-colors">
+                <button className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs sm:text-sm border rounded-lg hover:bg-muted transition-colors max-w-[180px] sm:max-w-none">
                   {selectedClient ? (
                     <>
-                      <span className="text-muted-foreground">Cliente:</span>
-                      <span className="font-medium">{selectedClient.name}</span>
+                      <span className="text-muted-foreground hidden sm:inline">Cliente:</span>
+                      <span className="font-medium truncate">{selectedClient.name}</span>
                     </>
                   ) : (
                     <span className="text-muted-foreground">Selecionar cliente...</span>
@@ -105,41 +114,43 @@ export function AppHeader({
             </span>
           ) : null}
 
-          <button
-            onClick={onToggleDark}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="Alternar tema"
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          <div className="hidden md:flex md:items-center md:gap-3">
+            <button
+              onClick={onToggleDark}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Alternar tema"
+            >
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors overflow-hidden"
-                aria-label="Menu do utilizador"
-              >
-                {userAvatarUrl ? (
-                  <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  getInitials(userEmail)
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuLabel>{userEmail ?? "Utilizador"}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled>
-                <User className="w-4 h-4" />
-                Perfil
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onSignOut}>
-                <LogOut className="w-4 h-4" />
-                Sair
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors overflow-hidden"
+                  aria-label="Menu do utilizador"
+                >
+                  {userAvatarUrl ? (
+                    <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    getInitials(userEmail)
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <DropdownMenuLabel>{userEmail ?? "Utilizador"}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled>
+                  <User className="w-4 h-4" />
+                  Perfil
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onSignOut}>
+                  <LogOut className="w-4 h-4" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>

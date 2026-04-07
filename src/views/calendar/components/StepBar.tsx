@@ -1,7 +1,6 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import {
-  DAY_HEADER_H, SLOT_HEIGHT,
   normaliseTask, isStepBlocked,
   STEP_META,
   type BarItem, type DragPreview, type DragState, type Task,
@@ -45,7 +44,7 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
   const clampedEnd = Math.max(0, Math.min(6, adjEnd));
   const left = clampedStart * colW;
   const width = (clampedEnd - clampedStart + 1) * colW;
-  const top = DAY_HEADER_H + bar.slot * SLOT_HEIGHT + 3;
+  const top = `calc(var(--cal-day-header-h) + ${bar.slot} * var(--cal-slot-height) + 3px)`;
   const isDragging = dragPreview?.taskId === bar.taskId && dragPreview?.stepType === bar.stepType;
   const norm = normaliseTask(task);
   const blocked = isStepBlocked(norm, bar.stepStart);
@@ -72,7 +71,7 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
       data-step-key={stepKey}
       style={{
         top,
-        height: SLOT_HEIGHT - 4,
+        height: 'calc(var(--cal-slot-height) - 4px)',
         left: `calc(${left}% + ${showLeftDeco ? 3 : 0}px)`,
         width: `calc(${width}% - ${(showLeftDeco ? 3 : 0) + (showRightDeco ? 3 : 0)}px)`,
         borderRadius,
