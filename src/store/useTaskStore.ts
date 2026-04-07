@@ -65,41 +65,50 @@ interface TaskState {
   loading: boolean
   error: string | null
   cachedClientId: string | null | undefined
-
-  fetchTasks(clientId: string | null | undefined, isAdmin: boolean): Promise<void>
-  invalidate(): void
 }
 
-export const useTaskStore = create<TaskState>()(devtools((set, get) => ({
-  tasks: [],
-  loading: false,
-  error: null,
-  cachedClientId: undefined,
+interface TaskActions {
+  fetchTasks: (clientId: string | null | undefined, isAdmin: boolean) => Promise<void>
+  invalidate: () => void
+}
 
-  fetchTasks: async (clientId, isAdmin) => {
-    if (clientId === undefined) return
+type TaskStore = TaskState & TaskActions
 
-    const state = get()
-    if (
-      clientId === state.cachedClientId &&
-      state.tasks.length > 0 &&
-      !state.loading
-    ) return
+export const useTaskStore = create<TaskStore>()(
+  devtools(
+    (set, get) => ({
+      tasks: [],
+      loading: false,
+      error: null,
+      cachedClientId: undefined,
 
-    set({ loading: true, error: null })
+      fetchTasks: async (clientId, isAdmin) => {
+        if (clientId === undefined) return
 
-    try {
-      const tasks = await fetchTasksFromDb(clientId, isAdmin)
-      set({ tasks, cachedClientId: clientId, loading: false })
-    } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : 'Erro ao carregar tarefas',
-        loading: false,
-      })
-    }
-  },
+        const state = get()
+        if (
+          clientId === state.cachedClientId &&
+          state.tasks.length > 0 &&
+          !state.loading
+        ) return
 
-  invalidate: () => {
-    set({ tasks: [], cachedClientId: undefined, error: null })
-  },
-}), { name: 'TaskStore' }))
+        set({ loading: true, error: null })
+
+        try {
+          const tasks = await fetchTasksFromDb(clientId, isAdmin)
+          set({ tasks, cachedClientId: clientId, loading: false })
+        } catch (err) {
+          set({
+            error: err instanceof Error ? err.message : 'Erro ao carregar tarefas',
+            loading: false,
+          })
+        }
+      },
+
+      invalidate: () => {
+        set({ tasks: [], cachedClientId: undefined, error: null })
+      },
+    }),
+    { name: 'app/tasks', enabled: true }
+  )
+)

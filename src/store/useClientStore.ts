@@ -22,6 +22,6 @@ export const useClientStore = create<ClientState>()(
             : {},
       }
     ),
-    { name: 'ClientStore' }
+    { name: 'app/client', enabled: true }
   )
 )

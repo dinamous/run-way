@@ -1,4 +1,4 @@
-import { CalendarDays, Users, BarChart2, ChevronLeft, ChevronRight, Home, Building2 } from "lucide-react";
+import { CalendarDays, Users, BarChart2, ChevronLeft, ChevronRight, Home, Building2, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   TooltipProvider,
@@ -18,25 +18,21 @@ interface AppSidebarProps {
   hasClient?: boolean;
 }
 
-const BASE_NAV_ITEMS: { view: ViewType; label: string; Icon: React.ElementType; requiresClient?: boolean }[] = [
+const BASE_NAV_ITEMS: { view: ViewType; label: string; Icon: React.ElementType; requiresClient?: boolean; isAdminOnly?: boolean }[] = [
   { view: "home",      label: "Início",     Icon: Home },
   { view: "dashboard", label: "Calendário", Icon: CalendarDays, requiresClient: true },
   { view: "members",   label: "Membros",    Icon: Users, requiresClient: true },
   { view: "reports",   label: "Relatórios", Icon: BarChart2, requiresClient: true },
   { view: "clients",   label: "Clientes",   Icon: Building2, requiresClient: false },
+  { view: "admin",     label: "Admin",      Icon: Settings, requiresClient: false, isAdminOnly: true },
 ];
 
 export function AppSidebar({ open, onToggle, view, onViewChange, hasClient = true }: AppSidebarProps) {
   const { isAdmin } = useAuthContext();
   
   const NAV_ITEMS = BASE_NAV_ITEMS.filter(item => {
-    if (item.view === "admin" && !isAdmin) return false;
+    if (item.isAdminOnly && !isAdmin) return false;
     return true;
-  }).map(item => {
-    if (item.view === "admin") {
-      return { ...item, view: "admin" as ViewType };
-    }
-    return item;
   });
 
   return (

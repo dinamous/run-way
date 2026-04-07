@@ -19,4 +19,4 @@ export const useUIStore = create<UIState>()(devtools((set) => ({
   isTaskModalOpen: false,
   openTaskModal: () => set({ isTaskModalOpen: true }),
   closeTaskModal: () => set({ isTaskModalOpen: false }),
-}), { name: 'UIStore' }))
+}), { name: 'app/ui', enabled: true }))
