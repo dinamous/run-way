@@ -7,7 +7,9 @@ Esta suite cobre a camada de API com foco em seguranca para as rotas atuais de t
 Cobertura obrigatoria implementada:
 
 - requests nao autorizadas retornam `401`
+- CORS com allowlist de origin (`403` fora da allowlist)
 - teste de IDOR (usuario A nao acessa recurso do usuario B)
+- validacao de role + permissao por rota protegida (`403`)
 - rate limit apenas para usuarios autenticados (`429`)
 - prevencao de SQL injection por validacao + contrato de repositorio tipado
 - tokens expirados rejeitados (`401`)
@@ -47,7 +49,9 @@ Somente a camada de banco e mockada:
 4. **Rate limit autenticado**: apos limite por usuario, rota retorna `429`
 5. **SQL injection na URL**: payload de injecao no `:id` retorna `400`
 6. **SQL injection no body**: campo `title` malicioso retorna `400`
-7. **Input validation por campo**:
+7. **Role/permissao obrigatorios**: operacao sem permissao requerida retorna `403`
+8. **CORS fora da allowlist**: origin nao permitida retorna `403`
+9. **Input validation por campo**:
    - `title`: null/undefined/vazio/oversized/especial inseguro
    - `clickupLink`: null/vazio/oversized/especial inseguro
    - `clientId`: undefined/null/vazio/especial inseguro/formato invalido

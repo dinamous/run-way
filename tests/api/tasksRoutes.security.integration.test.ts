@@ -102,9 +102,30 @@ describe('Tasks API security integration', () => {
     api = createTasksApi({
       repository: new InMemoryTaskRepository(),
       tokenVerifier: new InMemoryTokenVerifier({
-        'valid-user-a': { userId: USER_A, exp: now + 3600 },
-        'valid-user-b': { userId: USER_B, exp: now + 3600 },
-        'expired-user-a': { userId: USER_A, exp: now - 1 },
+        'valid-user-a': {
+          userId: USER_A,
+          exp: now + 3600,
+          role: 'user',
+          permissions: ['tasks:read', 'tasks:create', 'tasks:update', 'tasks:delete'],
+        },
+        'valid-user-b': {
+          userId: USER_B,
+          exp: now + 3600,
+          role: 'user',
+          permissions: ['tasks:read', 'tasks:create', 'tasks:update', 'tasks:delete'],
+        },
+        'expired-user-a': {
+          userId: USER_A,
+          exp: now - 1,
+          role: 'user',
+          permissions: ['tasks:read', 'tasks:create', 'tasks:update', 'tasks:delete'],
+        },
+        'no-permission-user-a': {
+          userId: USER_A,
+          exp: now + 3600,
+          role: 'user',
+          permissions: ['tasks:read'],
+        },
       }),
       rateLimiter: new SlidingWindowLimiter(3),
       now: () => now,
@@ -180,5 +201,28 @@ describe('Tasks API security integration', () => {
     })
 
     expect(response.status).toBe(400)
+  })
+
+  it('bloqueia operacao sem permissao requerida', async () => {
+    const response = await api.handle({
+      method: 'DELETE',
+      path: `/api/tasks/${TASK_A}`,
+      headers: { authorization: 'Bearer no-permission-user-a' },
+    })
+
+    expect(response.status).toBe(403)
+  })
+
+  it('bloqueia request com origem fora da allowlist de CORS', async () => {
+    const response = await api.handle({
+      method: 'GET',
+      path: `/api/tasks/${TASK_A}`,
+      headers: {
+        authorization: 'Bearer valid-user-a',
+        origin: 'https://malicioso.exemplo',
+      },
+    })
+
+    expect(response.status).toBe(403)
   })
 })

@@ -6,7 +6,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { canAccessView, type AccessRole } from "@/lib/accessControl";
 import type { ViewType } from "@/store/useUIStore";
 export type { ViewType } from "@/store/useUIStore";
 
@@ -16,6 +16,7 @@ interface AppSidebarProps {
   view: ViewType;
   onViewChange: (view: ViewType) => void;
   hasClient?: boolean;
+  role: AccessRole | null;
 }
 
 const BASE_NAV_ITEMS: { view: ViewType; label: string; Icon: React.ElementType; requiresClient?: boolean; isAdminOnly?: boolean }[] = [
@@ -27,12 +28,11 @@ const BASE_NAV_ITEMS: { view: ViewType; label: string; Icon: React.ElementType; 
   { view: "admin",     label: "Admin",      Icon: Settings, requiresClient: false, isAdminOnly: true },
 ];
 
-export function AppSidebar({ open, onToggle, view, onViewChange, hasClient = true }: AppSidebarProps) {
-  const { isAdmin } = useAuthContext();
-  
+export function AppSidebar({ open, onToggle, view, onViewChange, hasClient = true, role }: AppSidebarProps) {
+
   const NAV_ITEMS = BASE_NAV_ITEMS.filter(item => {
-    if (item.isAdminOnly && !isAdmin) return false;
-    return true;
+    if (item.isAdminOnly && role !== 'admin') return false;
+    return canAccessView(item.view, role, hasClient || !item.requiresClient);
   });
 
   return (

@@ -5,6 +5,21 @@ import { UsersPanel } from './components/UsersPanel'
 import { AuditLogsPanel } from './components/AuditLogsPanel'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { supabaseAdmin } from '@/lib/supabase'
+import { ViewState } from '@/components/ViewState'
+import { DatabaseZap, ShieldAlert } from 'lucide-react'
+import { Skeleton } from 'boneyard-js/react'
+
+const ADMIN_BONES = {
+  name: 'admin-view',
+  viewportWidth: 1280,
+  width: 1100,
+  height: 640,
+  bones: [
+    { x: 0, y: 0, w: 28, h: 34, r: 8 },
+    { x: 0, y: 52, w: 45, h: 36, r: 8 },
+    { x: 0, y: 108, w: 100, h: 510, r: 12 },
+  ],
+}
 
 type AdminTab = 'clients' | 'users' | 'audit'
 
@@ -12,7 +27,8 @@ export function AdminView() {
   const [tab, setTab] = useState<AdminTab>('clients')
   const { impersonatedClientId, setImpersonatedClientId } = useAuthContext()
   const {
-    clients, users, auditLogs, loading, userClientsMap,
+    clients, users, auditLogs, loading, loadingInitial, error, userClientsMap,
+    refreshAll,
     fetchAuditLogs,
     createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
@@ -21,23 +37,23 @@ export function AdminView() {
 
   if (!supabaseAdmin) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Painel Admin</h1>
-        <div className="p-6 border border-yellow-200 dark:border-yellow-800 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
-          <h2 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
-            Configuração necessária
-          </h2>
-          <p className="text-sm text-yellow-700 dark:text-yellow-300">
-            Para acessar o painel admin, configure a variável de ambiente{' '}
-            <code className="px-1 py-0.5 bg-yellow-100 dark:bg-yellow-800 rounded text-xs">VITE_SUPABASE_SERVICE_ROLE_KEY</code>{' '}
-            no arquivo{' '}
-            <code className="px-1 py-0.5 bg-yellow-100 dark:bg-yellow-800 rounded text-xs">.env.local</code>.
-          </p>
-          <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
-            Esta chave permite bypassar as políticas RLS para operações de admin.
-          </p>
-        </div>
-      </div>
+      <ViewState
+        icon={ShieldAlert}
+        title="Configuração necessária"
+        description="Para acessar o painel admin, configure VITE_SUPABASE_SERVICE_ROLE_KEY no .env.local."
+      />
+    )
+  }
+
+  if (error && clients.length === 0 && users.length === 0) {
+    return (
+      <ViewState
+        icon={DatabaseZap}
+        title="Erro ao carregar painel admin"
+        description={`Não foi possível consultar o banco agora. Detalhe: ${error}`}
+        actionLabel="Tentar novamente"
+        onAction={refreshAll}
+      />
     )
   }
 
@@ -47,7 +63,7 @@ export function AdminView() {
     { key: 'audit', label: 'Audit Log', count: auditLogs.length },
   ]
 
-  return (
+  const content = (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Painel Admin</h1>
@@ -137,5 +153,11 @@ export function AdminView() {
         )}
       </div>
     </div>
+  )
+
+  return (
+    <Skeleton loading={loadingInitial} initialBones={ADMIN_BONES} animate="shimmer">
+      {content}
+    </Skeleton>
   )
 }

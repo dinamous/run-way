@@ -3,9 +3,11 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
 import { useClientStore } from '@/store/useClientStore';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { BarChart2 } from 'lucide-react';
+import { BarChart2, DatabaseZap } from 'lucide-react';
 import { todayStr, enrichTask, computeMemberLoad } from './utils';
 import type { StepType } from '@/lib/steps';
+import { ViewState } from '@/components/ViewState';
+import { Skeleton } from 'boneyard-js/react';
 import KpiCards from './components/KpiCards';
 import DemandsTable from './components/DemandsTable';
 import UpcomingDeadlines from './components/UpcomingDeadlines';
@@ -14,11 +16,40 @@ import StepLoadChart from './components/StepLoadChart';
 import StateDistribution from './components/StateDistribution';
 import AlertsSection from './components/AlertsSection';
 
+const REPORTS_BONES = {
+  name: 'reports-view',
+  viewportWidth: 1280,
+  width: 1100,
+  height: 760,
+  bones: [
+    { x: 0, y: 0, w: 35, h: 30, r: 8 },
+    { x: 0, y: 40, w: 46, h: 16, r: 8 },
+    { x: 0, y: 78, w: 100, h: 110, r: 12 },
+    { x: 0, y: 204, w: 100, h: 210, r: 12 },
+    { x: 0, y: 430, w: 49, h: 140, r: 12 },
+    { x: 51, y: 430, w: 49, h: 140, r: 12 },
+    { x: 0, y: 586, w: 49, h: 140, r: 12 },
+    { x: 51, y: 586, w: 49, h: 140, r: 12 },
+  ],
+};
+
 const ReportsView: React.FC = () => {
   const { isAdmin } = useAuthContext();
   const { selectedClientId } = useClientStore();
-  const { tasks, fetchTasks } = useTaskStore();
-  const { members, fetchMembers } = useMemberStore();
+  const {
+    tasks,
+    loading: tasksLoading,
+    error: tasksError,
+    fetchTasks,
+    invalidate: invalidateTasks,
+  } = useTaskStore();
+  const {
+    members,
+    loading: membersLoading,
+    error: membersError,
+    fetchMembers,
+    invalidate: invalidateMembers,
+  } = useMemberStore();
   const today = todayStr();
 
   useEffect(() => {
@@ -63,17 +94,40 @@ const ReportsView: React.FC = () => {
     [members, enriched, today]
   );
 
-  if (total === 0) {
+  const hasData = tasks.length > 0 || members.length > 0;
+  const isLoading = tasksLoading || membersLoading;
+  const errorMessage = tasksError || membersError;
+
+  const handleRetry = () => {
+    invalidateTasks();
+    invalidateMembers();
+    fetchTasks(selectedClientId, isAdmin);
+    fetchMembers(selectedClientId);
+  };
+
+  if (errorMessage && !hasData) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
-        <BarChart2 className="w-10 h-10 opacity-30" />
-        <p className="text-lg font-medium">Sem demandas para analisar</p>
-        <p className="text-sm">Crie demandas no Calendário para ver os relatórios.</p>
-      </div>
+      <ViewState
+        icon={DatabaseZap}
+        title="Erro ao carregar relatórios"
+        description={`Não foi possível obter dados no banco. Detalhe: ${errorMessage}`}
+        actionLabel="Tentar novamente"
+        onAction={handleRetry}
+      />
     );
   }
 
-  return (
+  if (total === 0 && !isLoading) {
+    return (
+      <ViewState
+        icon={BarChart2}
+        title="Sem demandas para analisar"
+        description="Crie demandas no calendário para começar a gerar relatórios."
+      />
+    );
+  }
+
+  const content = (
     <div className="space-y-8 pb-12">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">Relatórios</h2>
@@ -96,6 +150,12 @@ const ReportsView: React.FC = () => {
 
       <AlertsSection enriched={enriched} />
     </div>
+  );
+
+  return (
+    <Skeleton loading={isLoading} initialBones={REPORTS_BONES} animate="shimmer">
+      {content}
+    </Skeleton>
   );
 };
 

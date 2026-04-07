@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useClientStore } from "@/store/useClientStore";
 import { useUIStore } from "@/store/useUIStore";
-import { useTaskStore } from "@/store/useTaskStore";
 import { useMemberStore } from "@/store/useMemberStore";
 import TaskModal from "./components/TaskModal";
 import { AppHeader } from "./components/AppHeader";
@@ -21,22 +20,11 @@ import { useHolidays } from "./hooks/useHolidays";
 import { Toaster, toast } from "sonner";
 import type { Task } from "./lib/steps";
 import type { ViewType } from "@/store/useUIStore";
-
-function canAccessFeature(
-  view: ViewType,
-  hasClient: boolean,
-  isAdmin: boolean
-): boolean {
-  if (view === "admin" && !isAdmin) return false;
-  if (view === "admin") return true;
-  if (view === "home") return true;
-  if (view === "clients") return true;
-  if (!hasClient) return false;
-  return true;
-}
+import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
 
 export default function App() {
   const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients } = useAuthContext();
+  const accessRole = resolveAccessRole(member);
 
   const hasClients = clients.length > 0;
 
@@ -99,15 +87,13 @@ export default function App() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const handleSelectClient = useCallback((clientId: string | null | undefined) => {
-    useTaskStore.getState().invalidate();
-    useMemberStore.getState().invalidate();
     setClient(clientId);
     setView("home");
   }, [setClient, setView]);
 
   const handleViewChange = useCallback((newView: ViewType) => {
     const hasClientSelected = effectiveClientId !== null;
-    const canAccess = canAccessFeature(newView, hasClientSelected, isAdmin);
+    const canAccess = canAccessView(newView, accessRole, hasClientSelected);
 
     if (!canAccess) {
       if (newView !== "clients") {
@@ -117,17 +103,17 @@ export default function App() {
     } else {
       setView(newView);
     }
-  }, [effectiveClientId, isAdmin, setView]);
+  }, [effectiveClientId, accessRole, setView]);
 
   useEffect(() => {
     if (!authLoading && session) {
       const hasClientSelected = effectiveClientId !== null;
-      const canAccess = canAccessFeature(view, hasClientSelected, isAdmin);
+      const canAccess = canAccessView(view, accessRole, hasClientSelected);
       if (!canAccess) {
         setView("clients");
       }
     }
-  }, [authLoading, session, effectiveClientId, isAdmin, view, setView]);
+  }, [authLoading, session, effectiveClientId, accessRole, view, setView]);
 
   if (authLoading) {
     return (
@@ -168,13 +154,14 @@ export default function App() {
       />
 
       <div className="flex flex-row flex-1 overflow-hidden">
-        <AppSidebar
-          open={sidebarOpen}
-          onToggle={handleToggleSidebar}
-          view={view}
-          onViewChange={handleViewChange}
-          hasClient={hasClients}
-        />
+          <AppSidebar
+            open={sidebarOpen}
+            onToggle={handleToggleSidebar}
+            view={view}
+            onViewChange={handleViewChange}
+            hasClient={hasClients}
+            role={accessRole}
+          />
 
         <main key={view} className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 animate-blur-fade-in">
           {showNoClientView ? (

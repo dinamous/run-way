@@ -4,18 +4,31 @@
       "label": "Administrador",
       "description": "Acesso total ao sistema",
       "permissions": [
-        "view_all_clients",
-        "manage_clients",
-        "manage_users",
-        "view_audit_logs"
+        "view:home",
+        "view:clients",
+        "view:dashboard",
+        "view:members",
+        "view:reports",
+        "view:admin",
+        "tasks:read",
+        "tasks:create",
+        "tasks:update",
+        "tasks:delete"
       ]
     },
     "user": {
       "label": "Usuário",
       "description": "Acesso limitado aos clientes associados",
       "permissions": [
-        "view_assigned_clients",
-        "manage_own_clients"
+        "view:home",
+        "view:clients",
+        "view:dashboard",
+        "view:members",
+        "view:reports",
+        "tasks:read",
+        "tasks:create",
+        "tasks:update",
+        "tasks:delete"
       ]
     }
   },
@@ -24,30 +37,35 @@
       "label": "Dashboard",
       "description": "Visualização de demandas e calendário",
       "requiresClient": true,
+      "permission": "view:dashboard",
       "roles": ["admin", "user"]
     },
     "reports": {
       "label": "Relatórios",
       "description": "Análise e relatórios das demandas",
       "requiresClient": true,
+      "permission": "view:reports",
       "roles": ["admin", "user"]
     },
     "members": {
       "label": "Equipe",
       "description": "Visualização da capacidade da equipe",
       "requiresClient": true,
+      "permission": "view:members",
       "roles": ["admin", "user"]
     },
     "clients": {
       "label": "Meus Clientes",
       "description": "Gerenciar clientes associados",
       "requiresClient": false,
+      "permission": "view:clients",
       "roles": ["admin", "user"]
     },
     "admin": {
       "label": "Administração",
       "description": "Painel de administração",
       "requiresClient": false,
+      "permission": "view:admin",
       "roles": ["admin"]
     }
   },

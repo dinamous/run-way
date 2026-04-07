@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, useRef, type ReactNode 
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { Member } from '@/hooks/useSupabase'
+import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
+import { getSafeRedirectUrl } from '@/lib/securityRedirect'
 
 export interface ClientOption {
   id: string
@@ -26,6 +28,20 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 const ALLOWED_DOMAIN = import.meta.env.VITE_ALLOWED_DOMAIN as string | undefined
+const configuredSessionMaxAgeHours = Number(import.meta.env.VITE_SESSION_MAX_AGE_HOURS ?? '168')
+const SESSION_MAX_AGE_HOURS = Number.isFinite(configuredSessionMaxAgeHours)
+  ? Math.max(48, configuredSessionMaxAgeHours)
+  : 168
+
+function isSessionExpiredByPolicy(currentUser: User): boolean {
+  if (!currentUser.last_sign_in_at) return false
+
+  const lastSignInAt = new Date(currentUser.last_sign_in_at).getTime()
+  if (Number.isNaN(lastSignInAt)) return false
+
+  const maxAgeMs = SESSION_MAX_AGE_HOURS * 60 * 60 * 1000
+  return Date.now() - lastSignInAt > maxAgeMs
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -118,6 +134,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data } = await supabase.auth.getSession()
         if (mounted && data.session) {
+          if (isSessionExpiredByPolicy(data.session.user)) {
+            await supabase.auth.signOut({ scope: 'local' })
+            setAuthError('Sua sessão expirou por segurança. Faça login novamente.')
+            setLoading(false)
+            return
+          }
+
           setSession(data.session)
           setUser(data.session.user)
           await loadProfile(data.session.user.id, data.session.user.email)
@@ -135,7 +158,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
               if (ALLOWED_DOMAIN && domain !== ALLOWED_DOMAIN) {
                 setTimeout(() => supabase.auth.signOut({ scope: 'local' }).catch(() => {}), 0)
-                setAuthError(`Acesso restrito ao domínio @${ALLOWED_DOMAIN}.`)
+                setAuthError('Acesso não autorizado para esta conta.')
+                setSession(null); setUser(null); setLoading(false)
+                return
+              }
+
+              if (isSessionExpiredByPolicy(newSession.user)) {
+                setTimeout(() => supabase.auth.signOut({ scope: 'local' }).catch(() => {}), 0)
+                setAuthError('Sua sessão expirou por segurança. Faça login novamente.')
                 setSession(null); setUser(null); setLoading(false)
                 return
               }
@@ -167,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTimeout(setupSubscription, 1000)
         } else {
           console.error('[AuthContext] Erro ao inicializar auth:', err)
+          setAuthError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
           setLoading(false)
         }
       }
@@ -184,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = () =>
     supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: getSafeRedirectUrl(window.location.origin, window.location.origin) },
     })
 
   const signOut = () => supabase.auth.signOut().catch(console.error)

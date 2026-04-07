@@ -4,6 +4,7 @@ import type { Task, Step } from '@/lib/steps'
 import { toast } from 'sonner'
 import { logAudit } from '@/lib/audit'
 import { useTaskStore } from '@/store/useTaskStore'
+import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
 
 const devLog = import.meta.env.DEV
   ? (...args: unknown[]) => console.warn(...args)
@@ -112,7 +113,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       .single()
 
     if (taskErr || !taskRow) {
-      toast.error(taskErr?.message ?? 'Erro ao criar tarefa')
+      toast.error(toSafeUiErrorMessage(taskErr?.message))
       return false
     }
 
@@ -161,7 +162,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
 
     if (taskErr) {
       useTaskStore.setState({ tasks: previousTasks })
-      toast.error(taskErr.message)
+      toast.error(toSafeUiErrorMessage(taskErr.message))
       return false
     }
 
@@ -175,7 +176,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
 
       if (deleteErr) {
         useTaskStore.setState({ tasks: previousTasks })
-        toast.error(deleteErr.message)
+        toast.error(toSafeUiErrorMessage(deleteErr.message))
         return false
       }
     } else {
@@ -186,7 +187,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
 
       if (deleteErr) {
         useTaskStore.setState({ tasks: previousTasks })
-        toast.error(deleteErr.message)
+        toast.error(toSafeUiErrorMessage(deleteErr.message))
         return false
       }
     }
@@ -236,7 +237,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
 
     const { error } = await supabase.from('tasks').delete().eq('id', id)
     if (error) {
-      toast.error(error.message)
+      toast.error(toSafeUiErrorMessage(error.message))
       return false
     }
 

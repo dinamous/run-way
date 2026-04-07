@@ -1,7 +1,27 @@
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SQL_INJECTION_PATTERN = /(--|;|\/\*|\*\/|\b(or|and)\b\s+\d+\s*=\s*\d+|\bunion\b\s+\bselect\b)/i
 
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'OPTIONS'
+
+type AccessRole = 'admin' | 'user'
+type TaskPermission = 'tasks:read' | 'tasks:create' | 'tasks:update' | 'tasks:delete'
+
+const TASK_COLLECTION_ROUTE = /^\/api\/tasks$/
+const TASK_ITEM_ROUTE = /^\/api\/tasks\/([^/]+)$/
+
+const REQUIRED_PERMISSION_BY_METHOD: Record<Exclude<HttpMethod, 'OPTIONS'>, TaskPermission> = {
+  GET: 'tasks:read',
+  POST: 'tasks:create',
+  PUT: 'tasks:update',
+  DELETE: 'tasks:delete',
+}
+
+const DEFAULT_CORS_ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://homol.capacity-dashboard.com',
+  'https://capacity-dashboard.com',
+]
 
 export interface ApiRequest {
   method: HttpMethod
@@ -13,11 +33,14 @@ export interface ApiRequest {
 export interface ApiResponse {
   status: number
   body: Record<string, unknown>
+  headers?: Record<string, string>
 }
 
 export interface AuthClaims {
   userId: string
   exp: number
+  role: AccessRole
+  permissions: TaskPermission[]
 }
 
 export interface TokenVerifier {
@@ -61,57 +84,128 @@ interface Dependencies {
   rateLimiter: RateLimiter
   repository: TaskRepository
   now: () => number
+  corsAllowedOrigins?: string[]
 }
 
 export function createTasksApi(deps: Dependencies) {
   return {
     handle: async (request: ApiRequest): Promise<ApiResponse> => {
+      if (!isAllowedApiPath(request.path)) {
+        return { status: 404, body: { error: 'Rota não encontrada.' } }
+      }
+
+      const corsResult = validateCors(request.headers, deps.corsAllowedOrigins)
+      if (!corsResult.ok) {
+        return { status: 403, body: { error: 'Origem não permitida.' } }
+      }
+
+      if (request.method === 'OPTIONS') {
+        return {
+          status: 204,
+          body: {},
+          headers: buildCorsHeaders(corsResult.origin),
+        }
+      }
+
       const authResult = await authenticate(request.headers, deps.tokenVerifier, deps.now)
       if (!authResult.ok) {
-        return { status: 401, body: { error: authResult.reason } }
+        return {
+          status: 401,
+          body: { error: authResult.reason },
+          headers: buildCorsHeaders(corsResult.origin),
+        }
+      }
+
+      if (!authorizeRouteAccess(request.method, authResult.claims)) {
+        return {
+          status: 403,
+          body: { error: 'Acesso negado para este recurso.' },
+          headers: buildCorsHeaders(corsResult.origin),
+        }
       }
 
       if (!deps.rateLimiter.consume(authResult.claims.userId)) {
-        return { status: 429, body: { error: 'Limite de requisições excedido.' } }
+        return {
+          status: 429,
+          body: { error: 'Limite de requisições excedido.' },
+          headers: buildCorsHeaders(corsResult.origin),
+        }
       }
 
       if (request.path === '/api/tasks' && request.method === 'POST') {
-        return createTaskRoute(request.body, authResult.claims.userId, deps.repository)
+        return withCors(
+          await createTaskRoute(request.body, authResult.claims.userId, deps.repository),
+          corsResult.origin
+        )
       }
 
-      const taskIdMatch = /^\/api\/tasks\/([^/]+)$/.exec(request.path)
+      const taskIdMatch = TASK_ITEM_ROUTE.exec(request.path)
       if (!taskIdMatch) {
-        return { status: 404, body: { error: 'Rota não encontrada.' } }
+        return {
+          status: 404,
+          body: { error: 'Rota não encontrada.' },
+          headers: buildCorsHeaders(corsResult.origin),
+        }
       }
 
       const taskId = taskIdMatch[1]
       if (!isValidUuid(taskId) || hasSqlInjectionPattern(taskId)) {
-        return { status: 400, body: { error: 'ID inválido.' } }
+        return {
+          status: 400,
+          body: { error: 'ID inválido.' },
+          headers: buildCorsHeaders(corsResult.origin),
+        }
       }
 
       const task = await deps.repository.findById(taskId)
       if (!task) {
-        return { status: 404, body: { error: 'Tarefa não encontrada.' } }
+        return {
+          status: 404,
+          body: { error: 'Tarefa não encontrada.' },
+          headers: buildCorsHeaders(corsResult.origin),
+        }
       }
 
       if (task.ownerId !== authResult.claims.userId) {
-        return { status: 403, body: { error: 'Acesso negado para este recurso.' } }
+        return {
+          status: 403,
+          body: { error: 'Acesso negado para este recurso.' },
+          headers: buildCorsHeaders(corsResult.origin),
+        }
       }
 
       if (request.method === 'GET') {
-        return { status: 200, body: { data: task } }
+        return {
+          status: 200,
+          body: { data: task },
+          headers: buildCorsHeaders(corsResult.origin),
+        }
       }
 
       if (request.method === 'PUT') {
-        return updateTaskRoute(taskId, request.body, deps.repository)
+        return withCors(await updateTaskRoute(taskId, request.body, deps.repository), corsResult.origin)
       }
 
       if (request.method === 'DELETE') {
         await deps.repository.remove(taskId)
-        return { status: 204, body: {} }
+        return { status: 204, body: {}, headers: buildCorsHeaders(corsResult.origin) }
       }
 
-      return { status: 405, body: { error: 'Método não permitido.' } }
+      return {
+        status: 405,
+        body: { error: 'Método não permitido.' },
+        headers: buildCorsHeaders(corsResult.origin),
+      }
+    },
+  }
+}
+
+function withCors(response: ApiResponse, origin: string | null): ApiResponse {
+  return {
+    ...response,
+    headers: {
+      ...(response.headers ?? {}),
+      ...buildCorsHeaders(origin),
     },
   }
 }
@@ -279,6 +373,49 @@ async function authenticate(
   }
 
   return { ok: true, claims }
+}
+
+function isAllowedApiPath(path: string): boolean {
+  return TASK_COLLECTION_ROUTE.test(path) || TASK_ITEM_ROUTE.test(path)
+}
+
+function authorizeRouteAccess(
+  method: HttpMethod,
+  claims: AuthClaims
+): boolean {
+  if (method === 'OPTIONS') return true
+
+  const requiredPermission = REQUIRED_PERMISSION_BY_METHOD[method]
+  const roleAllowed = claims.role === 'admin' || claims.role === 'user'
+  const hasPermission = claims.permissions.includes(requiredPermission)
+
+  return roleAllowed && hasPermission
+}
+
+function validateCors(
+  headers: Record<string, string | undefined> | undefined,
+  allowedOriginsOverride?: string[]
+): { ok: true; origin: string | null } | { ok: false } {
+  const origin = headers?.origin ?? headers?.Origin ?? null
+  if (!origin) {
+    return { ok: true, origin: null }
+  }
+
+  const allowedOrigins = allowedOriginsOverride ?? DEFAULT_CORS_ALLOWED_ORIGINS
+  if (!allowedOrigins.includes(origin)) {
+    return { ok: false }
+  }
+
+  return { ok: true, origin }
+}
+
+function buildCorsHeaders(origin: string | null): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': origin ?? '*',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+    Vary: 'Origin',
+  }
 }
 
 export function hasSqlInjectionPattern(value: string): boolean {

@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { hasRolePermission, resolveAccessRole } from '@/lib/accessControl'
 
 interface RequireAdminProps {
   children: ReactNode
@@ -7,8 +8,10 @@ interface RequireAdminProps {
 }
 
 export function RequireAdmin({ children, fallback = null }: RequireAdminProps) {
-  const { isAdmin, loading } = useAuthContext()
+  const { member, loading } = useAuthContext()
+  const role = resolveAccessRole(member)
+  const hasAdminAccess = role === 'admin' && hasRolePermission(role, 'view:admin')
   if (loading) return null
-  if (!isAdmin) return <>{fallback}</>
+  if (!hasAdminAccess) return <>{fallback}</>
   return <>{children}</>
 }
