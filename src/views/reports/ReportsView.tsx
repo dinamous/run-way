@@ -109,9 +109,10 @@ const ReportsView: React.FC = () => {
   }, [enriched, timeFilter, memberFilter]);
 
   const total = filteredEnriched.length;
-  const active = filteredEnriched.filter(t => t.currentStep && t.currentStep.start <= today && t.currentStep.end >= today).length;
+  const active = filteredEnriched.filter(t => t.risk !== 'concluido' && t.currentStep && t.currentStep.start <= today && t.currentStep.end >= today).length;
   const bloqueadas = filteredEnriched.filter(t => t.isBlocked).length;
   const semSteps = filteredEnriched.filter(t => t.visibleSteps.length === 0).length;
+  const concluidas = filteredEnriched.filter(t => t.risk === 'concluido').length;
 
   const upcomingDeadlines = useMemo(
     () => filteredEnriched
@@ -123,6 +124,7 @@ const ReportsView: React.FC = () => {
   const stepLoad = useMemo(() => {
     const counts: Partial<Record<StepType, number>> = {};
     for (const t of filteredEnriched) {
+      if (t.risk === 'concluido') continue;
       for (const step of t.visibleSteps) {
         if (step.start <= today && step.end >= today) {
           counts[step.type as StepType] = (counts[step.type as StepType] ?? 0) + 1;
@@ -404,7 +406,7 @@ const ReportsView: React.FC = () => {
             <FlowMetricsCards flowMetrics={flowMetrics} />
             
             <div className="grid gap-6">
-              <StateDistribution total={total} bloqueadas={bloqueadas} active={active} semSteps={semSteps} />
+              <StateDistribution total={total} bloqueadas={bloqueadas} active={active} semSteps={semSteps} concluidas={concluidas} />
             </div>
 
             <DemandsTable enriched={filteredEnriched} members={members} />
