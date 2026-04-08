@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import {
-  DAY_COL_W, toLocalDate, normaliseTask, isStepBlocked, formatDate,
+  DAY_COL_W, toLocalDate, normaliseTask, isStepBlocked, formatDateDisplay,
   STEP_META, type DragPreview, type DragState, type Task, type Step, type StepType,
 } from '@/utils/dashboardUtils';
 
@@ -57,7 +57,7 @@ const PhaseBar: React.FC<PhaseBarProps> = ({ step, task, days, dragPreview, didD
         cursor: isDragging ? 'grabbing' : 'grab',
         transition: isDragging ? 'none' : 'filter 0.1s',
       }}
-      title={`${meta.label}: ${formatDate(pStart)} → ${formatDate(pEnd)}`}
+      title={`${meta.label}: ${formatDateDisplay(pStart)} → ${formatDateDisplay(pEnd)}`}
       onMouseDown={e => startDrag(e, task.id, step.type, 'move', step, DAY_COL_W)}
       onClick={() => { if (!didDragRef.current) onEdit(task); }}
     >

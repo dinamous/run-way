@@ -1,6 +1,6 @@
 import React from 'react';
 import { CalendarCheck, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDateToBR } from '@/lib/utils';
 import type { EnrichedTask } from '../utils';
 
 interface UpcomingDeadlinesProps {
@@ -26,8 +26,8 @@ const UpcomingDeadlines: React.FC<UpcomingDeadlinesProps> = ({ upcomingDeadlines
                   <span className="text-xs text-muted-foreground shrink-0">{t.taskMembers[0].name}{t.taskMembers.length > 1 ? ` +${t.taskMembers.length - 1}` : ''}</span>
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-muted-foreground">{t.lastDeadline}</span>
+<div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-muted-foreground">{t.lastDeadline ? formatDateToBR(t.lastDeadline) : ''}</span>
                 <span className={cn('text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded',
                   t.daysLeft === 0 ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' :
                   t.daysLeft <= 3 ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' :

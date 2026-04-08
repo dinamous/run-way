@@ -1,4 +1,4 @@
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, formatDateDisplay } from '../utils/dateUtils';
 import {
   STEP_META,
   migrateLegacyTask,
@@ -222,4 +222,4 @@ export interface DragPreview {
 }
 
 // Re-export used downstream
-export { formatDate, STEP_META, isStepBlocked, type Task, type Step, type StepType, type LegacyTask };
+export { formatDate, formatDateDisplay, STEP_META, isStepBlocked, type Task, type Step, type StepType, type LegacyTask };

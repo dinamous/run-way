@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDateToBR } from '@/lib/utils';
 import { STEP_META } from '@/lib/steps';
 import type { StepType } from '@/lib/steps';
 import type { Member } from '@/hooks/useSupabase';
@@ -85,7 +86,7 @@ const DemandsTable: React.FC<DemandsTableProps> = ({ enriched }) => (
                     </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                    {t.lastDeadline ?? '—'}
+                    {t.lastDeadline ? formatDateToBR(t.lastDeadline) : '—'}
                   </td>
                   <td className="px-4 py-3">
                     {!t.lastDeadline ? (

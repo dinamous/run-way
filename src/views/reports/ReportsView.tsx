@@ -3,13 +3,13 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
 import { useClientStore } from '@/store/useClientStore';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { BarChart2, DatabaseZap, Calendar, Users, Activity, AlertTriangle, Filter } from 'lucide-react';
+import { BarChart2, DatabaseZap, Calendar, Users, Activity, AlertTriangle } from 'lucide-react';
 import { todayStr, enrichTask, computeMemberLoad, calDaysBetween, calculatePercentile } from './utils';
+import { formatDateToBR } from '@/lib/utils';
 import type { StepType } from '@/lib/steps';
 import { ViewState } from '@/components/ViewState';
 import { Skeleton } from 'boneyard-js/react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select';
 import DemandsTable from './components/DemandsTable';
 import UpcomingDeadlines from './components/UpcomingDeadlines';
 import TeamCapacity from './components/TeamCapacity';
@@ -345,37 +345,39 @@ const ReportsView: React.FC = () => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">Relatórios</h2>
-            <p className="text-muted-foreground text-sm">Visão analítica das demandas · Hoje: {today}</p>
+            <p className="text-muted-foreground text-sm">Visão analítica das demandas · Hoje: {formatDateToBR(today)}</p>
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Período" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todo período</SelectItem>
-                  <SelectItem value="30d">Últimos 30 dias</SelectItem>
-                  <SelectItem value="90d">Últimos 90 dias</SelectItem>
-                  <SelectItem value="180d">Últimos 180 dias</SelectItem>
-                  <SelectItem value="365d">Último ano</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">Período:</span>
+            <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+              {([30, 90, 180, 365] as const).map(days => (
+                <button
+                  key={days}
+                  onClick={() => setTimeFilter(days === 365 ? '365d' : days === 180 ? '180d' : days === 90 ? '90d' : '30d')}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${timeFilter === (days === 365 ? '365d' : days === 180 ? '180d' : days === 90 ? '90d' : '30d') ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  {days}d
+                </button>
+              ))}
+              <button
+                onClick={() => setTimeFilter('all')}
+                className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${timeFilter === 'all' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Tudo
+              </button>
             </div>
+          </div>
             
-            <Select value={memberFilter} onValueChange={setMemberFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Todos os membros" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os membros</SelectItem>
-                {members.map(m => (
-                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={memberFilter}
+              onChange={e => setMemberFilter(e.target.value)}
+              className="w-40 text-xs rounded-lg border border-border bg-card px-2 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">Todos os membros</option>
+              {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
           </div>
         </div>
 

@@ -38,44 +38,43 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({ scatterData, p85LeadTime }) =
         {isEmpty ? (
           <p className="text-sm text-muted-foreground text-center py-4">Sem dados de scatter.</p>
         ) : (
-          <div className="relative h-48">
-            <div className="absolute left-0 top-0 bottom-8 w-8 flex flex-col justify-between text-[10px] text-muted-foreground">
+          <div className="relative h-64 overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-8 flex flex-col justify-between text-[10px] text-muted-foreground py-2">
               <span>{maxDuration}d</span>
               <span>{Math.round(maxDuration / 2)}d</span>
               <span>0</span>
             </div>
             <div className="ml-10 mr-4 h-full relative">
-              <div className="absolute left-0 right-0 top-0 h-px bg-muted" style={{ top: '0%' }} />
+              <div className="absolute left-0 right-0 top-0 h-px bg-muted" />
               <div className="absolute left-0 right-0 top-1/2 h-px bg-muted" />
-              <div className="absolute left-0 right-0 bottom-8 h-px bg-muted" />
+              <div className="absolute left-0 right-0 bottom-0 h-px bg-muted" />
               
               {p85LeadTime > 0 && (
                 <div 
-                  className="absolute right-0 top-0 bottom-8 w-px bg-amber-500/50 border-l border-dashed border-amber-500"
+                  className="absolute top-0 bottom-0 w-px bg-amber-500/50 border-l border-dashed border-amber-500"
                   style={{ left: `${Math.min(100, (p85LeadTime / maxDuration) * 100)}%` }}
                   title={`P85: ${p85LeadTime}d`}
                 />
               )}
               
-              <div className="absolute inset-0 flex items-end">
+              <div className="absolute inset-0">
                 {sortedData.map((d, i) => {
                   const meta = STEP_META[d.stepType as keyof typeof STEP_META];
                   const isOutlier = d.duration > outlierThreshold;
                   const left = isSingle ? 50 : (i / Math.max(sortedData.length - 1, 1)) * 100;
-                  const bottom = (d.duration / maxDuration) * 100;
+                  const bottomPct = Math.min(100, (d.duration / maxDuration) * 100);
                   
                   return (
                     <div
                       key={i}
                       className={cn(
-                        'w-3 h-3 rounded-full cursor-pointer transition-transform hover:scale-200 flex-shrink-0',
+                        'absolute w-3 h-3 rounded-full cursor-pointer transition-transform hover:scale-200',
                         isOutlier ? 'bg-red-500' : meta?.dot ?? 'bg-primary'
                       )}
                       style={{ 
-                        position: 'absolute', 
                         left: `${left}%`, 
-                        transform: 'translateX(-50%)',
-                        bottom: `${bottom}%` 
+                        transform: 'translate(-50%, -50%)',
+                        bottom: `${bottomPct}%` 
                       }}
                       title={`${d.title}: ${d.duration}d (${d.date})`}
                     />
