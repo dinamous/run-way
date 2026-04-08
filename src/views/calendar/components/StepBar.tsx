@@ -59,18 +59,22 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
   const isDragging = dragPreview?.taskId === bar.taskId && dragPreview?.stepType === bar.stepType;
   const norm = normaliseTask(task);
   const blocked = isStepBlocked(norm, bar.stepStart);
+  const isConcluded = !!task.concludedAt;
   
   let bgClass: string;
   let borderColor: string;
   
-  if (isDemandMode && demandColor) {
+  if (isConcluded) {
+    bgClass = 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-300';
+    borderColor = '#9ca3af';
+  } else if (isDemandMode && demandColor) {
     bgClass = 'text-white';
     borderColor = demandColor;
   } else {
     bgClass = blocked ? 'bg-red-500 dark:bg-red-600 text-white' : meta.bar.replace(/border\s+\S+/g, '');
     borderColor = blocked ? '#dc2626' : (STEP_BORDER_COLORS[bar.stepType] ?? '#d1d5db');
   }
-  
+
   const stepKey = `${bar.taskId}-${bar.stepType}`;
 
   let borderRadius = '0px';
@@ -86,6 +90,7 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
   const showRightDeco = isLastBarOfStep;
 
   const cursorStyle = isDemandMode ? 'default' : (isDragging ? 'grabbing' : 'grab');
+  const customBgColor = isConcluded ? '#d1d5db' : (isDemandMode && demandColor ? demandColor : undefined);
 
   return (
     <div
@@ -101,11 +106,11 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
         borderRight: showRightDeco ? `2px solid ${borderColor}` : (isDemandMode && isLastBarOfStep ? `3px solid ${borderColor}` : 'none'),
         borderTop: showLeftDeco || showRightDeco ? `1px solid ${borderColor}` : 'none',
         borderBottom: showLeftDeco || showRightDeco ? `1px solid ${borderColor}` : 'none',
-        backgroundColor: isDemandMode && demandColor ? demandColor : undefined,
+        backgroundColor: customBgColor,
         cursor: cursorStyle,
         transition: isDragging ? 'none' : 'filter 0.1s',
       }}
-      title={`${task.title}${isDemandMode ? '' : ` · ${meta.label}`}${blocked ? ' · BLOQUEADO' : ''}`}
+      title={`${task.title}${isDemandMode ? '' : ` · ${meta.label}`}${blocked ? ' · BLOQUEADO' : ''}${isConcluded ? ' · CONCLUÍDA' : ''}`}
       onMouseDown={e => !isDemandMode && onStartDrag(e, bar, 'move', task)}
       onMouseEnter={(e) => {
         document.querySelectorAll(`[data-step-key="${stepKey}"]`).forEach(el => {

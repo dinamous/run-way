@@ -1,8 +1,10 @@
-import { CalendarDays, AlignLeft } from 'lucide-react';
+import { CalendarDays, AlignLeft, List } from 'lucide-react';
+
+export type CalView = 'calendar' | 'timeline' | 'list';
 
 interface DashboardHeaderProps {
-  calView: 'calendar' | 'timeline';
-  onChangeView: (view: 'calendar' | 'timeline') => void;
+  calView: CalView;
+  onChangeView: (view: CalView) => void;
 }
 
 export function DashboardHeader({ calView, onChangeView }: DashboardHeaderProps) {
@@ -25,6 +27,12 @@ export function DashboardHeader({ calView, onChangeView }: DashboardHeaderProps)
             className={`flex-1 sm:flex-none justify-center flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calView === 'timeline' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <AlignLeft className="w-3.5 h-3.5" /> Linha do Tempo
+          </button>
+          <button
+            onClick={() => onChangeView('list')}
+            className={`flex-1 sm:flex-none justify-center flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calView === 'list' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <List className="w-3.5 h-3.5" /> Lista
           </button>
         </div>
       </div>

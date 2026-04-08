@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { Edit2, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { normaliseTask, getTaskStatusDisplay, type Task, type Step } from '@/utils/dashboardUtils';
 import type { Member } from '@/types/member';
 
@@ -17,10 +17,16 @@ const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({ task, members, visibleSte
   const status = getTaskStatusDisplay(task);
   const allMemberIds = new Set(visibleSteps.flatMap(s => s.assignees));
   const assignees = members.filter(m => allMemberIds.has(m.id));
+  const isConcluded = !!task.concludedAt;
 
   return (
-    <div className="w-56 shrink-0 border-r border-border relative flex flex-col justify-center px-3 py-2 gap-1" style={{ minHeight: totalH }}>
-      {norm.status?.blocked && (
+    <div className={`w-56 shrink-0 border-r border-border relative flex flex-col justify-center px-3 py-2 gap-1 ${isConcluded ? 'bg-gray-100 dark:bg-gray-800/50 opacity-60' : ''}`} style={{ minHeight: totalH }}>
+      {isConcluded && (
+        <div className="absolute top-1.5 left-1.5">
+          <CheckCircle2 className="w-3 h-3 text-gray-400" />
+        </div>
+      )}
+      {norm.status?.blocked && !isConcluded && (
         <div className="absolute top-1.5 left-1.5">
           <AlertTriangle className="w-3 h-3 text-red-500" />
         </div>

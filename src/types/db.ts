@@ -29,6 +29,8 @@ export interface DbTaskRow {
   blocked: boolean;
   blocked_at: string | null;
   created_at: string;
+  concluded_at: string | null;
+  concluded_by: string | null;
   client_id: string | null;
   task_steps: DbStepRow[];
 }

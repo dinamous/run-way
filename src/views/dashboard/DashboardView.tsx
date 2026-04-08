@@ -6,8 +6,10 @@ import { useUIStore } from '@/store/useUIStore';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
+import { ListView } from '@/views/list';
 import { useTaskFilters } from './hooks/useTaskFilters';
 import { DashboardHeader } from './components/DashboardHeader';
+import type { CalView } from './components/DashboardHeader';
 import { FilterBar } from './components/FilterBar';
 import { MetricsBar } from './components/MetricsBar';
 import { StepsLegend } from './components/StepsLegend';
@@ -48,7 +50,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
     fetchMembers,
     invalidate: invalidateMembers,
   } = useMemberStore();
-  const [calView, setCalView] = useState<'calendar' | 'timeline'>(() => dashboardRedirect?.mode ?? 'timeline');
+  const [calView, setCalView] = useState<CalView>(() => dashboardRedirect?.mode ?? 'timeline');
 
   useEffect(() => {
     fetchTasks(selectedClientId, isAdmin);
@@ -118,6 +120,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         activeCount={activeCount}
         blockedCount={blockedCount}
       />
+      {calView !== 'list' && (
       <FilterBar
         members={members ?? []}
         filterAssignee={filterAssignee}
@@ -138,6 +141,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         filteredCount={filteredTasks.length}
         totalCount={(tasks ?? []).length}
       />
+      )}
       <ViewState
         icon={FilterX}
         title="Nenhuma demanda com os filtros atuais"
@@ -160,6 +164,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         blockedCount={blockedCount}
       />
 
+      {calView !== 'list' && (
       <FilterBar
         members={members ?? []}
         filterAssignee={filterAssignee}
@@ -181,11 +186,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         filteredCount={filteredTasks.length}
         totalCount={(tasks ?? []).length}
       />
+      )}
 
       {calView === 'calendar' ? (
         <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} viewMode={viewMode} />
-      ) : (
+      ) : calView === 'timeline' ? (
         <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} daysRange={filterPeriodDays} />
+      ) : (
+        <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
       )}
 
       <StepsLegend />

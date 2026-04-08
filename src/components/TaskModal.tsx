@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useMemberStore } from '@/store/useMemberStore';
 import { useClientStore } from '@/store/useClientStore';
 import { Input, Label, Button, ConfirmModal } from './ui';
-import { Save, ExternalLink, Trash2, Users, AlertCircle } from 'lucide-react';
+import { Save, ExternalLink, Trash2, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
 import {
   STEP_META,
   createDefaultSteps,
@@ -33,6 +33,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
   const [blockedAt, setBlockedAt] = useState<string>(
     init.status.blockedAt ?? new Date().toISOString().split('T')[0]
   );
+  const [concludedAt, setConcludedAt] = useState<string | undefined>(task?.concludedAt);
   const [steps, setSteps] = useState<Step[]>(
     task ? init.steps : createDefaultSteps()
   );
@@ -41,7 +42,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
   const [confirmMessage, setConfirmMessage] = useState('');
   const [showDirtyCloseConfirm, setShowDirtyCloseConfirm] = useState(false);
 
-  const formSnapshot = { title, clickupLink, blocked, blockedAt, steps };
+  const formSnapshot = { title, clickupLink, blocked, blockedAt, steps, concludedAt };
   const { isDirty, submitting, withSubmit } = useFormState(
     formSnapshot,
     !task,
@@ -79,7 +80,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
       blocked,
       blockedAt: blocked ? blockedAt : undefined,
     };
-    const taskData = { ...task, title, clickupLink, status, steps };
+    const taskData = { ...task, title, clickupLink, status, steps, concludedAt };
 
     const describeDateConflict = (date: string): string => {
       const holidayName = getHolidayName(date, holidays);
@@ -257,6 +258,45 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
                       value={blockedAt}
                       onChange={e => setBlockedAt(e.target.value)}
                       className="h-7 text-xs w-auto flex-1 bg-white/70 dark:bg-red-900/30 border-red-300 dark:border-red-700"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Concluída */}
+              <div className={`rounded-xl border p-3 transition-colors ${concludedAt
+                ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/60 dark:border-emerald-700'
+                : 'bg-muted border-border'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className={`w-4 h-4 shrink-0 ${concludedAt ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
+                    <div>
+                      <div className={`text-sm font-semibold ${concludedAt ? 'text-emerald-800 dark:text-emerald-200' : 'text-foreground'}`}>
+                        Concluída
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Demanda finalizada e entregue
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setConcludedAt(concludedAt ? undefined : new Date().toISOString())}
+                    className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${concludedAt ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`}
+                    aria-label="Alternar conclusão"
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${concludedAt ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+                {concludedAt && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium shrink-0">Concluída em:</span>
+                    <Input
+                      type="date"
+                      value={concludedAt.split('T')[0]}
+                      onChange={e => setConcludedAt(e.target.value ? e.target.value + 'T00:00:00' : undefined)}
+                      className="h-7 text-xs w-auto flex-1 bg-white/70 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700"
                     />
                   </div>
                 )}

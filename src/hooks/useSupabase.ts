@@ -73,6 +73,7 @@ function didTaskFieldsChange(prevTask: Task | undefined, nextTask: Task, resolve
     || (prevTask.clickupLink ?? null) !== (nextTask.clickupLink ?? null)
     || prevTask.status.blocked !== nextTask.status.blocked
     || (prevTask.status.blockedAt ?? null) !== (nextTask.status.blockedAt ?? null)
+    || (prevTask.concludedAt ?? null) !== (nextTask.concludedAt ?? null)
     || (prevTask.clientId ?? null) !== resolvedClientId
   )
 }
@@ -151,6 +152,8 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
           clickup_link: taskData.clickupLink ?? null,
           blocked: taskData.status.blocked,
           blocked_at: taskData.status.blockedAt ?? null,
+          concluded_at: taskData.concludedAt ?? null,
+          concluded_by: taskData.concludedAt ? (taskData.concludedBy ?? null) : null,
           client_id: resolvedClientId,
         })
         .eq('id', taskData.id)

@@ -74,6 +74,7 @@ export function getTaskMembers(task: Task | LegacyTask): string[] {
 
 export function getRisk(task: Task | LegacyTask, today: string): 'ok' | 'risco' | 'atrasado' | 'concluido' {
   const norm = normalizeTask(task);
+  if (norm.concludedAt) return 'concluido';
   const lastDeadline = getLastDeadline(task);
   if (!lastDeadline) return 'ok';
   if (today > lastDeadline) return 'atrasado';

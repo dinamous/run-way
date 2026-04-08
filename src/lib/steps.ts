@@ -34,6 +34,8 @@ export interface Task {
   status: TaskStatus;
   steps: Step[];
   createdAt: string;
+  concludedAt?: string;
+  concludedBy?: string;
 }
 
 export const STEP_META: Record<StepType, {
