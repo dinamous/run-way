@@ -32,7 +32,7 @@ export function AdminView() {
     fetchAuditLogs,
     createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
-    createUser, setUserAuthId, listGoogleUsers,
+    createUser, setUserAuthId, updateUser, listGoogleUsers,
   } = useAdminData({ actorUserId: member?.id ?? null })
 
   if (!supabaseAdmin) {
@@ -134,6 +134,7 @@ export function AdminView() {
               onLink={linkUserToClient}
               onUnlink={unlinkUserFromClient}
               onCreate={createUser}
+              onUpdate={updateUser}
               onSetAuthId={setUserAuthId}
               onListGoogleUsers={listGoogleUsers}
               userClientsMap={userClientsMap}

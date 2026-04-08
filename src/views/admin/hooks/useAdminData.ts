@@ -301,6 +301,30 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     }
   }, [fetchUsers, reloadAppStores])
 
+  const updateUser = useCallback(async (
+    userId: string,
+    name: string,
+    role: string,
+    email?: string | null
+  ) => {
+    if (!supabaseAdmin) return false
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    const { error } = await supabaseAdmin
+      .from('members')
+      .update({ name, role, email: email ?? null, avatar: initials })
+      .eq('id', userId)
+    if (error) return false
+    try {
+      setError(null)
+      await fetchUsers()
+      await reloadAppStores()
+      return true
+    } catch (err) {
+      setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
+      return false
+    }
+  }, [fetchUsers, reloadAppStores])
+
   const listGoogleUsers = useCallback(async (search?: string) => {
     if (!supabaseAdmin) return []
     const { data, error } = await supabaseAdmin.auth.admin.listUsers()
@@ -331,6 +355,6 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     fetchAuditLogs, fetchClients, fetchUsers,
     createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
-    createUser, setUserAuthId, listGoogleUsers,
+    createUser, setUserAuthId, updateUser, listGoogleUsers,
   }
 }
