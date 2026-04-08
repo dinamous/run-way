@@ -159,7 +159,7 @@ export function enrichTask(task: Task | LegacyTask, today: string, members: Memb
     taskMembers,
     currentStep,
     progress,
-    isBlocked: norm.status?.blocked ?? false,
+    isBlocked: risk === 'concluido' ? false : (norm.status?.blocked ?? false),
     leadTime,
     cycleTime: leadTime,
     isStagnant,
@@ -174,6 +174,7 @@ export function computeMemberLoad(member: Member, enriched: EnrichedTask[], toda
   let activeCount = 0;
   let wipCount = 0;
   for (const t of enriched) {
+    if (t.risk === 'concluido') continue;
     for (const step of t.visibleSteps) {
       if (step.assignees.includes(member.id) && step.start <= today && step.end >= today) {
         activeCount++;
