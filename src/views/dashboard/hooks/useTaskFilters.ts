@@ -92,7 +92,10 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
   }, [tasks, filterAssignee, filterStatus, filterSteps, enablePeriodFilter, periodStart, periodEnd]);
 
   const blockedCount = useMemo(
-    () => tasks.filter(t => normaliseTask(t).status?.blocked).length,
+    () => tasks.filter(t => {
+      const norm = normaliseTask(t);
+      return !norm.concludedAt && norm.status?.blocked;
+    }).length,
     [tasks]
   );
 
@@ -100,6 +103,7 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
     const today = todayStr();
     return tasks.filter(t => {
       const norm = normaliseTask(t);
+      if (norm.concludedAt) return false;
       const step = getCurrentStep(norm.steps ?? [], today);
       return step && step.start <= today && step.end >= today;
     }).length;

@@ -17,7 +17,9 @@
       "Skill(claude-api:*)",
       "Bash(npm update:*)",
       "Bash(claude --version)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   },
   "hooks": {
