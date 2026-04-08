@@ -1,5 +1,5 @@
 import { migrateLegacyTask, getCurrentStep } from '@/lib/steps';
-import type { Task, Step, LegacyTask } from '@/lib/steps';
+import type { Task, Step, LegacyTask, StepType } from '@/lib/steps';
 import type { Member } from '@/hooks/useSupabase';
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -24,6 +24,26 @@ export function businessDaysLeft(endStr: string, fromStr: string): number {
     d.setDate(d.getDate() + 1);
   }
   return count;
+}
+
+export function calculatePercentile(values: number[], percentile: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.ceil((percentile / 100) * sorted.length) - 1;
+  return sorted[Math.max(0, index)];
+}
+
+export function getLeadTime(task: { createdAt?: string; created_at?: string }, lastDeadline: string | null): number | null {
+  const createdAt = task.createdAt || task.created_at;
+  if (!createdAt || !lastDeadline) return null;
+  const created = new Date(createdAt).toISOString().split('T')[0];
+  return calDaysBetween(created, lastDeadline);
+}
+
+export function isTaskStagnant(lastUpdatedAt: string | null, daysThreshold: number = 4): boolean {
+  if (!lastUpdatedAt) return false;
+  const days = calDaysBetween(lastUpdatedAt.split('T')[0], todayStr());
+  return days > daysThreshold;
 }
 
 export function normalizeTask(task: Task | LegacyTask): Task {
@@ -76,6 +96,10 @@ export type EnrichedTask = Task & {
   currentStep: Step | null;
   progress: number;
   isBlocked: boolean;
+  leadTime: number | null;
+  cycleTime: number | null;
+  isStagnant: boolean;
+  stagnationDays: number;
 };
 
 export type MemberLoad = Member & {
@@ -84,6 +108,18 @@ export type MemberLoad = Member & {
   riscoCount: number;
   capacityLabel: string;
   capacityColor: string;
+  wipCount: number;
+};
+
+export type FlowMetrics = {
+  avgLeadTime: number;
+  p85LeadTime: number;
+  avgCycleTime: number;
+  p85CycleTime: number;
+  throughput: Record<string, number>;
+  cfd: { date: string; backlog: number; inProgress: number; done: number }[];
+  scatterData: { date: string; duration: number; stepType: StepType }[];
+  p85ByStep: Record<StepType, number>;
 };
 
 // ─── Enrichment ───────────────────────────────────────────────────────────────
@@ -107,6 +143,10 @@ export function enrichTask(task: Task | LegacyTask, today: string, members: Memb
     progress = totalDuration > 0 ? Math.min(100, Math.round((elapsed / totalDuration) * 100)) : 0;
   }
 
+  const leadTime = getLeadTime(norm, lastDeadline);
+  const isStagnant = isTaskStagnant((norm as Task & { updatedAt?: string }).updatedAt ?? null);
+  const stagnationDays = isStagnant ? calDaysBetween(((norm as Task & { updatedAt?: string }).updatedAt ?? '').split('T')[0], today) : 0;
+
   return {
     ...norm,
     visibleSteps,
@@ -119,6 +159,10 @@ export function enrichTask(task: Task | LegacyTask, today: string, members: Memb
     currentStep,
     progress,
     isBlocked: norm.status?.blocked ?? false,
+    leadTime,
+    cycleTime: leadTime,
+    isStagnant,
+    stagnationDays,
   };
 }
 
@@ -127,10 +171,12 @@ export function computeMemberLoad(member: Member, enriched: EnrichedTask[], toda
   const riscoCount = enriched.filter(t => t.risk === 'risco' && getTaskMembers(t).includes(member.id)).length;
 
   let activeCount = 0;
+  let wipCount = 0;
   for (const t of enriched) {
     for (const step of t.visibleSteps) {
       if (step.assignees.includes(member.id) && step.start <= today && step.end >= today) {
         activeCount++;
+        wipCount++;
       }
     }
   }
@@ -141,5 +187,5 @@ export function computeMemberLoad(member: Member, enriched: EnrichedTask[], toda
   else if (activeCount >= 3) { capacityLabel = 'Alocado'; capacityColor = 'bg-blue-500'; }
   else if (activeCount > 0) { capacityLabel = 'Alocado'; capacityColor = 'bg-blue-400'; }
 
-  return { ...member, activeCount, atrasadasCount, riscoCount, capacityLabel, capacityColor };
+  return { ...member, activeCount, atrasadasCount, riscoCount, capacityLabel, capacityColor, wipCount };
 }

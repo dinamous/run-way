@@ -21,7 +21,7 @@ import { Toaster, toast } from "sonner";
 import type { Task } from "./lib/steps";
 import type { ViewType } from "@/store/useUIStore";
 import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
-import { ConfirmModal } from "@/components/ui";
+import { ConfirmModal, TooltipProvider } from "@/components/ui";
 
 export default function App() {
   const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients } = useAuthContext();
@@ -195,7 +195,8 @@ export default function App() {
           />
 
         <main key={view} className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 animate-blur-fade-in">
-          {showNoClientView ? (
+          <TooltipProvider>
+            {showNoClientView ? (
             <NoClientView hasClients={false} onGoToClients={() => setView("clients")} />
           ) : showSelectClient ? (
             <NoClientView hasClients={true} onGoToClients={() => setView("clients")} />
@@ -225,7 +226,8 @@ export default function App() {
             <MembersView />
           ) : (
             <ReportsView />
-          )}
+            )}
+          </TooltipProvider>
         </main>
       </div>
 
