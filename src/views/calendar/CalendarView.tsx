@@ -46,6 +46,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask
                 onEdit={onEdit}
                 holidays={holidays}
                 viewMode={viewMode}
+                weekIndex={wi}
               />
             ))}
           </div>

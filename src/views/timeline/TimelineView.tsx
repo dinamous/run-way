@@ -29,7 +29,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onD
     <div className="rounded-xl border border-border bg-card shadow-sm w-full">
       <TimelineHeader daysRange={daysRange} />
 
-      <div className="md:hidden">
+      <div className="md:hidden w-full">
         {tasks.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground text-sm">
             Nenhuma demanda no período selecionado.
@@ -86,10 +86,10 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onD
 
       <div className="hidden md:flex w-full">
         {/* Fixed info column */}
-        <div className="shrink-0 w-56 border-r border-border z-10">
-          <div ref={infoHeaderRef} className="border-b border-border bg-muted sticky top-0 z-10 flex flex-col">
-            <div className="border-b border-border/50 px-3 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">&nbsp;</div>
-            <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground flex items-center flex-1">Demanda</div>
+        <div className="shrink-0 w-56 border-r border-border z-20 bg-card">
+          <div ref={infoHeaderRef} className="border-b border-border bg-muted flex flex-col h-[41px]">
+            
+            <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground flex items-center h-[22px]">Demanda</div>
           </div>
           {tasks.length > 0 && tasks.map((task, i) => (
             <div key={task.id} className={`border-b border-border group hover:bg-muted/30 transition-colors ${i % 2 === 1 ? 'bg-muted/20' : ''}`}>

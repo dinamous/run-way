@@ -6,20 +6,24 @@ interface DayCellProps {
   rowHeight: string;
   overflowCount: number;
   holidayName?: string;
+  weekIndex?: number;
 }
 
-const DayCell: React.FC<DayCellProps> = ({ day, today, currentMonth, rowHeight, overflowCount, holidayName }) => {
+const DayCell: React.FC<DayCellProps> = ({ day, today, currentMonth, rowHeight, overflowCount, holidayName, weekIndex = 0 }) => {
   const isToday = day.getTime() === today.getTime();
   const isThisMonth = day.getMonth() === currentMonth;
   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+  const isEvenWeek = weekIndex % 2 === 0;
 
   const bgClass = holidayName
     ? 'bg-amber-50 dark:bg-amber-950/30'
     : !isThisMonth
-    ? 'bg-muted'
+    ? 'cal-day-outside'
     : isWeekend
-    ? 'bg-muted'
-    : 'bg-card';
+    ? 'cal-day-weekend'
+    : isEvenWeek
+    ? 'cal-day-even'
+    : 'cal-day-odd';
 
   return (
     <div

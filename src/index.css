@@ -96,6 +96,41 @@
   }
 }
 
+.cal-day-header {
+  background-color: oklch(0.97 0 0);
+}
+.dark .cal-day-header {
+  background-color: oklch(0.22 0 0);
+}
+
+.cal-day-outside {
+  background-color: oklch(0.95 0 0);
+}
+.dark .cal-day-outside {
+  background-color: oklch(0.19 0 0);
+}
+
+.cal-day-weekend {
+  background-color: oklch(0.95 0 0);
+}
+.dark .cal-day-weekend {
+  background-color: oklch(0.19 0 0);
+}
+
+.cal-day-even {
+  background-color: oklch(0.98 0 0);
+}
+.dark .cal-day-even {
+  background-color: oklch(0.24 0 0);
+}
+
+.cal-day-odd {
+  background-color: oklch(1 0 0);
+}
+.dark .cal-day-odd {
+  background-color: oklch(0.18 0 0);
+}
+
 .animate-blur-fade-in {
   animation: blur-fade-in 300ms ease-out forwards;
 }

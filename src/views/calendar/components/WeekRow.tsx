@@ -31,12 +31,13 @@ interface WeekRowProps {
   onEdit: (task: Task) => void;
   holidays: Holiday[];
   viewMode?: CalendarViewMode;
+  weekIndex?: number;
 }
 
 const WeekRow: React.FC<WeekRowProps> = ({
   week, tasks, today, currentMonth, rowHeight,
   dragPreview, didDragRef, onStartDrag, onEdit, holidays,
-  viewMode = 'step',
+  viewMode = 'step', weekIndex = 0,
 }) => {
   const bars = layoutWeekBars(week, tasks, viewMode);
   
@@ -71,6 +72,7 @@ const WeekRow: React.FC<WeekRowProps> = ({
           rowHeight={rowHeight}
           overflowCount={overflow[di]}
           holidayName={getHolidayName(toDateStr(day), holidays)}
+          weekIndex={weekIndex}
         />
       ))}
 
