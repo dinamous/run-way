@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
-export type ViewType = 'home' | 'dashboard' | 'members' | 'reports' | 'admin' | 'clients'
+export type ViewType = 'home' | 'dashboard' | 'members' | 'reports' | 'admin' | 'clients' | 'tools'
 export type DashboardMode = 'calendar' | 'timeline'
 
 interface DashboardRedirect {

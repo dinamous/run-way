@@ -14,6 +14,7 @@ import { LoginView } from "./views/login";
 import { UserClientsView } from "./views/user/UserClientsView";
 import { NoClientView } from "./components/NoClientView";
 import { HomeView } from "./views/home";
+import { ToolsView } from "./views/tools";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
@@ -224,6 +225,8 @@ export default function App() {
             />
           ) : view === "members" ? (
             <MembersView />
+          ) : view === "tools" ? (
+            <ToolsView />
           ) : (
             <ReportsView />
             )}

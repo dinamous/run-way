@@ -1,4 +1,4 @@
-import { CalendarDays, Users, BarChart2, ChevronLeft, ChevronRight, Home, Building2, Settings, X, Sun, Moon, User, LogOut } from "lucide-react";
+import { CalendarDays, Users, BarChart2, ChevronLeft, ChevronRight, Home, Building2, Settings, X, Sun, Moon, User, LogOut, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   TooltipProvider,
@@ -37,8 +37,9 @@ const BASE_NAV_ITEMS: { view: ViewType; label: string; Icon: React.ElementType; 
   { view: "dashboard", label: "Calendário", Icon: CalendarDays, requiresClient: true },
   { view: "members",   label: "Membros",    Icon: Users, requiresClient: true },
   { view: "reports",   label: "Relatórios", Icon: BarChart2, requiresClient: true },
-  { view: "clients",   label: "Clientes",   Icon: Building2, requiresClient: false },
-  { view: "admin",     label: "Admin",      Icon: Settings, requiresClient: false, isAdminOnly: true },
+  { view: "clients",   label: "Clientes",    Icon: Building2, requiresClient: false },
+  { view: "tools",     label: "Ferramentas", Icon: Wrench, requiresClient: false },
+  { view: "admin",     label: "Admin",       Icon: Settings, requiresClient: false, isAdminOnly: true },
 ];
 
 function getInitials(email?: string): string {
