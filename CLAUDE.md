@@ -41,6 +41,17 @@ npm run lint      # ESLint
 - **Co-location:** componentes e hooks **privados** de uma view ficam dentro dela (`views/<nome>/components/`, `views/<nome>/hooks/`). Só sobem para `src/components/` ou `src/hooks/` quando usados por 2+ views
 - `.env` nunca commitado
 
+## CI/CD (.github/workflows/)
+
+| Workflow | Trigger | O que faz |
+|---|---|---|
+| `secrets.yml` | push (todas branches) + PR→main | Scan de secrets com Gitleaks |
+| `test.yml` | push (todas branches) + PR→main | Vitest + ESLint em paralelo |
+| `codeql.yml` | push/PR→main + domingo 00h UTC | Análise de vulnerabilidades CodeQL |
+| `tag-version.yml` | push→main | Tag git automática ao bumpar versão no package.json |
+| `no-friday-deploy.yml` | PR→main | Bloqueia merge às sextas-feiras |
+| `setup-node.yml` | (workflow reutilizável) | Node 20 + cache npm + npm ci |
+
 ## Docs (ler sob demanda — NÃO carregar tudo de uma vez)
 
 | Quando precisar de... | Ler |

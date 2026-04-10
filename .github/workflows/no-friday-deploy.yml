@@ -1,0 +1,15 @@
+name: No Deploy on Friday
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  no-friday-deploy:
+    name: Don't Deploy on Friday
+    runs-on: ubuntu-latest
+    steps:
+      - name: Don't deploy on Friday
+        uses: ivanklee86/do-not-deploy-on-friday@v1.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
