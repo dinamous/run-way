@@ -1,4 +1,4 @@
-import { Sun, Moon, CalendarDays, LogOut, User, ChevronDown, Menu } from "lucide-react";
+import { Sun, Moon, PlaneTakeoff, LogOut, User, ChevronDown, Menu } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -60,11 +60,11 @@ export function AppHeader({
             <Menu className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="bg-primary p-2 rounded-lg">
-              <CalendarDays className="w-5 h-5 text-primary-foreground" />
+            <div className="bg-black p-2 rounded-lg">
+              <PlaneTakeoff className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-foreground hidden sm:block">
-              Calendário de Demandas
+            <h1 className="text-xl text-foreground hidden sm:block" style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>
+              Run/Way
             </h1>
           </div>
         </div>

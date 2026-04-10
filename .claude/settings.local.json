@@ -19,7 +19,10 @@
       "Bash(claude --version)",
       "Bash(npm ls:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm test:*)",
+      "Bash(grep -n \"import.meta\" src/api/tasksRoutes.ts src/lib/*.ts src/utils/*.ts)",
+      "Bash(npx vitest:*)"
     ]
   },
   "hooks": {

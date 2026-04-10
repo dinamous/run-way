@@ -1,4 +1,4 @@
-# CLAUDE.md — Capacity Dashboard
+# CLAUDE.md — Run/Way
 
 Aplicação web de capacity planning. Gerir demandas com fases de entrega, visualizar em calendário/Gantt, dados no Supabase.
 
@@ -19,6 +19,13 @@ npm run lint      # ESLint
 **Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais)`
 
 **Fases:** Design (5d, violeta) → Approval (3d, laranja) → Dev (7d, azul) → QA (3d, esmeralda). Cascata automática.
+
+## Branding
+
+- **Nome:** Run/Way
+- **Fonte do logo:** Syne 800 (Google Fonts) — usada exclusivamente no nome da marca (`AppHeader`, `LoginView`)
+- **Fonte base:** DM Sans (Google Fonts) — aplicada no `body` via `index.css`, usada em todo o restante da UI
+- **Ícone do logo:** `PlaneTakeoff` (Lucide) — box preta (`bg-black`), ícone branco (`text-white`)
 
 ## Convenções
 
