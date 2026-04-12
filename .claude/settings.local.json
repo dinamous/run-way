@@ -23,7 +23,8 @@
       "Bash(npm test:*)",
       "Bash(grep -n \"import.meta\" src/api/tasksRoutes.ts src/lib/*.ts src/utils/*.ts)",
       "Bash(npx vitest:*)",
-      "Bash(cat c:/Users/dinam/Documents/Projetos/run-way/.eslintrc*)"
+      "Bash(cat c:/Users/dinam/Documents/Projetos/run-way/.eslintrc*)",
+      "Bash(grep -E \"\\(eyJ[A-Za-z0-9+/=]{20,}|https://[a-z]{20,}\\\\.supabase\\\\.co|sb-[a-z0-9\\\\-]+-auth-token\\)\")"
     ]
   },
   "hooks": {
