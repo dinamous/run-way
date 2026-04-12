@@ -16,7 +16,12 @@ export interface AuditFilters {
   to?: string     // YYYY-MM-DD
 }
 
-export function useAdminData() {
+interface UseAdminDataOptions {
+  actorUserId?: string | null
+}
+
+export function useAdminData(options: UseAdminDataOptions = {}) {
+  const { actorUserId } = options
   const selectedClientId = useClientStore((state) => state.selectedClientId)
   const invalidateTasks = useTaskStore((state) => state.invalidate)
   const fetchTasks = useTaskStore((state) => state.fetchTasks)
@@ -151,10 +156,26 @@ export function useAdminData() {
     }
   }, [fetchClients, reloadAppStores])
 
-  const deleteClient = useCallback(async (id: string) => {
+  const deleteClient = useCallback(async (id: string, name: string) => {
     if (!supabaseAdmin) return false
+    const deletedClient = clients.find(client => client.id === id)
     const { error } = await supabaseAdmin.from('clients').delete().eq('id', id)
     if (error) return false
+
+    if (actorUserId) {
+      await supabaseAdmin.from('audit_logs').insert({
+        user_id: actorUserId,
+        client_id: deletedClient?.id ?? id,
+        entity: 'client',
+        entity_id: id,
+        entity_name: deletedClient?.name ?? name,
+        action: 'delete',
+        field: null,
+        from_value: null,
+        to_value: null,
+      })
+    }
+
     try {
       setError(null)
       await fetchClients()
@@ -164,7 +185,7 @@ export function useAdminData() {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchClients, reloadAppStores])
+  }, [actorUserId, clients, fetchClients, reloadAppStores])
 
   // Vínculo user ↔ client
   const linkUserToClient = useCallback(async (userId: string, clientId: string) => {
@@ -280,6 +301,30 @@ export function useAdminData() {
     }
   }, [fetchUsers, reloadAppStores])
 
+  const updateUser = useCallback(async (
+    userId: string,
+    name: string,
+    role: string,
+    email?: string | null
+  ) => {
+    if (!supabaseAdmin) return false
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    const { error } = await supabaseAdmin
+      .from('members')
+      .update({ name, role, email: email ?? null, avatar: initials })
+      .eq('id', userId)
+    if (error) return false
+    try {
+      setError(null)
+      await fetchUsers()
+      await reloadAppStores()
+      return true
+    } catch (err) {
+      setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
+      return false
+    }
+  }, [fetchUsers, reloadAppStores])
+
   const listGoogleUsers = useCallback(async (search?: string) => {
     if (!supabaseAdmin) return []
     const { data, error } = await supabaseAdmin.auth.admin.listUsers()
@@ -310,6 +355,6 @@ export function useAdminData() {
     fetchAuditLogs, fetchClients, fetchUsers,
     createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
-    createUser, setUserAuthId, listGoogleUsers,
+    createUser, setUserAuthId, updateUser, listGoogleUsers,
   }
 }

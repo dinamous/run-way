@@ -18,6 +18,7 @@ src/
 │   ├── timeline/              # TimelineView — Gantt com drag-drop por fase
 │   ├── MembersView/           # Capacidade por membro
 │   ├── reports/               # ReportsView — relatórios
+│   ├── tools/                 # ToolsView — ferramentas utilitárias (skeleton/mocks)
 │   ├── admin/                 # AdminView (apenas admins)
 │   ├── login/                 # LoginView
 │   └── user/                  # UserClientsView + useUserClients
@@ -59,6 +60,7 @@ App.tsx (inicialização, roteamento, clientMembers)
     ├── view="dashboard" → DashboardView → Calendar/Timeline
     ├── view="members"   → MembersView (recebe clientMembers)
     ├── view="reports"   → ReportsView (recebe clientMembers)
+    ├── view="tools"     → ToolsView (skeleton, sem dados reais)
     └── TaskModal → criar/editar (useFormState → cascata de fases)
 ```
 
@@ -67,7 +69,7 @@ App.tsx (inicialização, roteamento, clientMembers)
 ### `useUIStore`
 Estado de navegação e modal. Não persiste.
 ```ts
-view: ViewType                  // 'home' | 'dashboard' | 'members' | 'reports' | 'admin' | 'clients'
+view: ViewType                  // 'home' | 'dashboard' | 'members' | 'reports' | 'admin' | 'clients' | 'tools'
 setView(view)
 isTaskModalOpen: boolean
 openTaskModal() / closeTaskModal()

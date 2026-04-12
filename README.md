@@ -1,73 +1,69 @@
-# React + TypeScript + Vite
+# Capacity Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicação web de capacity planning para equipes de design e desenvolvimento. Permite criar demandas com fases de entrega (Design → Approval → Dev → QA), visualizar em calendário e timeline, e acompanhar a carga de cada membro.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** + **TypeScript 5.9** + **Vite 8**
+- **Tailwind CSS 4** (plugin Vite, sem `tailwind.config.js`)
+- **Supabase** (banco de dados + autenticação Google OAuth)
+- **Radix UI** + **Lucide React** + **Sonner**
 
-## React Compiler
+## Pré-requisitos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 18+
+- Conta no [Supabase](https://supabase.com) com projeto criado
+- Google OAuth configurado no Supabase
 
-## Expanding the ESLint configuration
+## Configuração
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. Clone o repositório
+2. Instale as dependências:
+   ```bash
+   npm install
+   ```
+3. Copie o arquivo de exemplo e preencha com suas credenciais:
+   ```bash
+   cp .env.example .env
+   ```
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Variáveis de ambiente
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+| Variável | Descrição |
+|---|---|
+| `VITE_SUPABASE_URL` | URL do projeto Supabase |
+| `VITE_SUPABASE_ANON_KEY` | Chave pública (anon) do Supabase |
+| `VITE_SUPABASE_SERVICE_ROLE_KEY` | Chave de service role do Supabase |
+| `VITE_GOOGLE_CLIENT_ID` | Client ID do Google OAuth |
+| `VITE_ALLOWED_DOMAIN` | Domínio permitido para login (ex: `empresa.com.br`) |
+| `VITE_REDIRECT_ALLOWED_ORIGINS` | Origens permitidas no redirect OAuth (separadas por vírgula) |
+| `VITE_REDIRECT_ALLOWED_PATHS` | Paths permitidos no redirect OAuth (ex: `/,/auth/callback`) |
+| `VITE_SESSION_MAX_AGE_HOURS` | Duração máxima da sessão em horas (mínimo efetivo: 48) |
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Comandos
+
+```bash
+npm run dev        # Servidor de desenvolvimento — localhost:5173
+npm run build      # Build de produção (tsc + vite build)
+npm run lint       # ESLint
+npm run test       # Testes em modo watch (Vitest)
+npm run test:run   # Testes em modo CI (execução única)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Modelo de dados
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+**Task** — uma demanda com fases de entrega:
+- `status`: `backlog` | `em andamento` | `bloqueado` | `concluído`
+- `phases`: `design` · `approval` · `dev` · `qa` — cada fase com `start` e `end` (`YYYY-MM-DD`)
+- Cascata automática de datas entre fases
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Member** — membro da equipe com `role`: `Designer` | `Developer`
+
+**Fases e durações padrão:**
+
+| Fase | Duração | Cor |
+|---|---|---|
+| Design | 5 dias úteis | Violeta |
+| Approval | 3 dias úteis | Laranja |
+| Dev | 7 dias úteis | Azul |
+| QA | 3 dias úteis | Esmeralda |

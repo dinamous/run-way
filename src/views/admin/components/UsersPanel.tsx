@@ -38,6 +38,7 @@ interface UsersPanelProps {
     email?: string | null,
     avatarUrl?: string | null
   ) => Promise<boolean>
+  onUpdate: (userId: string, name: string, role: string, email?: string | null) => Promise<boolean>
   onSetAuthId: (userId: string, authUserId: string | null, avatarUrl?: string | null) => Promise<boolean>
   onListGoogleUsers: (search?: string) => Promise<GoogleUser[]>
   userClientsMap: Record<string, string[]>
@@ -143,14 +144,18 @@ type ValidationErrors = {
 type StatusFilter = 'all' | 'active' | 'pending'
 
 export function UsersPanel({
-  users, clients, onSetRole, onLink, onUnlink, onCreate, onSetAuthId, onListGoogleUsers, userClientsMap
+  users, clients, onSetRole, onLink, onUnlink, onCreate, onUpdate, onSetAuthId, onListGoogleUsers, userClientsMap
 }: UsersPanelProps) {
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<Member | null>(null)
   const [editRole, setEditRole] = useState<'admin' | 'user'>('user')
+  const [editName, setEditName] = useState('')
+  const [editUserRole, setEditUserRole] = useState('')
+  const [editEmail, setEditEmail] = useState('')
   const [editClients, setEditClients] = useState<string[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
+  const [editErrors, setEditErrors] = useState<ValidationErrors>({})
 
   const [createName, setCreateName] = useState('')
   const [createRole, setCreateRole] = useState('')
@@ -218,12 +223,14 @@ export function UsersPanel({
     return filteredUsers.slice(start, start + PAGE_SIZE)
   }, [filteredUsers, page])
 
-  useEffect(() => {
-    setPage(1)
-  }, [searchQuery])
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setPage(1) }, [searchQuery])
 
   const openEditDrawer = (user: Member) => {
     setEditingUser(user)
+    setEditName(user.name)
+    setEditUserRole(user.role)
+    setEditEmail(user.email ?? '')
     setEditRole(user.access_role ?? 'user')
     setEditClients(userClientsMap[user.id] ?? [])
     setEditGoogleSearch('')
@@ -234,8 +241,12 @@ export function UsersPanel({
   const closeEditDrawer = () => {
     setEditDrawerOpen(false)
     setEditingUser(null)
+    setEditName('')
+    setEditUserRole('')
+    setEditEmail('')
     setEditRole('user')
     setEditClients([])
+    setEditErrors({})
     setSavingEdit(false)
   }
 
@@ -257,6 +268,19 @@ export function UsersPanel({
   }
 
   const validateCreate = (name: string, role: string, email?: string): ValidationErrors => {
+    const errs: ValidationErrors = {}
+    if (!name.trim()) errs.name = 'Nome é obrigatório'
+    else if (name.trim().length < 2) errs.name = 'Nome deve ter pelo menos 2 caracteres'
+    else if (name.trim().length > 100) errs.name = 'Nome deve ter no máximo 100 caracteres'
+    if (!role.trim()) errs.role = 'Cargo é obrigatório'
+    else if (role.trim().length > 50) errs.role = 'Cargo deve ter no máximo 50 caracteres'
+    if (email && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errs.email = 'Email inválido'
+    }
+    return errs
+  }
+
+  const validateEdit = (name: string, role: string, email?: string): ValidationErrors => {
     const errs: ValidationErrors = {}
     if (!name.trim()) errs.name = 'Nome é obrigatório'
     else if (name.trim().length < 2) errs.name = 'Nome deve ter pelo menos 2 caracteres'
@@ -328,7 +352,29 @@ export function UsersPanel({
 
   const handleUpdateUser = async () => {
     if (!editingUser) return
+
+    const errs = validateEdit(editName, editUserRole, editEmail)
+    setEditErrors(errs)
+    if (Object.keys(errs).length > 0) {
+      toast.error('Corrija os erros antes de salvar')
+      return
+    }
+
     setSavingEdit(true)
+
+    const nameChanged = editName.trim() !== editingUser.name
+    const roleChanged = editUserRole.trim() !== editingUser.role
+    const emailChanged = editEmail.trim() !== (editingUser.email ?? '')
+
+    let basicOk = true
+    if (nameChanged || roleChanged || emailChanged) {
+      basicOk = await onUpdate(
+        editingUser.id,
+        editName.trim(),
+        editUserRole.trim(),
+        editEmail.trim() || null
+      )
+    }
 
     const roleOk = await onSetRole(editingUser.id, editRole)
 
@@ -361,9 +407,11 @@ export function UsersPanel({
     }
 
     setSavingEdit(false)
-    if (roleOk || clientOk || authChanged) {
+    if (basicOk && (roleOk || clientOk || authChanged)) {
       toast.success('Utilizador atualizado')
       closeEditDrawer()
+    } else if (!basicOk) {
+      toast.error('Erro ao atualizar dados do utilizador')
     } else if (!authOk) {
       toast.error('Erro ao atualizar conta Google')
     } else {
@@ -830,6 +878,57 @@ export function UsersPanel({
                     </div>
                   </div>
                 )}
+
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-name">Nome completo</Label>
+                    <Input
+                      id="edit-name"
+                      value={editName}
+                      onChange={e => { setEditName(e.target.value); if (editErrors.name) setEditErrors(prev => ({ ...prev, name: undefined })) }}
+                      placeholder="Ex: Maria Silva"
+                      aria-invalid={!!editErrors.name}
+                    />
+                    {editErrors.name && (
+                      <p role="alert" className="text-xs text-red-500 mt-1">{editErrors.name}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-role">Cargo / Função</Label>
+                    <Input
+                      id="edit-role"
+                      value={editUserRole}
+                      onChange={e => { setEditUserRole(e.target.value); if (editErrors.role) setEditErrors(prev => ({ ...prev, role: undefined })) }}
+                      placeholder="Ex: Social Media"
+                      list="edit-role-suggestions"
+                      aria-invalid={!!editErrors.role}
+                    />
+                    <datalist id="edit-role-suggestions">
+                      {ROLE_SUGGESTIONS.map(role => (
+                        <option key={role} value={role} />
+                      ))}
+                    </datalist>
+                    {editErrors.role && (
+                      <p role="alert" className="text-xs text-red-500 mt-1">{editErrors.role}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-email">Email corporativo</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={editEmail}
+                      onChange={e => { setEditEmail(e.target.value); if (editErrors.email) setEditErrors(prev => ({ ...prev, email: undefined })) }}
+                      placeholder="Ex: maria@empresa.com"
+                      aria-invalid={!!editErrors.email}
+                    />
+                    {editErrors.email && (
+                      <p role="alert" className="text-xs text-red-500 mt-1">{editErrors.email}</p>
+                    )}
+                  </div>
+                </div>
 
                 <div className="space-y-3">
                   <Label className="text-base font-medium">Acesso</Label>

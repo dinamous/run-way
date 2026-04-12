@@ -29,6 +29,8 @@ export interface DbTaskRow {
   blocked: boolean;
   blocked_at: string | null;
   created_at: string;
+  concluded_at: string | null;
+  concluded_by: string | null;
   client_id: string | null;
   task_steps: DbStepRow[];
 }
@@ -51,7 +53,7 @@ export interface DbAuditLogRow {
   id: string
   user_id: string | null
   client_id: string | null
-  entity: 'task' | 'step'
+  entity: 'task' | 'step' | 'client'
   entity_id: string
   entity_name: string | null
   action: 'create' | 'update' | 'delete'

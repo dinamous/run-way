@@ -1,4 +1,4 @@
-export { Button, buttonVariants } from './Button';
+export { Button } from './Button';
 export { default as Input } from './Input';
 export { default as Badge } from './Badge';
 export { Label } from './Label';

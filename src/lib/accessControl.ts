@@ -10,6 +10,7 @@ export type AppPermission =
   | 'view:members'
   | 'view:reports'
   | 'view:admin'
+  | 'view:tools'
 
 interface ViewRule {
   requiresClient: boolean
@@ -25,6 +26,7 @@ const ROLE_PERMISSIONS: Record<AccessRole, ReadonlySet<AppPermission>> = {
     'view:members',
     'view:reports',
     'view:admin',
+    'view:tools',
   ]),
   user: new Set([
     'view:home',
@@ -32,6 +34,7 @@ const ROLE_PERMISSIONS: Record<AccessRole, ReadonlySet<AppPermission>> = {
     'view:dashboard',
     'view:members',
     'view:reports',
+    'view:tools',
   ]),
 }
 
@@ -42,6 +45,7 @@ const VIEW_RULES: Record<ViewType, ViewRule> = {
   members: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:members' },
   reports: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:reports' },
   admin: { requiresClient: false, roles: ['admin'], permission: 'view:admin' },
+  tools: { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
 }
 
 export function resolveAccessRole(member: Member | null): AccessRole | null {

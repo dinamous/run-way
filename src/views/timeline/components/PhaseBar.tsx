@@ -1,7 +1,7 @@
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import {
-  DAY_COL_W, toLocalDate, normaliseTask, isStepBlocked, formatDate,
+  DAY_COL_W, toLocalDate, normaliseTask, isStepBlocked, formatDateDisplay,
   STEP_META, type DragPreview, type DragState, type Task, type Step, type StepType,
 } from '@/utils/dashboardUtils';
 
@@ -46,7 +46,12 @@ const PhaseBar: React.FC<PhaseBarProps> = ({ step, task, days, dragPreview, didD
   const isDragging = dp?.taskId === task.id && dp?.stepType === step.type;
   const startsHere = s >= 0;
   const endsHere = e < days.length;
-  const barCls = blocked ? meta.barBlocked : meta.bar;
+  const isConcluded = !!task.concludedAt;
+  const barCls = isConcluded 
+    ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-300 border border-gray-400 dark:border-gray-500' 
+    : blocked 
+      ? meta.barBlocked 
+      : meta.bar;
 
   return (
     <div
@@ -57,26 +62,27 @@ const PhaseBar: React.FC<PhaseBarProps> = ({ step, task, days, dragPreview, didD
         cursor: isDragging ? 'grabbing' : 'grab',
         transition: isDragging ? 'none' : 'filter 0.1s',
       }}
-      title={`${meta.label}: ${formatDate(pStart)} → ${formatDate(pEnd)}`}
+      title={`${meta.label}: ${formatDateDisplay(pStart)} → ${formatDateDisplay(pEnd)}`}
       onMouseDown={e => startDrag(e, task.id, step.type, 'move', step, DAY_COL_W)}
       onClick={() => { if (!didDragRef.current) onEdit(task); }}
     >
       {startsHere && (
         <div
-          className={`absolute left-0 top-0 bottom-0 w-2 ${meta.handle} cursor-ew-resize z-20`}
+          className={`absolute left-0 top-0 bottom-0 w-2 ${isConcluded ? 'bg-gray-400 dark:bg-gray-500' : meta.handle} cursor-ew-resize z-20`}
           style={{ borderRadius: '5px 0 0 5px' }}
           onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, step.type, 'resize-start', step, DAY_COL_W); }}
         />
       )}
       {startsHere && (
         <span className="truncate px-2 pointer-events-none flex items-center gap-1">
-          {blocked && <AlertTriangle className="w-3 h-3 shrink-0" />}
+          {isConcluded && <CheckCircle2 className="w-3 h-3 shrink-0" />}
+          {blocked && !isConcluded && <AlertTriangle className="w-3 h-3 shrink-0" />}
           {meta.label}
         </span>
       )}
       {endsHere && (
         <div
-          className={`absolute right-0 top-0 bottom-0 w-2 ${meta.handle} cursor-ew-resize z-20`}
+          className={`absolute right-0 top-0 bottom-0 w-2 ${isConcluded ? 'bg-gray-400 dark:bg-gray-500' : meta.handle} cursor-ew-resize z-20`}
           style={{ borderRadius: '0 5px 5px 0' }}
           onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, step.type, 'resize-end', step, DAY_COL_W); }}
         />

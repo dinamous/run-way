@@ -1,4 +1,4 @@
-import { CalendarDays, LogIn } from 'lucide-react'
+import { PlaneTakeoff, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui'
 
 interface LoginViewProps {
@@ -11,11 +11,11 @@ export default function LoginView({ onSignIn, error }: LoginViewProps) {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6 text-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="bg-primary p-3 rounded-2xl">
-            <CalendarDays className="w-8 h-8 text-primary-foreground" />
+          <div className="bg-black p-3 rounded-2xl">
+            <PlaneTakeoff className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Calendário de Demandas</h1>
+            <h1 className="text-2xl text-foreground" style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>Run/Way</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Gestão de capacidade criativa e de desenvolvimento
             </p>

@@ -3,7 +3,7 @@
 Import via barrel: `import { Button, Input, Label, Badge } from '../components/ui'`
 
 ## Button
-Variants: `primary` (azul), `secondary` (cinza), `outline`, `destructive` (vermelho), `ghost`. Aceita todos attrs HTML `<button>`.
+Variants: `primary` (preto/branco — segue `--primary`), `secondary` (cinza), `outline`, `destructive` (vermelho), `ghost`. Aceita todos attrs HTML `<button>`.
 
 ## Input
 Wrapper sobre `<input>` com classes Tailwind. Aceita todos attrs HTML `<input>`.

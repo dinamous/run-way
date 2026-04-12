@@ -4,7 +4,15 @@ import { usePhaseDrag } from '@/hooks/usePhaseDrag';
 import type { Holiday } from '@/utils/holidayUtils';
 
 export function useCalendarDrag(tasks: Task[], onUpdateTask: (task: Task) => void, holidays: Holiday[] = []) {
-  const { dragPreview, didDragRef, startDrag: phaseDragStart, pendingDragUpdate, confirmDrag, cancelDrag } = usePhaseDrag(tasks, onUpdateTask, holidays);
+  const {
+    dragPreview,
+    didDragRef,
+    startDrag: phaseDragStart,
+    pendingDragUpdate,
+    confirmDrag,
+    cancelDrag,
+    postponeDragToBusinessDay,
+  } = usePhaseDrag(tasks, onUpdateTask, holidays);
 
   const startDrag = useCallback((
     e: React.MouseEvent,
@@ -20,5 +28,5 @@ export function useCalendarDrag(tasks: Task[], onUpdateTask: (task: Task) => voi
     phaseDragStart(e, bar.taskId, bar.stepType, type, step, colWidth);
   }, [phaseDragStart]);
 
-  return { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag };
+  return { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag, postponeDragToBusinessDay };
 }

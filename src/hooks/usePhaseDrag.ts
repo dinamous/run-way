@@ -3,9 +3,9 @@ import {
   toLocalDate, toDateStr, addDays, normaliseTask,
   type DragState, type DragPreview, type Task, type Step, type StepType,
 } from '@/utils/dashboardUtils';
-import { isWeekendOrHoliday, type Holiday } from '@/utils/holidayUtils';
+import { isWeekendOrHoliday, nextNonHolidayBusinessDay, type Holiday } from '@/utils/holidayUtils';
 
-type PendingDragUpdate = { task: Task };
+type PendingDragUpdate = { task: Task; stepType: StepType };
 
 export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, holidays: Holiday[] = []) {
   const dragStateRef = useRef<DragState | null>(null);
@@ -55,12 +55,12 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, 
 
           const startStr = toDateStr(newStart);
           const endStr = toDateStr(newEnd);
-          if (isWeekendOrHoliday(startStr, holidays) || isWeekendOrHoliday(endStr, holidays)) {
-            originalTaskRef.current = { start: ds.originalStart, end: ds.originalEnd };
-            setPendingDragUpdate({ task: updatedTask });
-          } else {
-            onUpdateTask(updatedTask);
-          }
+            if (isWeekendOrHoliday(startStr, holidays) || isWeekendOrHoliday(endStr, holidays)) {
+              originalTaskRef.current = { start: ds.originalStart, end: ds.originalEnd };
+              setPendingDragUpdate({ task: updatedTask, stepType: ds.stepType });
+            } else {
+              onUpdateTask(updatedTask);
+            }
         }
       }
       dragStateRef.current = null;
@@ -108,5 +108,33 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, 
     originalTaskRef.current = null;
   }, []);
 
-  return { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag };
+  const postponeDragToBusinessDay = useCallback(() => {
+    if (!pendingDragUpdate) return;
+
+    const adjustedTask: Task = {
+      ...pendingDragUpdate.task,
+      steps: pendingDragUpdate.task.steps.map((step: Step) => {
+        if (step.type !== pendingDragUpdate.stepType) return step;
+
+        const adjustedStart = isWeekendOrHoliday(step.start, holidays)
+          ? nextNonHolidayBusinessDay(step.start, holidays)
+          : step.start;
+        let adjustedEnd = isWeekendOrHoliday(step.end, holidays)
+          ? nextNonHolidayBusinessDay(step.end, holidays)
+          : step.end;
+
+        if (adjustedEnd < adjustedStart) {
+          adjustedEnd = adjustedStart;
+        }
+
+        return { ...step, start: adjustedStart, end: adjustedEnd };
+      }),
+    };
+
+    onUpdateTask(adjustedTask);
+    setPendingDragUpdate(null);
+    originalTaskRef.current = null;
+  }, [pendingDragUpdate, holidays, onUpdateTask]);
+
+  return { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag, postponeDragToBusinessDay };
 }

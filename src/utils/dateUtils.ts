@@ -10,6 +10,14 @@ export const formatDate = (date: Date | string) => {
   return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
 };
 
+export const formatDateDisplay = (date: Date | string) => {
+  const d = new Date(date);
+  const day = '' + d.getDate();
+  const month = '' + (d.getMonth() + 1);
+  const year = d.getFullYear();
+  return [day.padStart(2, '0'), month.padStart(2, '0'), year].join('/');
+};
+
 function isNonBusinessDay(date: Date, holidays: Holiday[]): boolean {
   const day = date.getDay();
   if (day === 0 || day === 6) return true;

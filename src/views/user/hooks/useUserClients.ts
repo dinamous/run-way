@@ -84,9 +84,8 @@ export function useUserClients() {
     return false
   }, [fetchClients])
 
-  useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { fetchClients() }, [fetchClients])
 
   return { userClients, availableClients, loading, linkToClient, unlinkFromClient, refetch: fetchClients }
 }

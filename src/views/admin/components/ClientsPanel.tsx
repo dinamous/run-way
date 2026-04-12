@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
 import {
   Drawer,
@@ -22,7 +23,7 @@ interface ClientsPanelProps {
   userClientsMap: Record<string, string[]>
   onCreate: (name: string, slug: string) => Promise<boolean>
   onUpdate: (id: string, name: string, slug: string) => Promise<boolean>
-  onDelete: (id: string) => Promise<boolean>
+  onDelete: (id: string, name: string) => Promise<boolean>
   onLinkUser?: (clientId: string, userId: string) => Promise<boolean>
   onUnlinkUser?: (clientId: string, userId: string) => Promise<boolean>
 }
@@ -46,6 +47,7 @@ export function ClientsPanel({
   const [creating, setCreating] = useState(false)
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [pendingDeleteClient, setPendingDeleteClient] = useState<DbClientRow | null>(null)
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<DbClientRow | null>(null)
   const [editName, setEditName] = useState('')
@@ -57,16 +59,16 @@ export function ClientsPanel({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [page, setPage] = useState(1)
 
-  const getClientUsers = (clientId: string) => {
+  const getClientUsers = useCallback((clientId: string) => {
     const userIds = Object.entries(userClientsMap)
       .filter(([, clientIds]) => clientIds.includes(clientId))
       .map(([userId]) => userId)
     return users.filter(u => userIds.includes(u.id))
-  }
+  }, [userClientsMap, users])
 
-  const getPendingUsers = (clientId: string) => {
+  const getPendingUsers = useCallback((clientId: string) => {
     return getClientUsers(clientId).filter(u => !u.auth_user_id)
-  }
+  }, [getClientUsers])
 
   const filteredClients = useMemo(() => {
     let filtered = clients
@@ -89,7 +91,7 @@ export function ClientsPanel({
     }
 
     return filtered
-  }, [clients, searchQuery, statusFilter, userClientsMap, users])
+  }, [clients, searchQuery, statusFilter, getClientUsers, getPendingUsers])
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / PAGE_SIZE))
   const paginatedClients = useMemo(() => {
@@ -173,9 +175,8 @@ export function ClientsPanel({
   }
 
   const handleDelete = async (client: DbClientRow) => {
-    if (!confirm(`Eliminar cliente "${client.name}"?`)) return
     setDeletingId(client.id)
-    const ok = await onDelete(client.id)
+    const ok = await onDelete(client.id, client.name)
     setDeletingId(null)
     if (ok) {
       toast.success('Cliente eliminado')
@@ -279,7 +280,7 @@ export function ClientsPanel({
                     isLoading={deletingId === c.id}
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleDelete(c)
+                      setPendingDeleteClient(c)
                     }}
                     aria-label={`Eliminar cliente ${c.name}`}
                   >
@@ -456,6 +457,21 @@ export function ClientsPanel({
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      {pendingDeleteClient && (
+        <ConfirmModal
+          title="Eliminar cliente"
+          message={`Tem a certeza que deseja eliminar o cliente "${pendingDeleteClient.name}"?`}
+          confirmLabel="Eliminar cliente"
+          cancelLabel="Cancelar"
+          onConfirm={async () => {
+            const client = pendingDeleteClient
+            setPendingDeleteClient(null)
+            await handleDelete(client)
+          }}
+          onCancel={() => setPendingDeleteClient(null)}
+        />
+      )}
     </div>
   )
 }

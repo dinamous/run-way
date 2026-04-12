@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 export interface AuditPayload {
   userId: string
   clientId: string | null
-  entity: 'task' | 'step'
+  entity: 'task' | 'step' | 'client'
   entityId: string
   entityName?: string
   action: 'create' | 'update' | 'delete'

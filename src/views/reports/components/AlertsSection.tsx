@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, AlertCircle } from 'lucide-react';
+import { formatDateToBR } from '@/lib/utils';
 import type { Member } from '@/hooks/useSupabase';
 import type { EnrichedTask } from '../utils';
 
@@ -23,7 +24,7 @@ const AlertsSection: React.FC<AlertsSectionProps> = ({ enriched }) => {
           <div key={t.id} className="flex items-center gap-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg px-4 py-2.5 text-sm">
             <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
             <span className="font-medium text-red-800 dark:text-red-200">{t.title}</span>
-            <span className="text-red-600 dark:text-red-400 text-xs">— entrega era {t.lastDeadline}</span>
+            <span className="text-red-600 dark:text-red-400 text-xs">— entrega era {t.lastDeadline ? formatDateToBR(t.lastDeadline) : ''}</span>
           </div>
         ))}
         {emRisco.map(t => (

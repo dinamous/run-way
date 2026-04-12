@@ -8,6 +8,7 @@
 import type { Task } from '../lib/steps';
 import type { Member } from '../hooks/useSupabase';
 import type { Holiday } from '../utils/holidayUtils';
+import type { CalendarViewMode } from '../utils/dashboardUtils';
 
 // ─── TaskModal ────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ export interface CalendarViewProps {
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
   holidays: Holiday[];
+  viewMode?: CalendarViewMode;
 }
 
 // ─── TimelineView ─────────────────────────────────────────────────────────────
@@ -54,8 +56,9 @@ export interface TimelineViewProps {
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
   holidays: Holiday[];
+  daysRange: number;
 }
 
 // ─── MembersView ─────────────────────────────────────────────────────────────
 
-export interface MembersViewProps {}
+export type MembersViewProps = object

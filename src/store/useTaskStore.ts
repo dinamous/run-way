@@ -27,6 +27,8 @@ function dbRowToTask(row: DbTaskRow): Task {
       blockedAt: row.blocked_at ?? undefined,
     },
     createdAt: row.created_at,
+    concludedAt: row.concluded_at ?? undefined,
+    concludedBy: row.concluded_by ?? undefined,
     steps,
   }
 }
@@ -40,7 +42,7 @@ async function fetchTasksFromDb(
     const { data, error } = await supabase
       .from('tasks')
       .select(`
-        id, title, clickup_link, blocked, blocked_at, created_at, client_id,
+        id, title, clickup_link, blocked, blocked_at, created_at, client_id, concluded_at, concluded_by,
         task_steps (
           id, type, step_order, active, start_date, end_date,
           step_assignees ( member_id )
@@ -54,7 +56,7 @@ async function fetchTasksFromDb(
   const { data, error } = await supabase
     .from('tasks')
     .select(`
-      id, title, clickup_link, blocked, blocked_at, created_at, client_id,
+      id, title, clickup_link, blocked, blocked_at, created_at, client_id, concluded_at, concluded_by,
       task_steps (
         id, type, step_order, active, start_date, end_date,
         step_assignees ( member_id )

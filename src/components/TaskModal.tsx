@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useMemberStore } from '@/store/useMemberStore';
 import { useClientStore } from '@/store/useClientStore';
 import { Input, Label, Button, ConfirmModal } from './ui';
-import { Save, ExternalLink, Trash2, Users, AlertCircle } from 'lucide-react';
+import { Save, ExternalLink, Trash2, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
 import {
   STEP_META,
   createDefaultSteps,
@@ -13,7 +13,7 @@ import {
 } from '../lib/steps';
 import type { TaskModalProps } from '../types/props';
 import { useFormState } from '../hooks/useFormState';
-import { isWeekendOrHoliday, getHolidayName } from '../utils/holidayUtils';
+import { isWeekendOrHoliday, getHolidayName, nextNonHolidayBusinessDay } from '../utils/holidayUtils';
 
 const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClose, onSave, onDelete, holidays }) => {
   const { selectedClientId } = useClientStore();
@@ -33,19 +33,30 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
   const [blockedAt, setBlockedAt] = useState<string>(
     init.status.blockedAt ?? new Date().toISOString().split('T')[0]
   );
+  const [concludedAt, setConcludedAt] = useState<string | undefined>(task?.concludedAt);
   const [steps, setSteps] = useState<Step[]>(
     task ? init.steps : createDefaultSteps()
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pendingSubmitData, setPendingSubmitData] = useState<Parameters<typeof onSave>[0] | null>(null);
   const [confirmMessage, setConfirmMessage] = useState('');
+  const [showDirtyCloseConfirm, setShowDirtyCloseConfirm] = useState(false);
 
-  const formSnapshot = { title, clickupLink, blocked, blockedAt, steps };
-  const { isDirty, submitting, withSubmit, confirmClose } = useFormState(
+  const formSnapshot = { title, clickupLink, blocked, blockedAt, steps, concludedAt };
+  const { isDirty, submitting, withSubmit } = useFormState(
     formSnapshot,
     !task,
     title.length >= 3,
   );
+
+  const handleRequestClose = () => {
+    if (!isDirty) {
+      onClose();
+      return;
+    }
+
+    setShowDirtyCloseConfirm(true);
+  };
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -69,7 +80,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
       blocked,
       blockedAt: blocked ? blockedAt : undefined,
     };
-    const taskData = { ...task, title, clickupLink, status, steps };
+    const taskData = { ...task, title, clickupLink, status, steps, concludedAt };
 
     const describeDateConflict = (date: string): string => {
       const holidayName = getHolidayName(date, holidays);
@@ -107,6 +118,33 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
     setPendingSubmitData(null);
   };
 
+  const handlePostponeWeekend = () => {
+    if (!pendingSubmitData) return;
+
+    const adjustedTaskData = {
+      ...pendingSubmitData,
+      steps: pendingSubmitData.steps.map(step => {
+        if (!step.active) return step;
+
+        const adjustedStart = step.start && isWeekendOrHoliday(step.start, holidays)
+          ? nextNonHolidayBusinessDay(step.start, holidays)
+          : step.start;
+        let adjustedEnd = step.end && isWeekendOrHoliday(step.end, holidays)
+          ? nextNonHolidayBusinessDay(step.end, holidays)
+          : step.end;
+
+        if (adjustedStart && adjustedEnd && adjustedEnd < adjustedStart) {
+          adjustedEnd = adjustedStart;
+        }
+
+        return { ...step, start: adjustedStart, end: adjustedEnd };
+      }),
+    };
+
+    setPendingSubmitData(null);
+    withSubmit(() => onSave(adjustedTaskData));
+  };
+
   const toggleStep = (type: StepType) => {
     setSteps(prev => prev.map(s => s.type === type ? { ...s, active: !s.active } : s));
   };
@@ -135,7 +173,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
             {task ? 'Editar Demanda' : 'Nova Demanda'}
           </h2>
           <button
-            onClick={() => confirmClose() && onClose()}
+            onClick={handleRequestClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >✕</button>
         </div>
@@ -220,6 +258,45 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
                       value={blockedAt}
                       onChange={e => setBlockedAt(e.target.value)}
                       className="h-7 text-xs w-auto flex-1 bg-white/70 dark:bg-red-900/30 border-red-300 dark:border-red-700"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Concluída */}
+              <div className={`rounded-xl border p-3 transition-colors ${concludedAt
+                ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/60 dark:border-emerald-700'
+                : 'bg-muted border-border'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className={`w-4 h-4 shrink-0 ${concludedAt ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
+                    <div>
+                      <div className={`text-sm font-semibold ${concludedAt ? 'text-emerald-800 dark:text-emerald-200' : 'text-foreground'}`}>
+                        Concluída
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Demanda finalizada e entregue
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setConcludedAt(concludedAt ? undefined : new Date().toISOString())}
+                    className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${concludedAt ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`}
+                    aria-label="Alternar conclusão"
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${concludedAt ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+                {concludedAt && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium shrink-0">Concluída em:</span>
+                    <Input
+                      type="date"
+                      value={concludedAt.split('T')[0]}
+                      onChange={e => setConcludedAt(e.target.value ? e.target.value + 'T00:00:00' : undefined)}
+                      className="h-7 text-xs w-auto flex-1 bg-white/70 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700"
                     />
                   </div>
                 )}
@@ -350,20 +427,26 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border bg-muted/50 flex justify-between items-center">
-          <div>
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-border bg-muted/50 flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-between sm:items-center">
+          <Button className="flex-1 sm:flex-none text-xs sm:text-sm" variant="outline" onClick={handleRequestClose} type="button">Cancelar</Button>
+          <div className="flex gap-2 flex-1 sm:flex-none justify-end">
             {task && onDelete && (
-              <Button variant="destructive" type="button" onClick={() => onDelete(task.id)}>
+              <Button
+                className="flex-1 sm:flex-none text-xs sm:text-sm text-muted-foreground hover:text-destructive"
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={() => onDelete(task.id)}
+              >
                 <Trash2 className="w-4 h-4 mr-1.5" />
-                Apagar
+                <span className="sm:hidden">Apagar</span>
+                <span className="hidden sm:inline">Apagar demanda</span>
               </Button>
             )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => confirmClose() && onClose()} type="button">Cancelar</Button>
-            <Button type="submit" form="task-form" disabled={!isDirty || submitting}>
+            <Button className="flex-1 sm:flex-none text-xs sm:text-sm" type="submit" form="task-form" disabled={!isDirty || submitting}>
               <Save className="w-4 h-4 mr-1.5" />
-              {submitting ? 'A guardar…' : task ? 'Salvar Alterações' : 'Criar Demanda'}
+              <span className="sm:hidden">{submitting ? 'A guardar…' : task ? 'Salvar' : 'Criar'}</span>
+              <span className="hidden sm:inline">{submitting ? 'A guardar…' : task ? 'Salvar Alterações' : 'Criar Demanda'}</span>
             </Button>
           </div>
         </div>
@@ -372,8 +455,24 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
           <ConfirmModal
             title="Datas em fim de semana ou feriado"
             message={confirmMessage}
+            secondaryConfirmLabel="Prolongar para próximo dia útil"
+            onSecondaryConfirm={handlePostponeWeekend}
             onConfirm={handleConfirmWeekend}
             onCancel={handleCancelWeekend}
+          />
+        )}
+
+        {showDirtyCloseConfirm && (
+          <ConfirmModal
+            title="Descartar alterações"
+            message="Você tem alterações não guardadas. Tem certeza que quer fechar?"
+            confirmLabel="Descartar e fechar"
+            cancelLabel="Continuar editando"
+            onConfirm={() => {
+              setShowDirtyCloseConfirm(false);
+              onClose();
+            }}
+            onCancel={() => setShowDirtyCloseConfirm(false)}
           />
         )}
 

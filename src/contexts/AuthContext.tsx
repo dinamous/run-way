@@ -210,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscriptionRef.current?.unsubscribe()
       subscriptionRef.current = null
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const signIn = () =>

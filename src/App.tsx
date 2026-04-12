@@ -14,6 +14,7 @@ import { LoginView } from "./views/login";
 import { UserClientsView } from "./views/user/UserClientsView";
 import { NoClientView } from "./components/NoClientView";
 import { HomeView } from "./views/home";
+import { ToolsView } from "./views/tools";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
@@ -21,6 +22,7 @@ import { Toaster, toast } from "sonner";
 import type { Task } from "./lib/steps";
 import type { ViewType } from "@/store/useUIStore";
 import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
+import { ConfirmModal, TooltipProvider } from "@/components/ui";
 
 export default function App() {
   const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients } = useAuthContext();
@@ -71,6 +73,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     return localStorage.getItem("sidebarOpen") !== "false";
   });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const handleToggleSidebar = () => {
     setSidebarOpen((prev) => {
@@ -85,6 +88,8 @@ export default function App() {
   const openTaskModal = useUIStore((s) => s.openTaskModal);
   const closeTaskModal = useUIStore((s) => s.closeTaskModal);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null);
+  const [closeTaskModalOnDelete, setCloseTaskModalOnDelete] = useState(false);
 
   const handleSelectClient = useCallback((clientId: string | null | undefined) => {
     setClient(clientId);
@@ -92,6 +97,7 @@ export default function App() {
   }, [setClient, setView]);
 
   const handleViewChange = useCallback((newView: ViewType) => {
+    setMobileSidebarOpen(false);
     const hasClientSelected = effectiveClientId !== null;
     const canAccess = canAccessView(newView, accessRole, hasClientSelected);
 
@@ -127,10 +133,28 @@ export default function App() {
     return <LoginView onSignIn={signIn} error={authError} />;
   }
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Tem a certeza que deseja eliminar esta tarefa?")) {
-      const ok = await deleteTask(id);
-      if (!ok) toast.error("Erro ao eliminar tarefa");
+  const requestDeleteTask = (id: string, closeModalAfterDelete = false) => {
+    setPendingDeleteTaskId(id);
+    setCloseTaskModalOnDelete(closeModalAfterDelete);
+  };
+
+  const handleConfirmDeleteTask = async () => {
+    if (!pendingDeleteTaskId) return;
+
+    const taskId = pendingDeleteTaskId;
+    const shouldCloseModal = closeTaskModalOnDelete;
+
+    setPendingDeleteTaskId(null);
+    setCloseTaskModalOnDelete(false);
+
+    const ok = await deleteTask(taskId);
+    if (!ok) {
+      toast.error("Erro ao eliminar tarefa");
+      return;
+    }
+
+    if (shouldCloseModal) {
+      closeTaskModal();
     }
   };
 
@@ -151,20 +175,29 @@ export default function App() {
         availableClients={clients}
         onSelectClient={handleSelectClient}
         isAdmin={isAdmin}
+        onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
       />
 
       <div className="flex flex-row flex-1 overflow-hidden">
           <AppSidebar
             open={sidebarOpen}
             onToggle={handleToggleSidebar}
+            mobileOpen={mobileSidebarOpen}
+            onCloseMobile={() => setMobileSidebarOpen(false)}
             view={view}
             onViewChange={handleViewChange}
             hasClient={hasClients}
             role={accessRole}
+            darkMode={darkMode}
+            onToggleDark={() => setDarkMode((d) => !d)}
+            userEmail={user?.email}
+            userAvatarUrl={member?.avatar_url}
+            onSignOut={signOut}
           />
 
         <main key={view} className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 animate-blur-fade-in">
-          {showNoClientView ? (
+          <TooltipProvider>
+            {showNoClientView ? (
             <NoClientView hasClients={false} onGoToClients={() => setView("clients")} />
           ) : showSelectClient ? (
             <NoClientView hasClients={true} onGoToClients={() => setView("clients")} />
@@ -184,7 +217,7 @@ export default function App() {
           ) : view === "dashboard" ? (
             <DashboardView
               onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
-              onDelete={handleDelete}
+              onDelete={(id: string) => requestDeleteTask(id)}
               onUpdateTask={updateTask}
               onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
               onExport={() => window.print()}
@@ -192,9 +225,12 @@ export default function App() {
             />
           ) : view === "members" ? (
             <MembersView />
+          ) : view === "tools" ? (
+            <ToolsView />
           ) : (
             <ReportsView />
-          )}
+            )}
+          </TooltipProvider>
         </main>
       </div>
 
@@ -204,11 +240,7 @@ export default function App() {
           members={members}
           onClose={closeTaskModal}
           onDelete={async (id: string) => {
-            if (confirm("Tem a certeza que deseja eliminar esta demanda?")) {
-              const ok = await deleteTask(id);
-              if (!ok) { toast.error("Erro ao eliminar tarefa"); return; }
-              closeTaskModal();
-            }
+            requestDeleteTask(id, true);
           }}
           onSave={async (taskData) => {
             let ok: boolean;
@@ -231,6 +263,20 @@ export default function App() {
             closeTaskModal();
           }}
           holidays={holidays}
+        />
+      )}
+
+      {pendingDeleteTaskId && (
+        <ConfirmModal
+          title="Eliminar demanda"
+          message="Tem a certeza que deseja eliminar esta demanda?"
+          confirmLabel="Eliminar demanda"
+          cancelLabel="Cancelar"
+          onConfirm={handleConfirmDeleteTask}
+          onCancel={() => {
+            setPendingDeleteTaskId(null);
+            setCloseTaskModalOnDelete(false);
+          }}
         />
       )}
     </div>

@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
 import { useClientStore } from '@/store/useClientStore';
+import { useUIStore } from '@/store/useUIStore';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
+import { ListView } from '@/views/list';
 import { useTaskFilters } from './hooks/useTaskFilters';
 import { DashboardHeader } from './components/DashboardHeader';
+import type { CalView } from './components/DashboardHeader';
 import { FilterBar } from './components/FilterBar';
 import { MetricsBar } from './components/MetricsBar';
 import { StepsLegend } from './components/StepsLegend';
@@ -31,6 +34,8 @@ const DASHBOARD_BONES = {
 const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
   const { isAdmin } = useAuthContext();
   const { selectedClientId } = useClientStore();
+  const dashboardRedirect = useUIStore((s) => s.dashboardRedirect);
+  const clearDashboardRedirect = useUIStore((s) => s.clearDashboardRedirect);
   const {
     tasks,
     loading: tasksLoading,
@@ -45,7 +50,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
     fetchMembers,
     invalidate: invalidateMembers,
   } = useMemberStore();
-  const [calView, setCalView] = useState<'calendar' | 'timeline'>('calendar');
+  const [calView, setCalView] = useState<CalView>(() => dashboardRedirect?.mode ?? 'timeline');
 
   useEffect(() => {
     fetchTasks(selectedClientId, isAdmin);
@@ -55,10 +60,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
   const {
     filterAssignee, setFilterAssignee,
     filterStatus, setFilterStatus,
-    filterSteps, hasActiveFilters,
+    filterSteps,
+    filterPeriodDays, setFilterPeriodDays,
+    viewMode, setViewMode,
+    hasActiveFilters,
     clearFilters, toggleStepFilter,
     filteredTasks, blockedCount, activeCount,
-  } = useTaskFilters(tasks ?? []);
+  } = useTaskFilters(tasks ?? [], calView === 'timeline', dashboardRedirect?.assigneeId ?? '');
+
+  useEffect(() => {
+    if (!dashboardRedirect) return;
+    clearDashboardRedirect();
+  }, [dashboardRedirect, clearDashboardRedirect]);
 
   const hasData = tasks.length > 0 || members.length > 0;
   const isLoading = tasksLoading || membersLoading;
@@ -100,14 +113,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
       <DashboardHeader
         calView={calView}
         onChangeView={setCalView}
-        onExport={onExport}
-        onOpenNew={onOpenNew}
       />
       <MetricsBar
         totalCount={(tasks ?? []).length}
+        visibleCount={filteredTasks.length}
         activeCount={activeCount}
         blockedCount={blockedCount}
       />
+      {calView !== 'list' && (
       <FilterBar
         members={members ?? []}
         filterAssignee={filterAssignee}
@@ -116,11 +129,19 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         onChangeStatus={setFilterStatus}
         filterSteps={filterSteps}
         onToggleStep={toggleStepFilter}
+        showPeriodFilter={calView === 'timeline'}
+        filterPeriodDays={filterPeriodDays}
+        onChangePeriodDays={setFilterPeriodDays}
+        viewMode={viewMode}
+        onChangeViewMode={setViewMode}
+        onExport={onExport}
+        onOpenNew={onOpenNew}
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         filteredCount={filteredTasks.length}
         totalCount={(tasks ?? []).length}
       />
+      )}
       <ViewState
         icon={FilterX}
         title="Nenhuma demanda com os filtros atuais"
@@ -135,15 +156,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
       <DashboardHeader
         calView={calView}
         onChangeView={setCalView}
-        onExport={onExport}
-        onOpenNew={onOpenNew}
       />
       <MetricsBar
         totalCount={(tasks ?? []).length}
+        visibleCount={filteredTasks.length}
         activeCount={activeCount}
         blockedCount={blockedCount}
       />
 
+      {calView !== 'list' && (
       <FilterBar
         members={members ?? []}
         filterAssignee={filterAssignee}
@@ -152,16 +173,27 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         onChangeStatus={setFilterStatus}
         filterSteps={filterSteps}
         onToggleStep={toggleStepFilter}
+        showPeriodFilter={calView === 'timeline'}
+        filterPeriodDays={filterPeriodDays}
+        onChangePeriodDays={setFilterPeriodDays}
+        showViewMode={calView === 'calendar'}
+        viewMode={viewMode}
+        onChangeViewMode={setViewMode}
+        onExport={onExport}
+        onOpenNew={onOpenNew}
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         filteredCount={filteredTasks.length}
         totalCount={(tasks ?? []).length}
       />
+      )}
 
       {calView === 'calendar' ? (
-        <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
+        <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} viewMode={viewMode} />
+      ) : calView === 'timeline' ? (
+        <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} daysRange={filterPeriodDays} />
       ) : (
-        <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
+        <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
       )}
 
       <StepsLegend />

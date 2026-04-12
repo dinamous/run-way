@@ -35,14 +35,5 @@ export function useFormState<T>(
     }
   }
 
-  /**
-   * Safe close: if there are unsaved changes, asks for confirmation first.
-   * Returns true if the close should proceed.
-   */
-  function confirmClose(): boolean {
-    if (!isDirty) return true
-    return window.confirm('Você tem alterações não guardadas. Tem certeza que quer fechar?')
-  }
-
-  return { isDirty, submitting, withSubmit, reset, confirmClose }
+  return { isDirty, submitting, withSubmit, reset }
 }
