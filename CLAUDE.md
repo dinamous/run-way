@@ -25,7 +25,8 @@ npm run lint      # ESLint
 - **Nome:** Run/Way
 - **Fonte do logo:** Syne 800 (Google Fonts) — usada exclusivamente no nome da marca (`AppHeader`, `LoginView`)
 - **Fonte base:** DM Sans (Google Fonts) — aplicada no `body` via `index.css`, usada em todo o restante da UI
-- **Ícone do logo:** `PlaneTakeoff` (Lucide) — box preta (`bg-black`), ícone branco (`text-white`)
+- **Ícone do logo:** `LayoutDashboard` (Lucide) — box preta (`bg-black dark:bg-white`), ícone branco (`text-white dark:text-black`) — inverte no dark mode via Tailwind variant
+- **Cor primária:** preto (`oklch(0.145 0 0)`) no light mode; branco (`oklch(0.985 0 0)`) no dark mode — definido em `src/index.css` via `--primary` e `--ring`
 
 ## Convenções
 
