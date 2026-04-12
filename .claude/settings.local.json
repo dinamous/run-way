@@ -22,7 +22,8 @@
       "Bash(git commit:*)",
       "Bash(npm test:*)",
       "Bash(grep -n \"import.meta\" src/api/tasksRoutes.ts src/lib/*.ts src/utils/*.ts)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(cat c:/Users/dinam/Documents/Projetos/run-way/.eslintrc*)"
     ]
   },
   "hooks": {

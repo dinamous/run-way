@@ -61,4 +61,4 @@ export interface TimelineViewProps {
 
 // ─── MembersView ─────────────────────────────────────────────────────────────
 
-export interface MembersViewProps {}
+export type MembersViewProps = object

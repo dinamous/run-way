@@ -223,9 +223,8 @@ export function UsersPanel({
     return filteredUsers.slice(start, start + PAGE_SIZE)
   }, [filteredUsers, page])
 
-  useEffect(() => {
-    setPage(1)
-  }, [searchQuery])
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setPage(1) }, [searchQuery])
 
   const openEditDrawer = (user: Member) => {
     setEditingUser(user)

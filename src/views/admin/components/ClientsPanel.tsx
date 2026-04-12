@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
@@ -59,16 +59,16 @@ export function ClientsPanel({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [page, setPage] = useState(1)
 
-  const getClientUsers = (clientId: string) => {
+  const getClientUsers = useCallback((clientId: string) => {
     const userIds = Object.entries(userClientsMap)
       .filter(([, clientIds]) => clientIds.includes(clientId))
       .map(([userId]) => userId)
     return users.filter(u => userIds.includes(u.id))
-  }
+  }, [userClientsMap, users])
 
-  const getPendingUsers = (clientId: string) => {
+  const getPendingUsers = useCallback((clientId: string) => {
     return getClientUsers(clientId).filter(u => !u.auth_user_id)
-  }
+  }, [getClientUsers])
 
   const filteredClients = useMemo(() => {
     let filtered = clients
@@ -91,7 +91,7 @@ export function ClientsPanel({
     }
 
     return filtered
-  }, [clients, searchQuery, statusFilter, userClientsMap, users])
+  }, [clients, searchQuery, statusFilter, getClientUsers, getPendingUsers])
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / PAGE_SIZE))
   const paginatedClients = useMemo(() => {

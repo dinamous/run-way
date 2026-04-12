@@ -1,4 +1,4 @@
-import { Sun, Moon, PlaneTakeoff, LogOut, User, ChevronDown, Menu, LayoutDashboard } from "lucide-react";
+import { Sun, Moon, LogOut, User, ChevronDown, Menu, LayoutDashboard } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
