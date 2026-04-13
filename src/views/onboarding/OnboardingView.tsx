@@ -14,6 +14,8 @@ const POLL_INTERVAL_MS = 30_000
 export function OnboardingView({ userName, onSignOut, onClientsFound }: OnboardingViewProps) {
   const [checking, setChecking] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const onClientsFoundRef = useRef(onClientsFound)
+  onClientsFoundRef.current = onClientsFound
 
   useEffect(() => {
     async function checkClients() {
@@ -47,7 +49,7 @@ export function OnboardingView({ userName, onSignOut, onClientsFound }: Onboardi
 
         if (hasClients) {
           if (intervalRef.current) clearInterval(intervalRef.current)
-          await onClientsFound()
+          await onClientsFoundRef.current()
         }
       } catch {
         // falha silenciosa — tentará novamente no próximo tick
@@ -61,7 +63,7 @@ export function OnboardingView({ userName, onSignOut, onClientsFound }: Onboardi
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [onClientsFound])
+  }, [])
 
   const firstName = userName?.split(' ')[0] ?? userName ?? 'você'
 

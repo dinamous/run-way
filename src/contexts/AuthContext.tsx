@@ -215,8 +215,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const refreshProfile = async () => {
-    if (!user) return
-    await loadProfile(user.id, user.email ?? undefined)
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) return
+    await loadProfile(currentUser.id, currentUser.email ?? undefined)
   }
 
   const signIn = () =>
