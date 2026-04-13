@@ -27,6 +27,7 @@ import { ConfirmModal, TooltipProvider } from "@/components/ui";
 
 export default function App() {
   const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients, refreshProfile } = useAuthContext();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const accessRole = resolveAccessRole(member);
 
   const hasClients = clients.length > 0;
@@ -37,6 +38,11 @@ export default function App() {
   const effectiveClientId = selectedClientId === undefined
     ? (hasClients ? clients[0].id : null)
     : (isAdmin ? selectedClientId : (selectedClientId ?? (hasClients ? clients[0].id : null)));
+
+  const handleSignOut = () => {
+    setIsLoggingOut(true);
+    signOut();
+  };
 
   useEffect(() => {
     if (authLoading || !session) return;
@@ -138,7 +144,7 @@ export default function App() {
     return (
       <OnboardingView
         userName={member?.name ?? user?.email}
-        onSignOut={signOut}
+        onSignOut={handleSignOut}
         onClientsFound={refreshProfile}
       />
     )
@@ -181,7 +187,7 @@ export default function App() {
         onToggleDark={() => setDarkMode((d) => !d)}
         userEmail={user?.email}
         userAvatarUrl={member?.avatar_url}
-        onSignOut={signOut}
+        onSignOut={handleSignOut}
         selectedClient={selectedClient ?? null}
         availableClients={clients}
         onSelectClient={handleSelectClient}
@@ -189,7 +195,7 @@ export default function App() {
         onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
       />
 
-      <div className="flex flex-row flex-1 overflow-hidden">
+      <div className={`flex flex-row flex-1 overflow-hidden transition-opacity duration-300 ${isLoggingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <AppSidebar
             open={sidebarOpen}
             onToggle={handleToggleSidebar}
@@ -203,7 +209,7 @@ export default function App() {
             onToggleDark={() => setDarkMode((d) => !d)}
             userEmail={user?.email}
             userAvatarUrl={member?.avatar_url}
-            onSignOut={signOut}
+            onSignOut={handleSignOut}
           />
 
         <main key={view} className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 animate-blur-fade-in">

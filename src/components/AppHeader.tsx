@@ -144,7 +144,7 @@ export function AppHeader({
                   Perfil
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onSignOut}>
+                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onSignOut(); }}>
                   <LogOut className="w-4 h-4" />
                   Sair
                 </DropdownMenuItem>
