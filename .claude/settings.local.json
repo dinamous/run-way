@@ -24,8 +24,22 @@
       "Bash(grep -n \"import.meta\" src/api/tasksRoutes.ts src/lib/*.ts src/utils/*.ts)",
       "Bash(npx vitest:*)",
       "Bash(cat c:/Users/dinam/Documents/Projetos/run-way/.eslintrc*)",
-      "Bash(grep -E \"\\(eyJ[A-Za-z0-9+/=]{20,}|https://[a-z]{20,}\\\\.supabase\\\\.co|sb-[a-z0-9\\\\-]+-auth-token\\)\")"
+      "Bash(grep -E \"\\(eyJ[A-Za-z0-9+/=]{20,}|https://[a-z]{20,}\\\\.supabase\\\\.co|sb-[a-z0-9\\\\-]+-auth-token\\)\")",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)"
     ]
+  },
+  "extraKnownMarketplaces": {
+    "vercel": {
+      "source": {
+        "source": "github",
+        "repo": "vercel/vercel-plugin"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "vercel@vercel": true
   },
   "hooks": {
     "Stop": [

@@ -27,7 +27,7 @@ export function AdminView() {
   const [tab, setTab] = useState<AdminTab>('clients')
   const { member, impersonatedClientId, setImpersonatedClientId } = useAuthContext()
   const {
-    clients, users, auditLogs, loading, loadingInitial, error, userClientsMap,
+    clients, users, auditLogs, loading, loadingInitial, error, userClientsMap, pendingUsers,
     refreshAll,
     fetchAuditLogs,
     createClient, updateClient, deleteClient,
@@ -138,6 +138,7 @@ export function AdminView() {
               onSetAuthId={setUserAuthId}
               onListGoogleUsers={listGoogleUsers}
               userClientsMap={userClientsMap}
+              pendingUsers={pendingUsers}
             />
           </div>
         )}

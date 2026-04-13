@@ -46,8 +46,8 @@ npm run lint      # ESLint
 
 | Workflow | Trigger | O que faz |
 |---|---|---|
-| `secrets.yml` | push (todas branches) + PR→main | Scan de secrets com Gitleaks |
-| `test.yml` | push (todas branches) + PR→main | Vitest + ESLint em paralelo |
+| `secrets.yml` | push (todas branches) + PR→main/develop | Scan de secrets com Gitleaks |
+| `test.yml` | push (todas branches) + PR→main/develop | Vitest + ESLint em paralelo |
 | `codeql.yml` | push/PR→main + domingo 00h UTC | Análise de vulnerabilidades CodeQL |
 | `tag-version.yml` | push→main | Tag git automática ao bumpar versão no package.json |
 | `no-friday-deploy.yml` | PR→main | Bloqueia merge às sextas-feiras |
@@ -60,6 +60,7 @@ npm run lint      # ESLint
 | Estrutura, fluxo de dados, decisões | [docs/architecture.md](docs/architecture.md) |
 | DashboardView, Calendar, Timeline, drag-drop | [docs/views/dashboard.md](docs/views/dashboard.md) |
 | MembersView, capacidade | [docs/views/members.md](docs/views/members.md) |
+| AdminView, UsersPanel, useAdminData | [docs/views/admin.md](docs/views/admin.md) |
 | TaskModal, cascata de fases | [docs/components/task-modal.md](docs/components/task-modal.md) |
 | Design system (Button, Input, Label, Badge) | [docs/components/ui.md](docs/components/ui.md) |
 | useSupabase, CRUD, steps | [docs/hooks/supabase.md](docs/hooks/supabase.md) |

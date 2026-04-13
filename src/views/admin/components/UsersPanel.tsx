@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
@@ -12,9 +12,11 @@ import {
   DrawerDescription,
 } from '@/components/ui/Drawer'
 import { toast } from 'sonner'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import type { Member } from '@/hooks/useSupabase'
+import type { PendingAuthUser } from '../hooks/useAdminData'
 import type { DbClientRow } from '@/types/db'
-import { Plus, Building, Check, Search, UserCheck, ChevronLeft, ChevronRight, Key, Clock, Mail } from 'lucide-react'
+import { Plus, Building, Check, Search, UserCheck, ChevronLeft, ChevronRight, Key, Clock, Mail, Link2 } from 'lucide-react'
 
 interface GoogleUser {
   id: string
@@ -42,6 +44,7 @@ interface UsersPanelProps {
   onSetAuthId: (userId: string, authUserId: string | null, avatarUrl?: string | null) => Promise<boolean>
   onListGoogleUsers: (search?: string) => Promise<GoogleUser[]>
   userClientsMap: Record<string, string[]>
+  pendingUsers: PendingAuthUser[]
 }
 
 const PAGE_SIZE = 12
@@ -142,9 +145,10 @@ type ValidationErrors = {
 }
 
 type StatusFilter = 'all' | 'active' | 'pending'
+type CurrentTab = 'members' | 'pending'
 
 export function UsersPanel({
-  users, clients, onSetRole, onLink, onUnlink, onCreate, onUpdate, onSetAuthId, onListGoogleUsers, userClientsMap
+  users, clients, onSetRole, onLink, onUnlink, onCreate, onUpdate, onSetAuthId, onListGoogleUsers, userClientsMap, pendingUsers
 }: UsersPanelProps) {
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false)
@@ -156,6 +160,7 @@ export function UsersPanel({
   const [editClients, setEditClients] = useState<string[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
   const [editErrors, setEditErrors] = useState<ValidationErrors>({})
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
 
   const [createName, setCreateName] = useState('')
   const [createRole, setCreateRole] = useState('')
@@ -168,6 +173,13 @@ export function UsersPanel({
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [page, setPage] = useState(1)
+  const [currentTab, setCurrentTab] = useState<CurrentTab>('members')
+
+  const [linkDrawerOpen, setLinkDrawerOpen] = useState(false)
+  const [linkingPendingUser, setLinkingPendingUser] = useState<PendingAuthUser | null>(null)
+  const [linkSearch, setLinkSearch] = useState('')
+  const [linkingUserId, setLinkingUserId] = useState<string | null>(null)
+  const [linking, setLinking] = useState(false)
 
   const [googleSearch, setGoogleSearch] = useState('')
   const [googleResults, setGoogleResults] = useState<GoogleUser[]>([])
@@ -226,7 +238,7 @@ export function UsersPanel({
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPage(1) }, [searchQuery])
 
-  const openEditDrawer = (user: Member) => {
+  const openEditDrawer = useCallback((user: Member) => {
     setEditingUser(user)
     setEditName(user.name)
     setEditUserRole(user.role)
@@ -236,9 +248,23 @@ export function UsersPanel({
     setEditGoogleSearch('')
     setEditGoogleResults([])
     setEditDrawerOpen(true)
+  }, [userClientsMap])
+
+  const hasUnsavedEditChanges = () => {
+    if (!editingUser) return false
+    const currentClientIds = userClientsMap[editingUser.id] ?? []
+    return (
+      editName.trim() !== editingUser.name ||
+      editUserRole.trim() !== editingUser.role ||
+      editEmail.trim() !== (editingUser.email ?? '') ||
+      editRole !== (editingUser.access_role ?? 'user') ||
+      editClients.length !== currentClientIds.length ||
+      editClients.some(id => !currentClientIds.includes(id)) ||
+      (editGoogleSearch !== '' && editGoogleSearch !== (editingUser.email ?? ''))
+    )
   }
 
-  const closeEditDrawer = () => {
+  const resetEditState = () => {
     setEditDrawerOpen(false)
     setEditingUser(null)
     setEditName('')
@@ -250,7 +276,15 @@ export function UsersPanel({
     setSavingEdit(false)
   }
 
-  const openCreateDrawer = () => {
+  const closeEditDrawer = (force = false) => {
+    if (!force && hasUnsavedEditChanges()) {
+      setShowDiscardConfirm(true)
+      return
+    }
+    resetEditState()
+  }
+
+  const openCreateDrawer = useCallback(() => {
     setCreateName('')
     setCreateRole('')
     setCreateEmail('')
@@ -260,7 +294,7 @@ export function UsersPanel({
     setGoogleSearch('')
     setGoogleResults([])
     setCreateDrawerOpen(true)
-  }
+  }, [])
 
   const closeCreateDrawer = () => {
     setCreateDrawerOpen(false)
@@ -376,7 +410,11 @@ export function UsersPanel({
       )
     }
 
-    const roleOk = await onSetRole(editingUser.id, editRole)
+    const accessRoleChanged = editRole !== (editingUser.access_role ?? 'user')
+    let roleOk = true
+    if (accessRoleChanged) {
+      roleOk = await onSetRole(editingUser.id, editRole)
+    }
 
     const currentClientIds = userClientsMap[editingUser.id] ?? []
     const toAdd = editClients.filter(id => !currentClientIds.includes(id))
@@ -409,7 +447,7 @@ export function UsersPanel({
     setSavingEdit(false)
     if (basicOk && (roleOk || clientOk || authChanged)) {
       toast.success('Utilizador atualizado')
-      closeEditDrawer()
+      closeEditDrawer(true)
     } else if (!basicOk) {
       toast.error('Erro ao atualizar dados do utilizador')
     } else if (!authOk) {
@@ -419,26 +457,12 @@ export function UsersPanel({
     }
   }
 
-  const handleLinkClient = async (clientId: string, clientName: string) => {
-    if (!editingUser) return
-    const ok = await onLink(editingUser.id, clientId)
-    if (ok) {
-      setEditClients(prev => [...prev, clientId])
-      toast.success(`${clientName} adicionado`)
-    } else {
-      toast.error('Erro ao adicionar')
-    }
+  const handleLinkClient = (_clientId: string, _clientName: string) => {
+    setEditClients(prev => [...prev, _clientId])
   }
 
-  const handleUnlinkClient = async (clientId: string, clientName: string) => {
-    if (!editingUser) return
-    const ok = await onUnlink(editingUser.id, clientId)
-    if (ok) {
-      setEditClients(prev => prev.filter(id => id !== clientId))
-      toast.success(`${clientName} removido`)
-    } else {
-      toast.error('Erro ao remover')
-    }
+  const handleUnlinkClient = (_clientId: string, _clientName: string) => {
+    setEditClients(prev => prev.filter(id => id !== _clientId))
   }
 
   const toggleCreateClient = (clientId: string) => {
@@ -449,10 +473,10 @@ export function UsersPanel({
     )
   }
 
-  const getUserClients = (userId: string) => {
+  const getUserClients = useCallback((userId: string) => {
     const clientIds = userClientsMap[userId] ?? []
     return clients.filter(c => clientIds.includes(c.id))
-  }
+  }, [clients, userClientsMap])
 
   const createNameId = 'create-user-name'
   const createRoleId = 'create-user-role'
@@ -462,8 +486,8 @@ export function UsersPanel({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2 flex-1 min-w-[300px] max-w-2xl">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-2 flex-1 min-w-[300px]">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por nome, cargo ou email..."
@@ -474,51 +498,126 @@ export function UsersPanel({
           </div>
           <div className="flex gap-1 bg-muted p-1 rounded-lg">
             <button
-              onClick={() => { setStatusFilter('all'); setPage(1) }}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                statusFilter === 'all'
+              onClick={() => { setCurrentTab('members'); setPage(1) }}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                currentTab === 'members'
                   ? 'bg-background shadow-sm font-medium'
                   : 'hover:bg-background/50 text-muted-foreground'
               }`}
             >
-              Todos
+              Membros
             </button>
             <button
-              onClick={() => { setStatusFilter('active'); setPage(1) }}
+              onClick={() => { setCurrentTab('pending'); setPage(1) }}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                statusFilter === 'active'
-                  ? 'bg-background shadow-sm font-medium'
-                  : 'hover:bg-background/50 text-muted-foreground'
-              }`}
-            >
-              <Key className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-              Ativos
-            </button>
-            <button
-              onClick={() => { setStatusFilter('pending'); setPage(1) }}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                statusFilter === 'pending'
+                currentTab === 'pending'
                   ? 'bg-background shadow-sm font-medium'
                   : 'hover:bg-background/50 text-muted-foreground'
               }`}
             >
               <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-              Pendentes
+              Pendentes ({pendingUsers.length})
             </button>
           </div>
+          {currentTab === 'members' && (
+            <div className="flex gap-1 bg-muted p-1 rounded-lg">
+              <button
+                onClick={() => { setStatusFilter('all'); setPage(1) }}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  statusFilter === 'all'
+                    ? 'bg-background shadow-sm font-medium'
+                    : 'hover:bg-background/50 text-muted-foreground'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => { setStatusFilter('active'); setPage(1) }}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                  statusFilter === 'active'
+                    ? 'bg-background shadow-sm font-medium'
+                    : 'hover:bg-background/50 text-muted-foreground'
+                }`}
+              >
+                <Key className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                Ativos
+              </button>
+              <button
+                onClick={() => { setStatusFilter('pending'); setPage(1) }}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                  statusFilter === 'pending'
+                    ? 'bg-background shadow-sm font-medium'
+                    : 'hover:bg-background/50 text-muted-foreground'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                Pendentes
+              </button>
+            </div>
+)}
         </div>
-        <Button onClick={openCreateDrawer} aria-label="Criar novo utilizador">
-          <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
-          Novo usuário
-        </Button>
+
+        {currentTab === 'members' && (
+          <Button onClick={openCreateDrawer} aria-label="Criar novo utilizador">
+            <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
+            Novo usuário
+          </Button>
+        )}
       </div>
 
-      <div className="text-sm text-muted-foreground">
-        Mostrando {filteredUsers.length > 0 ? (page - 1) * PAGE_SIZE + 1 : 0} - {Math.min(page * PAGE_SIZE, filteredUsers.length)} de {filteredUsers.length} utilizador(es)
-      </div>
+      {currentTab === 'members' && (
+        <div className="text-sm text-muted-foreground">
+          Mostrando {filteredUsers.length > 0 ? (page - 1) * PAGE_SIZE + 1 : 0} - {Math.min(page * PAGE_SIZE, filteredUsers.length)} de {filteredUsers.length} utilizador(es)
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {paginatedUsers.map(u => {
+        {currentTab === 'pending' && pendingUsers.length === 0 && (
+          <div className="col-span-full py-12 text-center">
+            <p className="text-muted-foreground">Nenhum usuário pendente</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Usuários que fizerem login com o domínio permitido mas ainda não foram vinculados aparecerão aqui.
+            </p>
+          </div>
+        )}
+        {currentTab === 'pending' && pendingUsers.length > 0 && pendingUsers.map(pu => (
+          <Card key={pu.id}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium overflow-hidden relative">
+                  {pu.avatarUrl ? (
+                    <img src={pu.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    pu.email.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-base truncate">{pu.name}</CardTitle>
+                  <CardDescription className="text-xs truncate">{pu.email}</CardDescription>
+                  {pu.lastSignInAt && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      Último login: {new Date(pu.lastSignInAt).toLocaleDateString('pt-BR')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setLinkingPendingUser(pu)
+                  setLinkDrawerOpen(true)
+                }}
+              >
+                <Link2 className="w-4 h-4 mr-1" />
+                Vincular
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+        {currentTab === 'members' && paginatedUsers.map(u => {
           const ucs = getUserClients(u.id)
           const hasEmail = !!u.email
           const hasGoogle = !!u.auth_user_id
@@ -532,8 +631,6 @@ export function UsersPanel({
                     ) : (
                       u.name.charAt(0).toUpperCase()
                     )}
-                    
-                    
                   </div>
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-base truncate">{u.name}</CardTitle>
@@ -589,8 +686,6 @@ export function UsersPanel({
                       Ativo
                     </span>
                   )}
-
-                  
                 </div>
               </CardContent>
             </Card>
@@ -598,7 +693,7 @@ export function UsersPanel({
         })}
       </div>
 
-      {totalPages > 1 && (
+      {currentTab === 'members' && totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           <Button
             variant="outline"
@@ -766,57 +861,58 @@ export function UsersPanel({
               )}
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-base font-medium">Conta Google</Label>
-              <p className="text-xs text-muted-foreground -mt-2">
-                Busque uma conta Google já cadastrada para vincular agora. Pode deixar para depois.
-              </p>
-              <div className="relative" ref={googleDropdownRef}>
-                <Input
-                  type="email"
-                  value={googleSearch}
-                  onChange={e => handleGoogleSearchChange(e.target.value)}
-                  onFocus={() => { if (googleSearch) handleGoogleSearch(googleSearch) }}
-                  placeholder="Buscar email Google..."
-                  className="w-full"
-                />
-                {showGoogleDropdown && googleResults.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {googleResults.map(u => (
-                      <div
-                        key={u.id}
-                        className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer"
-                        onClick={() => {
-                          setGoogleSearch(u.email)
-                          setShowGoogleDropdown(false)
-                        }}
-                      >
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-                          {u.avatarUrl ? (
-                            <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <UserCheck className="w-4 h-4 text-primary" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{u.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                        </div>
+          </div>
+
+          <div className="px-6 pb-4 space-y-3">
+            <Label className="text-base font-medium">Conta Google</Label>
+            <p className="text-xs text-muted-foreground -mt-2">
+              Busque uma conta Google já cadastrada para vincular agora. Pode deixar para depois.
+            </p>
+            <div className="relative" ref={googleDropdownRef}>
+              <Input
+                type="email"
+                value={googleSearch}
+                onChange={e => handleGoogleSearchChange(e.target.value)}
+                onFocus={() => { if (googleSearch) handleGoogleSearch(googleSearch) }}
+                placeholder="Buscar email Google..."
+                className="w-full"
+              />
+              {showGoogleDropdown && googleResults.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {googleResults.map(u => (
+                    <div
+                      key={u.id}
+                      className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer"
+                      onClick={() => {
+                        setGoogleSearch(u.email)
+                        setShowGoogleDropdown(false)
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                        {u.avatarUrl ? (
+                          <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <UserCheck className="w-4 h-4 text-primary" />
+                        )}
                       </div>
-                    ))}
-                  </div>
-                )}
-                {showGoogleDropdown && googleSearch && googleResults.length === 0 && !loadingGoogle && (
-                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg p-3 text-sm text-muted-foreground">
-                    Nenhum utilizador Google encontrado
-                  </div>
-                )}
-                {loadingGoogle && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  </div>
-                )}
-              </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{u.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showGoogleDropdown && googleSearch && googleResults.length === 0 && !loadingGoogle && (
+                <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg p-3 text-sm text-muted-foreground">
+                  Nenhum utilizador Google encontrado
+                </div>
+              )}
+              {loadingGoogle && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
             </div>
           </div>
 
@@ -833,7 +929,7 @@ export function UsersPanel({
         </DrawerContent>
       </Drawer>
 
-      <Drawer direction="right" open={editDrawerOpen} onOpenChange={setEditDrawerOpen}>
+      <Drawer direction="right" open={editDrawerOpen} onOpenChange={open => { if (!open) closeEditDrawer() }}>
         <DrawerContent data-vaul-drawer-direction="right">
           <DrawerHeader>
             <DrawerTitle>Editar Utilizador</DrawerTitle>
@@ -957,72 +1053,6 @@ export function UsersPanel({
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-base font-medium">Conta Google</Label>
-                  <div className="relative" ref={editGoogleDropdownRef}>
-                    <Input
-                      type="email"
-                      value={editGoogleSearch}
-                      onChange={e => handleGoogleSearchChange(e.target.value, true)}
-                      onFocus={() => { if (editGoogleSearch) handleGoogleSearch(editGoogleSearch, true) }}
-                      placeholder="Buscar email Google..."
-                      className="w-full"
-                    />
-                    {editShowGoogleDropdown && editGoogleResults.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {editGoogleResults.map(u => (
-                          <div
-                            key={u.id}
-                            className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer"
-                            onClick={() => {
-                              setEditGoogleSearch(u.email)
-                              setEditShowGoogleDropdown(false)
-                            }}
-                          >
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-                              {u.avatarUrl ? (
-                                <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <UserCheck className="w-4 h-4 text-primary" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{u.name}</p>
-                              <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {editShowGoogleDropdown && editGoogleSearch && editGoogleResults.length === 0 && !editLoadingGoogle && (
-                      <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg p-3 text-sm text-muted-foreground">
-                        Nenhum utilizador Google encontrado
-                      </div>
-                    )}
-                    {editLoadingGoogle && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      </div>
-                    )}
-                  </div>
-                  {editingUser.auth_user_id && !editGoogleSearch && (
-                    <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                      <p className="text-sm text-green-800 dark:text-green-200 font-medium flex items-center gap-2">
-                        <Check className="w-4 h-4" />
-                        Conta Google vinculada
-                      </p>
-                      <p className="text-xs text-green-600 dark:text-green-400 font-mono mt-1">
-                        {editingUser.auth_user_id}
-                      </p>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    {editingUser.auth_user_id
-                      ? 'Substitua a conta Google por outra ou deixe vazio para desvincular.'
-                      : 'Busque e vincule uma conta Google para ativar o utilizador.'}
-                  </p>
-                </div>
-
-                <div className="space-y-3">
                   <Label className="text-base font-medium">Clientes associados</Label>
                   {clients.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-lg">
@@ -1063,12 +1093,188 @@ export function UsersPanel({
             )}
           </div>
 
+          {editingUser && (
+            <div className="px-6 pb-4 space-y-3">
+              <Label className="text-base font-medium">Conta Google</Label>
+              <div className="relative" ref={editGoogleDropdownRef}>
+                <Input
+                  type="email"
+                  value={editGoogleSearch}
+                  onChange={e => handleGoogleSearchChange(e.target.value, true)}
+                  onFocus={() => { if (editGoogleSearch) handleGoogleSearch(editGoogleSearch, true) }}
+                  placeholder="Buscar email Google..."
+                  className="w-full"
+                />
+                {editShowGoogleDropdown && editGoogleResults.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {editGoogleResults.map(u => (
+                      <div
+                        key={u.id}
+                        className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer"
+                        onClick={() => {
+                          setEditGoogleSearch(u.email)
+                          setEditShowGoogleDropdown(false)
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                          {u.avatarUrl ? (
+                            <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <UserCheck className="w-4 h-4 text-primary" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{u.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {editShowGoogleDropdown && editGoogleSearch && editGoogleResults.length === 0 && !editLoadingGoogle && (
+                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg p-3 text-sm text-muted-foreground">
+                    Nenhum utilizador Google encontrado
+                  </div>
+                )}
+                {editLoadingGoogle && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+              {editingUser.auth_user_id && !editGoogleSearch && (
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <p className="text-sm text-green-800 dark:text-green-200 font-medium flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    Conta Google vinculada
+                  </p>
+                  <p className="text-xs text-green-600 dark:text-green-400 font-mono mt-1">
+                    {editingUser.auth_user_id}
+                  </p>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {editingUser.auth_user_id
+                  ? 'Substitua a conta Google por outra ou deixe vazio para desvincular.'
+                  : 'Busque e vincule uma conta Google para ativar o utilizador.'}
+              </p>
+            </div>
+          )}
+
           <DrawerFooter className="flex-row justify-end gap-2">
-            <Button variant="outline" onClick={closeEditDrawer} disabled={savingEdit}>Cancelar</Button>
+            <Button variant="outline" onClick={() => closeEditDrawer()} disabled={savingEdit}>Cancelar</Button>
             <Button onClick={handleUpdateUser} isLoading={savingEdit}>Guardar</Button>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      <Drawer direction="right" open={linkDrawerOpen} onOpenChange={setLinkDrawerOpen}>
+        <DrawerContent data-vaul-drawer-direction="right">
+          <DrawerHeader>
+            <DrawerTitle>Vincular Utilizador</DrawerTitle>
+            <DrawerDescription>
+              Selecione o membro para vincular a esta conta Google.
+            </DrawerDescription>
+          </DrawerHeader>
+
+          {linkingPendingUser && (
+            <div className="px-6 pb-6 space-y-4 overflow-y-auto max-h-[calc(100vh-200px)]">
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-lg font-medium overflow-hidden">
+                  {linkingPendingUser.avatarUrl ? (
+                    <img src={linkingPendingUser.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    linkingPendingUser.email.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{linkingPendingUser.name}</p>
+                  <p className="text-sm text-muted-foreground truncate">{linkingPendingUser.email}</p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="link-search">Buscar membro</Label>
+                <Input
+                  id="link-search"
+                  value={linkSearch}
+                  onChange={e => setLinkSearch(e.target.value)}
+                  placeholder="Buscar por nome ou cargo..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Apenas membros sem conta Google vinculada são mostrados.
+                </p>
+              </div>
+
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {users
+                  .filter(u => !u.auth_user_id)
+                  .filter(u =>
+                    !linkSearch.trim() ||
+                    u.name.toLowerCase().includes(linkSearch.toLowerCase()) ||
+                    u.role.toLowerCase().includes(linkSearch.toLowerCase())
+                  )
+                  .map(u => (
+                    <div
+                      key={u.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                        linkingUserId === u.id
+                          ? 'bg-primary/10 border border-primary'
+                          : 'border hover:bg-muted/50'
+                      }`}
+                      onClick={() => setLinkingUserId(u.id)}
+                    >
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        linkingUserId === u.id ? 'bg-primary border-primary' : 'border-muted-foreground'
+                      }`}>
+                        {linkingUserId === u.id && <Check className="w-3 h-3 text-primary-foreground" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{u.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{u.role}</p>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          <DrawerFooter className="flex-row justify-end gap-2">
+            <Button variant="outline" onClick={() => { setLinkDrawerOpen(false); setLinkingUserId(null); setLinkingPendingUser(null); setLinkSearch('') }} disabled={linking}>Cancelar</Button>
+            <Button
+              onClick={async () => {
+                if (!linkingUserId || !linkingPendingUser) return
+                setLinking(true)
+                const ok = await onSetAuthId(linkingUserId, linkingPendingUser.id, linkingPendingUser.avatarUrl)
+                setLinking(false)
+                if (ok) {
+                  toast.success('Utilizador vinculado com sucesso')
+                  setLinkDrawerOpen(false)
+                  setLinkingUserId(null)
+                  setLinkingPendingUser(null)
+                } else {
+                  toast.error('Erro ao vincular utilizador')
+                }
+              }}
+              isLoading={linking}
+              disabled={!linkingUserId}
+            >
+              Vincular
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      {showDiscardConfirm && (
+        <ConfirmModal
+          title="Descartar alterações?"
+          message="Há alterações não salvas. Se fechar agora, elas serão perdidas."
+          confirmLabel="Descartar"
+          cancelLabel="Continuar editando"
+          onConfirm={() => { setShowDiscardConfirm(false); resetEditState() }}
+          onCancel={() => setShowDiscardConfirm(false)}
+        />
+      )}
     </div>
   )
 }

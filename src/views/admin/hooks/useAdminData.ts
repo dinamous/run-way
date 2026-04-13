@@ -7,6 +7,16 @@ import { useTaskStore } from '@/store/useTaskStore'
 import { useMemberStore } from '@/store/useMemberStore'
 import { useClientStore } from '@/store/useClientStore'
 
+const ALLOWED_DOMAIN = import.meta.env.VITE_ALLOWED_DOMAIN as string | undefined
+
+export interface PendingAuthUser {
+  id: string
+  email: string
+  name: string
+  avatarUrl: string | null
+  lastSignInAt: string | null
+}
+
 export interface AuditFilters {
   clientId?: string
   entityName?: string
@@ -32,6 +42,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
   const [users, setUsers] = useState<Member[]>([])
   const [auditLogs, setAuditLogs] = useState<DbAuditLogRow[]>([])
   const [userClientsMap, setUserClientsMap] = useState<Record<string, string[]>>({})
+  const [pendingUsers, setPendingUsers] = useState<PendingAuthUser[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingInitial, setLoadingInitial] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -68,6 +79,35 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       map[user_id].push(client_id)
     })
     setUserClientsMap(map)
+  }, [])
+
+  const fetchPendingUsers = useCallback(async () => {
+    if (!supabaseAdmin) return
+    const { data, error: queryError } = await supabaseAdmin.auth.admin.listUsers()
+    if (queryError || !data) return
+
+    const { data: members } = await supabaseAdmin
+      .from('members')
+      .select('auth_user_id')
+    const linkedAuthIds = new Set((members ?? []).map(m => m.auth_user_id).filter(Boolean))
+
+    const pending: PendingAuthUser[] = []
+    for (const u of data.users) {
+      if (!u.email) continue
+      const domain = u.email.split('@')[1]
+      if (ALLOWED_DOMAIN && domain !== ALLOWED_DOMAIN) continue
+      if (linkedAuthIds.has(u.id)) continue
+
+      pending.push({
+        id: u.id,
+        email: u.email,
+        name: u.user_metadata?.full_name ?? u.email.split('@')[0],
+        avatarUrl: u.user_metadata?.avatar_url ?? null,
+        lastSignInAt: u.last_sign_in_at ?? null,
+      })
+    }
+
+    setPendingUsers(pending)
   }, [])
 
   const fetchAuditLogs = useCallback(async (filters: AuditFilters = {}) => {
@@ -107,13 +147,13 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     setLoadingInitial(true)
     setError(null)
     try {
-      await Promise.all([fetchClients(), fetchUsers(), fetchUserClientsMap()])
+      await Promise.all([fetchClients(), fetchUsers(), fetchUserClientsMap(), fetchPendingUsers()])
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
     } finally {
       setLoadingInitial(false)
     }
-  }, [fetchClients, fetchUsers, fetchUserClientsMap])
+  }, [fetchClients, fetchUsers, fetchUserClientsMap, fetchPendingUsers])
 
   const reloadAppStores = useCallback(async () => {
     invalidateTasks()
@@ -350,7 +390,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
   }, [refreshAll])
 
   return {
-    clients, users, auditLogs, loading, loadingInitial, error, userClientsMap,
+    clients, users, auditLogs, loading, loadingInitial, error, userClientsMap, pendingUsers,
     refreshAll,
     fetchAuditLogs, fetchClients, fetchUsers,
     createClient, updateClient, deleteClient,

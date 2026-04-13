@@ -21,6 +21,7 @@ src/
 │   ├── tools/                 # ToolsView — ferramentas utilitárias (skeleton/mocks)
 │   ├── admin/                 # AdminView (apenas admins)
 │   ├── login/                 # LoginView
+│   ├── onboarding/            # OnboardingView — usuário autenticado sem cliente associado
 │   └── user/                  # UserClientsView + useUserClients
 ├── store/
 │   ├── useUIStore.ts          # Estado de UI: view ativa, modal aberto/fechado
@@ -32,7 +33,7 @@ src/
 │   ├── useHolidays.ts         # Feriados
 │   └── useFormState.ts        # Estado do formulário TaskModal
 ├── contexts/
-│   └── AuthContext.tsx        # Sessão, member, clients, isAdmin
+│   └── AuthContext.tsx        # Sessão, member, clients, isAdmin, refreshProfile
 ├── lib/
 │   ├── supabase.ts            # Cliente Supabase
 │   ├── steps.ts               # Definição e lógica de steps
@@ -48,7 +49,7 @@ src/
 
 ```
 AuthContext (AuthProvider)
-    ↓ session, member, clients (filtrado por access_role), isAdmin
+    ↓ session, member, clients (filtrado por access_role), isAdmin, refreshProfile
 App.tsx (inicialização, roteamento, clientMembers)
     ├── useClientStore  → selectedClientId (persist)
     ├── useDataStore    → tasks, members, fetchData, invalidate
@@ -100,6 +101,35 @@ invalidate()                    // limpa cache (tasks, members, cachedClientId)
 
 ### `appStore.ts`
 Re-export de compatibilidade: `useAppStore = useDataStore`. Consumers existentes (views, `useSupabase`) não precisam de alteração.
+
+## Fluxo de Autenticação — Retornos Condicionais em App.tsx
+
+Antes do layout principal (sidebar + header), `App.tsx` aplica retornos condicionais em ordem:
+
+| Condição | View renderizada |
+|---|---|
+| `authLoading` | Spinner fullscreen |
+| `!session` | `LoginView` |
+| `session && !hasClients` | `OnboardingView` — usuário sem cliente associado |
+| _(nenhuma das anteriores)_ | Layout completo com sidebar, header e views |
+
+### OnboardingView (`src/views/onboarding/`)
+
+Tela fullscreen exibida quando o usuário está autenticado mas não foi associado a nenhum cliente pelo gestor. Características:
+- Sem sidebar e sem header
+- Ilustração SVG de pista de decolagem com avião animado (keyframe `runway-float`)
+- Mensagem explicativa e botão de logout
+- **Polling automático** a cada 30s: consulta `user_clients` no Supabase; ao detectar clientes, chama `refreshProfile()` do `AuthContext` para recarregar o estado sem reiniciar o fluxo de auth
+
+### `refreshProfile` (AuthContext)
+
+```ts
+refreshProfile: () => Promise<void>
+```
+
+Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de autenticação. Usado pela `OnboardingView` após detectar que o usuário foi associado a um cliente.
+
+---
 
 ## Fluxo de Inicialização (sem race condition)
 
