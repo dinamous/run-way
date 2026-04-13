@@ -11,6 +11,7 @@ import ReportsView from "./views/reports";
 import { AdminView } from "./views/admin";
 import { RequireAdmin } from "./components/RequireAdmin";
 import { LoginView } from "./views/login";
+import { OnboardingView } from "./views/onboarding";
 import { UserClientsView } from "./views/user/UserClientsView";
 import { NoClientView } from "./components/NoClientView";
 import { HomeView } from "./views/home";
@@ -25,7 +26,7 @@ import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
 import { ConfirmModal, TooltipProvider } from "@/components/ui";
 
 export default function App() {
-  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients } = useAuthContext();
+  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients, refreshProfile } = useAuthContext();
   const accessRole = resolveAccessRole(member);
 
   const hasClients = clients.length > 0;
@@ -131,6 +132,16 @@ export default function App() {
 
   if (!session) {
     return <LoginView onSignIn={signIn} error={authError} />;
+  }
+
+  if (!hasClients) {
+    return (
+      <OnboardingView
+        userName={member?.name ?? user?.email}
+        onSignOut={signOut}
+        onClientsFound={refreshProfile}
+      />
+    )
   }
 
   const requestDeleteTask = (id: string, closeModalAfterDelete = false) => {
