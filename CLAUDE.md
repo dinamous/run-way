@@ -46,8 +46,8 @@ npm run lint      # ESLint
 
 | Workflow | Trigger | O que faz |
 |---|---|---|
-| `secrets.yml` | push (todas branches) + PR→main | Scan de secrets com Gitleaks |
-| `test.yml` | push (todas branches) + PR→main | Vitest + ESLint em paralelo |
+| `secrets.yml` | push (todas branches) + PR→main/develop | Scan de secrets com Gitleaks |
+| `test.yml` | push (todas branches) + PR→main/develop | Vitest + ESLint em paralelo |
 | `codeql.yml` | push/PR→main + domingo 00h UTC | Análise de vulnerabilidades CodeQL |
 | `tag-version.yml` | push→main | Tag git automática ao bumpar versão no package.json |
 | `no-friday-deploy.yml` | PR→main | Bloqueia merge às sextas-feiras |
