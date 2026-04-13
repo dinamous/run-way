@@ -23,6 +23,7 @@ interface AuthContextValue {
   signOut: () => void
   authError: string | null
   loading: boolean
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -213,6 +214,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const refreshProfile = async () => {
+    if (!user) return
+    await loadProfile(user.id, user.email ?? undefined)
+  }
+
   const signIn = () =>
     supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -226,7 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session, user, member, clients,
       isAdmin: member?.access_role === 'admin',
       impersonatedClientId, setImpersonatedClientId,
-      signIn, signOut, authError, loading,
+      signIn, signOut, authError, loading, refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>
