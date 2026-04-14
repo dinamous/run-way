@@ -11,11 +11,14 @@ src/views/admin/
 ├── AdminView.tsx              # Shell: abas + roteamento interno
 ├── index.ts
 ├── hooks/
-│   └── useAdminData.ts        # Todos os fetches e mutations admin
+│   └── useAdminData.ts        # Hook fino: mutations + bridge para a store
 └── components/
     ├── ClientsPanel.tsx       # Gestão de clientes
     ├── UsersPanel.tsx         # Gestão de membros e vínculos
     └── AuditLogsPanel.tsx     # Log de auditoria com filtros
+
+src/store/
+└── useAdminStore.ts           # Estado e fetches admin (Zustand)
 ```
 
 ## Abas
@@ -26,11 +29,11 @@ src/views/admin/
 | Usuários | `UsersPanel` | CRUD de membros; vínculo com conta Google |
 | Audit Log | `AuditLogsPanel` | Histórico de ações com filtros |
 
-## useAdminData
+## useAdminStore
 
-Hook centraliza todos os dados e mutations da AdminView. Usa `supabaseAdmin` (service role) para todas as operações.
+Store Zustand (`src/store/useAdminStore.ts`) que centraliza o estado e as ações de fetch da AdminView. Persiste os dados entre montagens — navegar para outra view e voltar não re-faz os fetches.
 
-**Estado exposto:**
+**Estado:**
 ```ts
 clients: DbClientRow[]
 users: Member[]
@@ -40,16 +43,32 @@ pendingUsers: PendingAuthUser[]            // contas Google sem member vinculado
 loading: boolean
 loadingInitial: boolean
 error: string | null
+initialized: boolean   // true após o primeiro refreshAll completo
 ```
+
+**Ações de fetch:**
+- `refreshAll()` — carrega clients, users, userClientsMap e pendingUsers em paralelo; no-op se já `loadingInitial`
+- `fetchClients / fetchUsers / fetchUserClientsMap / fetchPendingUsers` — fetches individuais chamados pelas mutations
+- `fetchAuditLogs(filters)` — filtros: clientId, entity, userId, entityName, from/to
+- `invalidate()` — limpa todo o estado e reseta `initialized` (usado por logout/troca de contexto)
+
+Os tipos `PendingAuthUser` e `AuditFilters` são definidos e exportados do store.
+
+## useAdminData
+
+Hook fino (`src/views/admin/hooks/useAdminData.ts`) que consome `useAdminStore` e expõe mutations. Responsabilidades:
+
+- Lê estado da store e repassa para os componentes
+- Dispara `refreshAll()` apenas se `!initialized` (evita re-fetch ao remontar)
+- Contém todas as mutations (CRUD clients/users, vínculos, deactivate/reactivate) que dependem de `actorUserId` e chamam `reloadAppStores` após concluir
 
 **Mutations:**
 - `createClient / updateClient / deleteClient`
 - `linkUserToClient / unlinkUserFromClient`
 - `createUser / updateUser / setUserRole / setUserAuthId`
-- `deactivateUser(userId)` — seta `is_active: false` no member; preserva tasks e steps
-- `reactivateUser(userId)` — seta `is_active: true` no member
+- `deactivateUser(userId)` — seta `is_active: false` e `deactivated_at: now()` no member; preserva tasks e steps
+- `reactivateUser(userId)` — seta `is_active: true` e limpa `deactivated_at: null` no member
 - `listGoogleUsers(search?)` — busca na Supabase Auth admin API (retorna até 20 resultados)
-- `fetchAuditLogs(filters)` — filtros: clientId, entity, userId, entityName, from/to
 
 > **Nota:** `setUserAuthId` chama `fetchPendingUsers()` após concluir para manter a lista de pendentes sincronizada sem reload de página.
 
@@ -63,6 +82,8 @@ O drawer de edição acumula todas as mudanças em estado local e só dispara re
 - Vínculo de conta Google → `onSetAuthId`
 
 **Ao fechar com dados não salvos** (botão Cancelar, ESC ou clicar fora), exibe `ConfirmModal` pedindo confirmação antes de descartar.
+
+**Datas de criação e desativação** são exibidas logo abaixo do card de perfil do usuário: "Criado em dd mmm yyyy" (sempre que `created_at` existir) e "Desativado em dd mmm yyyy" em vermelho (quando `deactivated_at` estiver preenchido).
 
 **Botão Desativar** no canto inferior esquerdo do `DrawerFooter` (variante `destructive`). Ao clicar, salva o `id` do utilizador em `pendingDeactivateId` e abre `ConfirmModal`. A confirmação chama `onDeactivate(pendingDeactivateId)` — o id é capturado antes do drawer fechar para evitar que o `vaul` (que interpreta o clique no modal como "fora do drawer") resete `editingUser` antes da operação. O mesmo padrão aplica-se ao botão **Reativar** via `pendingReactivateId`.
 

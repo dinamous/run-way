@@ -16,7 +16,7 @@ npm run lint      # ESLint
 
 **Task:** `id, title, clickupLink?, assignee, status ('backlog'|'em andamento'|'bloqueado'|'concluído'), phases {design,approval,dev,qa} cada com {start,end} YYYY-MM-DD, createdAt`
 
-**Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais)`
+**Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais), avatar_url?, email?, auth_user_id?, access_role ('admin'|'user'), is_active?, created_at?, deactivated_at?`
 
 **Fases:** Design (5d, violeta) → Approval (3d, laranja) → Dev (7d, azul) → QA (3d, esmeralda). Cascata automática.
 
@@ -61,7 +61,7 @@ npm run lint      # ESLint
 | Estrutura, fluxo de dados, decisões | [docs/architecture.md](docs/architecture.md) |
 | DashboardView, Calendar, Timeline, drag-drop | [docs/views/dashboard.md](docs/views/dashboard.md) |
 | MembersView, capacidade | [docs/views/members.md](docs/views/members.md) |
-| AdminView, UsersPanel, useAdminData | [docs/views/admin.md](docs/views/admin.md) |
+| AdminView, UsersPanel, useAdminData, useAdminStore | [docs/views/admin.md](docs/views/admin.md) |
 | TaskModal, cascata de fases | [docs/components/task-modal.md](docs/components/task-modal.md) |
 | Design system (Button, Input, Label, Badge) | [docs/components/ui.md](docs/components/ui.md) |
 | useSupabase, CRUD, steps | [docs/hooks/supabase.md](docs/hooks/supabase.md) |

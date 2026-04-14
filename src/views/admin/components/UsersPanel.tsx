@@ -1037,6 +1037,21 @@ export function UsersPanel({
                   </div>
                 </div>
 
+                <div className="flex flex-col gap-1 text-xs text-muted-foreground px-1">
+                  {editingUser.created_at && (
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                      Criado em {new Date(editingUser.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                  {editingUser.deactivated_at && (
+                    <span className="flex items-center gap-1.5 text-destructive">
+                      <UserX className="w-3.5 h-3.5 shrink-0" />
+                      Desativado em {new Date(editingUser.deactivated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                </div>
+
                 {!editingUser.auth_user_id && (
                   <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
                     <div className="flex items-start gap-3">
