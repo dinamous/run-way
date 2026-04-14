@@ -65,13 +65,13 @@ export function AdminView() {
 
   const content = (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Painel Admin</h1>
         {impersonatedClientId && (
           <div
             role="status"
             aria-live="polite"
-            className="flex items-center gap-2 px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg text-sm"
+            className="flex items-center gap-2 px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg text-sm self-start sm:self-auto"
           >
             <span>Visualizando como cliente</span>
             <button

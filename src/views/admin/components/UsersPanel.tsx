@@ -545,91 +545,91 @@ export function UsersPanel({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2 flex-1 min-w-[300px]">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, cargo ou email..."
-              value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
-              className="pl-9"
-            />
-          </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-56 md:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, cargo ou email..."
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
+            className="pl-9"
+          />
+        </div>
+
+        <div className="flex gap-1 bg-muted p-1 rounded-lg">
+          <button
+            onClick={() => { setCurrentTab('members'); setPage(1) }}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+              currentTab === 'members'
+                ? 'bg-background shadow-sm font-medium'
+                : 'hover:bg-background/50 text-muted-foreground'
+            }`}
+          >
+            Membros
+          </button>
+          <button
+            onClick={() => { setCurrentTab('pending'); setPage(1) }}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+              currentTab === 'pending'
+                ? 'bg-background shadow-sm font-medium'
+                : 'hover:bg-background/50 text-muted-foreground'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+            Pendentes ({pendingUsers.length})
+          </button>
+        </div>
+
+        {currentTab === 'members' && (
           <div className="flex gap-1 bg-muted p-1 rounded-lg">
             <button
-              onClick={() => { setCurrentTab('members'); setPage(1) }}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                currentTab === 'members'
+              onClick={() => { setStatusFilter('all'); setPage(1) }}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                statusFilter === 'all'
                   ? 'bg-background shadow-sm font-medium'
                   : 'hover:bg-background/50 text-muted-foreground'
               }`}
             >
-              Membros
+              Todos
             </button>
             <button
-              onClick={() => { setCurrentTab('pending'); setPage(1) }}
+              onClick={() => { setStatusFilter('active'); setPage(1) }}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                currentTab === 'pending'
+                statusFilter === 'active'
+                  ? 'bg-background shadow-sm font-medium'
+                  : 'hover:bg-background/50 text-muted-foreground'
+              }`}
+            >
+              <Key className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+              Ativos
+            </button>
+            <button
+              onClick={() => { setStatusFilter('pending'); setPage(1) }}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                statusFilter === 'pending'
                   ? 'bg-background shadow-sm font-medium'
                   : 'hover:bg-background/50 text-muted-foreground'
               }`}
             >
               <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-              Pendentes ({pendingUsers.length})
+              Sem acesso
+            </button>
+            <button
+              onClick={() => { setStatusFilter('deactivated'); setPage(1) }}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                statusFilter === 'deactivated'
+                  ? 'bg-background shadow-sm font-medium'
+                  : 'hover:bg-background/50 text-muted-foreground'
+              }`}
+            >
+              <UserX className="w-3.5 h-3.5 text-gray-500" />
+              Desativados
             </button>
           </div>
-          {currentTab === 'members' && (
-            <div className="flex gap-1 bg-muted p-1 rounded-lg">
-              <button
-                onClick={() => { setStatusFilter('all'); setPage(1) }}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  statusFilter === 'all'
-                    ? 'bg-background shadow-sm font-medium'
-                    : 'hover:bg-background/50 text-muted-foreground'
-                }`}
-              >
-                Todos
-              </button>
-              <button
-                onClick={() => { setStatusFilter('active'); setPage(1) }}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                  statusFilter === 'active'
-                    ? 'bg-background shadow-sm font-medium'
-                    : 'hover:bg-background/50 text-muted-foreground'
-                }`}
-              >
-                <Key className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-                Ativos
-              </button>
-              <button
-                onClick={() => { setStatusFilter('pending'); setPage(1) }}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                  statusFilter === 'pending'
-                    ? 'bg-background shadow-sm font-medium'
-                    : 'hover:bg-background/50 text-muted-foreground'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-                Sem acesso
-              </button>
-              <button
-                onClick={() => { setStatusFilter('deactivated'); setPage(1) }}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                  statusFilter === 'deactivated'
-                    ? 'bg-background shadow-sm font-medium'
-                    : 'hover:bg-background/50 text-muted-foreground'
-                }`}
-              >
-                <UserX className="w-3.5 h-3.5 text-gray-500" />
-                Desativados
-              </button>
-            </div>
-)}
-        </div>
+        )}
 
         {currentTab === 'members' && (
-          <Button onClick={openCreateDrawer} aria-label="Criar novo utilizador">
+          <Button onClick={openCreateDrawer} aria-label="Criar novo utilizador" className="ml-auto">
             <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
             Novo usuário
           </Button>
