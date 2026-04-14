@@ -298,15 +298,24 @@ export function UsersPanel({
     resetEditState()
   }
 
-  const openCreateDrawer = useCallback(() => {
-    setCreateName('')
+  const [createFromPendingUser, setCreateFromPendingUser] = useState<PendingAuthUser | null>(null)
+
+  const openCreateDrawer = useCallback((prefill?: { name: string; email: string; avatarUrl?: string | null; googleId?: string }) => {
+    setCreateName(prefill?.name ?? '')
     setCreateRole('')
-    setCreateEmail('')
+    setCreateEmail(prefill?.email ?? '')
     setCreateAccessRole('user')
     setCreateClients([])
     setCreateErrors({})
-    setGoogleSearch('')
-    setGoogleResults([])
+    if (prefill?.email) {
+      setGoogleSearch(prefill.email)
+      if (prefill.googleId) {
+        setGoogleResults([{ id: prefill.googleId, email: prefill.email, name: prefill.name, avatarUrl: prefill.avatarUrl ?? null }])
+      }
+    } else {
+      setGoogleSearch('')
+      setGoogleResults([])
+    }
     setCreateDrawerOpen(true)
   }, [])
 
@@ -392,6 +401,13 @@ export function UsersPanel({
     setCreating(false)
     if (ok) {
       toast.success(`Utilizador "${createName}" criado`)
+      if (createFromPendingUser) {
+        setLinkDrawerOpen(false)
+        setLinkingPendingUser(null)
+        setLinkingUserId(null)
+        setLinkSearch('')
+        setCreateFromPendingUser(null)
+      }
       closeCreateDrawer()
     } else {
       toast.error('Erro ao criar utilizador')
@@ -629,7 +645,7 @@ export function UsersPanel({
         )}
 
         {currentTab === 'members' && (
-          <Button onClick={openCreateDrawer} aria-label="Criar novo utilizador" className="ml-auto">
+          <Button onClick={() => { setCreateFromPendingUser(null); openCreateDrawer() }} aria-label="Criar novo utilizador" className="ml-auto">
             <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
             Novo usuário
           </Button>
@@ -800,7 +816,9 @@ export function UsersPanel({
           <DrawerHeader>
             <DrawerTitle>Criar Utilizador</DrawerTitle>
             <DrawerDescription>
-              Crie um novo utilizador. Vincule uma conta Google depois.
+              {createFromPendingUser
+                ? `Criando membro a partir da conta Google de ${createFromPendingUser.email}. O vínculo será feito automaticamente.`
+                : 'Crie um novo utilizador. Vincule uma conta Google depois.'}
             </DrawerDescription>
           </DrawerHeader>
 
@@ -1309,8 +1327,27 @@ export function UsersPanel({
                 </div>
               </div>
 
+              <div className="flex items-center justify-between">
+                <Label htmlFor="link-search">Vincular a membro existente</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setCreateFromPendingUser(linkingPendingUser)
+                    openCreateDrawer({
+                      name: linkingPendingUser.name,
+                      email: linkingPendingUser.email,
+                      avatarUrl: linkingPendingUser.avatarUrl,
+                      googleId: linkingPendingUser.id,
+                    })
+                  }}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Criar novo membro
+                </Button>
+              </div>
+
               <div className="space-y-1">
-                <Label htmlFor="link-search">Buscar membro</Label>
                 <Input
                   id="link-search"
                   value={linkSearch}

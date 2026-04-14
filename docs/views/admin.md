@@ -70,7 +70,7 @@ Hook fino (`src/views/admin/hooks/useAdminData.ts`) que consome `useAdminStore` 
 - `reactivateUser(userId)` — seta `is_active: true` e limpa `deactivated_at: null` no member
 - `listGoogleUsers(search?)` — busca na Supabase Auth admin API (retorna até 20 resultados)
 
-> **Nota:** `setUserAuthId` chama `fetchPendingUsers()` após concluir para manter a lista de pendentes sincronizada sem reload de página.
+> **Nota:** `setUserAuthId` e `createUser` (quando `authUserId` é fornecido) chamam `fetchPendingUsers()` após concluir para manter a lista de pendentes sincronizada sem reload de página.
 
 ## UsersPanel — comportamento do drawer de edição
 
@@ -88,6 +88,16 @@ O drawer de edição acumula todas as mudanças em estado local e só dispara re
 **Botão Desativar** no canto inferior esquerdo do `DrawerFooter` (variante `destructive`). Ao clicar, salva o `id` do utilizador em `pendingDeactivateId` e abre `ConfirmModal`. A confirmação chama `onDeactivate(pendingDeactivateId)` — o id é capturado antes do drawer fechar para evitar que o `vaul` (que interpreta o clique no modal como "fora do drawer") resete `editingUser` antes da operação. O mesmo padrão aplica-se ao botão **Reativar** via `pendingReactivateId`.
 
 **Dropdown de conta Google** fica fora do container com `overflow-y-auto` para não ser clipado pelo scroll.
+
+## UsersPanel — link drawer (tab Pendentes)
+
+O link drawer é aberto ao clicar em **Vincular** em um card do tab Pendentes. Além de selecionar um membro existente para vincular à conta Google, oferece o botão **"Criar novo membro"** que:
+
+1. Pré-preenche nome, email e avatar da conta Google pendente na drawer de criação
+2. Já popula o campo Conta Google com os dados do usuário (vínculo automático no `authUserId`)
+3. Ao criar com sucesso, fecha o link drawer e limpa o estado de pendente — `createUser` chama `fetchPendingUsers()` quando `authUserId` está presente, removendo o usuário da lista sem necessidade de reload
+
+A descrição da drawer de criação muda para informar que o vínculo será feito automaticamente quando aberta a partir de um pendente (`createFromPendingUser` estado interno).
 
 ## UsersPanel — filtros do tab Membros
 
