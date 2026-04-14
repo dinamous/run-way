@@ -1,11 +1,15 @@
 import { supabase, supabaseAdmin } from './supabase'
 import type { DbNotificationRow, Notification } from '@/types/notification'
 
-export async function fetchNotifications(userId: string, clientId?: string | null) {
+export async function fetchNotifications(userId: string, clientIds?: string[]) {
+  // Notificações diretas ao usuário OU broadcasts de qualquer cliente que ele acessa
   let orFilter = `user_id.eq.${userId}`
-  
-  if (clientId) {
-    orFilter = `user_id.eq.${userId},and(user_id.is.null,client_id.eq.${clientId})`
+
+  if (clientIds && clientIds.length > 0) {
+    const clientFilter = clientIds
+      .map((id) => `and(user_id.is.null,client_id.eq.${id})`)
+      .join(',')
+    orFilter = `user_id.eq.${userId},${clientFilter}`
   }
 
   const { data, error } = await supabase
@@ -31,12 +35,21 @@ export async function markAsRead(id: string) {
   if (error) throw error
 }
 
-export async function markAllAsRead(userId: string, clientId?: string | null) {
+export async function markAllAsRead(userId: string, clientIds?: string[]) {
+  let orFilter = `user_id.eq.${userId}`
+
+  if (clientIds && clientIds.length > 0) {
+    const clientFilter = clientIds
+      .map((id) => `and(user_id.is.null,client_id.eq.${id})`)
+      .join(',')
+    orFilter = `user_id.eq.${userId},${clientFilter}`
+  }
+
   const { error } = await supabase
     .from('notifications')
     .update({ read: true })
     .eq('read', false)
-    .or(`user_id.eq.${userId},user_id.is.null.and.client_id.eq.${clientId}`)
+    .or(orFilter)
 
   if (error) throw error
 }

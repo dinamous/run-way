@@ -67,28 +67,30 @@ export default function App() {
 
   const { holidays } = useHolidays();
 
+  const allClientIds = clients.map((c) => c.id)
+
   const {
     notifications,
     unreadCount,
-    loading: notificationsLoading,
     markAsRead: markNotificationAsRead,
     markAllAsRead: markAllNotificationsAsRead,
     reload: reloadNotifications,
-  } = useNotifications(member?.id, effectiveClientId)
+  } = useNotifications(member?.id, allClientIds)
 
   const view = useUIStore((s) => s.view)
   const setView = useUIStore((s) => s.setView)
 
   const handleNotificationClick = useCallback((notification: Notification) => {
+    // Navega dentro do cliente atual — não troca de cliente
     const route = resolveNotificationRoute(notification)
-    if (route) {
-      if (route.startsWith('/dashboard')) {
-        setView('dashboard')
-      } else if (route === '/profile') {
-        // TODO: open profile
-      } else if (route === '/clients') {
-        setView('clients')
-      }
+    if (!route) return
+
+    if (route.startsWith('/dashboard')) {
+      setView('dashboard')
+    } else if (route === '/profile') {
+      // TODO: open profile
+    } else if (route === '/clients') {
+      setView('clients')
     }
   }, [setView])
 
@@ -221,7 +223,6 @@ export default function App() {
         onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
         notifications={notifications}
         unreadCount={unreadCount}
-        notificationsLoading={notificationsLoading}
         onMarkNotificationAsRead={markNotificationAsRead}
         onMarkAllNotificationsAsRead={markAllNotificationsAsRead}
         onNotificationClick={handleNotificationClick}

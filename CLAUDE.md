@@ -67,6 +67,7 @@ npm run lint      # ESLint
 | useSupabase, CRUD, steps | [docs/hooks/supabase.md](docs/hooks/supabase.md) |
 | useAuth, login | [docs/hooks/auth.md](docs/hooks/auth.md) |
 | useFormState | [docs/hooks/form-state.md](docs/hooks/form-state.md) |
+| useNotifications, NotificationBell, fetchNotifications | [docs/hooks/notifications.md](docs/hooks/notifications.md) |
 | dateUtils, dias úteis, cascadePhases | [docs/utils/date-utils.md](docs/utils/date-utils.md) |
 | ToolsView, BriefingAnalyzerView, padrão de subview | [docs/views/tools.md](docs/views/tools.md) |
 | Convenções, padrões, env vars | [docs/guidelines.md](docs/guidelines.md) |

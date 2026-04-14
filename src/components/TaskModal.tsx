@@ -64,6 +64,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
     if (clickupLink) {
       try { new URL(clickupLink) } catch { e.clickupLink = 'Insira um URL válido (ex: https://...).'; }
     }
+    if (activeCount === 0) e.steps = 'Selecione pelo menos um step.';
     steps.filter(s => s.active).forEach(s => {
       if (!s.start || !s.end) e[`${s.type}-dates`] = 'Datas obrigatórias quando step está ativo.';
       else if (s.end < s.start) e[`${s.type}-dates`] = 'Fim anterior ao início.';
@@ -304,6 +305,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
 
               {/* Steps */}
               <div className="space-y-2">
+                {errors.steps && <p className="text-xs text-red-500">{errors.steps}</p>}
                 <div className="flex items-center justify-between">
                   <Label>Steps da Demanda</Label>
                   <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">

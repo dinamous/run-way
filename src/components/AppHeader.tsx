@@ -28,7 +28,6 @@ interface AppHeaderProps {
   onToggleMobileSidebar?: () => void;
   notifications?: Notification[];
   unreadCount?: number;
-  notificationsLoading?: boolean;
   onMarkNotificationAsRead?: (notificationId: string) => void;
   onMarkAllNotificationsAsRead?: () => void;
   onNotificationClick?: (notification: Notification) => void;
@@ -48,7 +47,6 @@ export function AppHeader({
   onToggleMobileSidebar,
   notifications = [],
   unreadCount = 0,
-  notificationsLoading = false,
   onMarkNotificationAsRead,
   onMarkAllNotificationsAsRead,
   onNotificationClick,
@@ -142,11 +140,11 @@ export function AppHeader({
             <NotificationBell
               notifications={notifications}
               unreadCount={unreadCount}
-              loading={notificationsLoading}
               onMarkAsRead={onMarkNotificationAsRead ?? (() => {})}
               onMarkAllAsRead={onMarkAllNotificationsAsRead ?? (() => {})}
               onNotificationClick={onNotificationClick ?? (() => {})}
               reload={reloadNotifications}
+              selectedClientId={selectedClient?.id}
             />
 
             <DropdownMenu>

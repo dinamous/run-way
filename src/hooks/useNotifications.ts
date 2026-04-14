@@ -9,7 +9,7 @@ import {
 import type { Notification, DbNotificationRow } from '@/types/notification'
 import { toast } from 'sonner'
 
-export function useNotifications(userId?: string | null, clientId?: string | null) {
+export function useNotifications(userId?: string | null, clientIds?: string[]) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +24,7 @@ export function useNotifications(userId?: string | null, clientId?: string | nul
     setError(null)
 
     try {
-      const data = await fetchNotifications(userId, clientId)
+      const data = await fetchNotifications(userId, clientIds)
       setNotifications(data)
       loadedRef.current = true
     } catch (e) {
@@ -32,7 +32,7 @@ export function useNotifications(userId?: string | null, clientId?: string | nul
     } finally {
       setLoading(false)
     }
-  }, [userId, clientId])
+  }, [userId, clientIds?.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!userId) {
@@ -49,11 +49,16 @@ export function useNotifications(userId?: string | null, clientId?: string | nul
     const handleInsert = (payload: { new: DbNotificationRow }) => {
       const newNotif = payload.new
 
-      if (userId && newNotif.user_id !== userId && newNotif.user_id !== null) {
-        if (clientId && newNotif.client_id !== clientId) return
-        if (!clientId && newNotif.client_id !== null) return
-      }
-      
+      // Notificação direta para este usuário — sempre aceita
+      const isForUser = newNotif.user_id === userId
+      // Broadcast para cliente — aceita se for de qualquer cliente que o usuário acessa
+      const isForClient =
+        newNotif.user_id === null &&
+        newNotif.client_id !== null &&
+        (clientIds ?? []).includes(newNotif.client_id)
+
+      if (!isForUser && !isForClient) return
+
       const notification: Notification = {
         id: newNotif.id,
         user_id: newNotif.user_id,
@@ -94,7 +99,7 @@ export function useNotifications(userId?: string | null, clientId?: string | nul
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [userId, clientId])
+  }, [userId, clientIds?.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const markAsRead = useCallback(async (id: string) => {
     try {
@@ -111,12 +116,17 @@ export function useNotifications(userId?: string | null, clientId?: string | nul
     if (!userId) return
 
     try {
-      await markAllAsReadApi(userId, clientId)
+      await markAllAsReadApi(userId, clientIds)
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-    } catch {
-      toast.error('Erro ao marcar como lidas')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ''
+      if (msg.includes('parse logic tree') || msg.includes('Failed to parse')) {
+        toast.error('Erro ao ler notificações')
+      } else {
+        toast.error('Erro ao marcar como lidas')
+      }
     }
-  }, [userId, clientId])
+  }, [userId, clientIds?.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const createNotification = useCallback(
     async (
@@ -126,14 +136,14 @@ export function useNotifications(userId?: string | null, clientId?: string | nul
       metadata?: Record<string, string>
     ) => {
       try {
-        await createNotificationApi(title, message, undefined, clientId ?? undefined, type, metadata)
+        await createNotificationApi(title, message, undefined, clientIds?.[0], type, metadata)
         toast.success('Notificação enviada')
         await load()
       } catch {
         toast.error('Erro ao enviar notificação')
       }
     },
-    [clientId, load]
+    [clientIds?.[0], load]  // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   return {
