@@ -9,7 +9,6 @@ import TimelineView from '@/views/timeline';
 import { ListView } from '@/views/list';
 import { useTaskFilters } from './hooks/useTaskFilters';
 import { FilterBar } from './components/FilterBar';
-import { MetricsBar } from './components/MetricsBar';
 import { StepsLegend } from './components/StepsLegend';
 import type { DashboardViewProps } from '@/types/props';
 import { ViewState } from '@/components/ViewState';
@@ -30,7 +29,6 @@ const DASHBOARD_BONES = {
 };
 
 const VIEW_TITLES: Record<string, { title: string; description: string }> = {
-  overview: { title: 'Visão Geral', description: 'Gestão das entregas criativas e de desenvolvimento.' },
   calendar: { title: 'Calendário', description: 'Visualize as demandas em calendário mensal.' },
   timeline: { title: 'Linha do Tempo', description: 'Acompanhe as fases das demandas em Gantt.' },
   list: { title: 'Lista', description: 'Todas as demandas em formato de tabela.' },
@@ -69,7 +67,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ subview, onEdit, onDelete
     viewMode, setViewMode,
     hasActiveFilters,
     clearFilters, toggleStepFilter,
-    filteredTasks, blockedCount, activeCount,
+    filteredTasks,
   } = useTaskFilters(tasks ?? [], subview === 'timeline', dashboardRedirect?.assigneeId ?? '');
 
   useEffect(() => {
@@ -112,7 +110,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ subview, onEdit, onDelete
     );
   }
 
-  const { title, description } = VIEW_TITLES[subview] ?? VIEW_TITLES.overview;
+  const { title, description } = VIEW_TITLES[subview] ?? { title: 'Calendário', description: '' };
 
   const header = (
     <div>
@@ -121,17 +119,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ subview, onEdit, onDelete
     </div>
   );
 
-  const showFilters = subview !== 'list' && subview !== 'overview';
+  const showFilters = subview !== 'list';
 
   const content = (
     <div className="space-y-5">
       {header}
-      <MetricsBar
-        totalCount={(tasks ?? []).length}
-        visibleCount={filteredTasks.length}
-        activeCount={activeCount}
-        blockedCount={blockedCount}
-      />
 
       {showFilters && (
         <FilterBar

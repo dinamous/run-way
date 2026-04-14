@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search } from "lucide-react";
 import { CalendarDays, Users, BarChart2, Building2 } from "lucide-react";
-import type { ViewType } from "@/components/AppSidebar";
+import type { ViewType } from "@/store/useUIStore";
 
 interface SearchItem {
   view: ViewType;
@@ -11,7 +11,7 @@ interface SearchItem {
 }
 
 const SEARCH_ITEMS: SearchItem[] = [
-  { view: "dashboard", label: "Calendário",  description: "Visualize demandas e fases no calendário", icon: CalendarDays },
+  { view: "calendar", label: "Calendário",  description: "Visualize demandas e fases no calendário", icon: CalendarDays },
   { view: "members",   label: "Membros",     description: "Capacidade e alocação da equipe",           icon: Users },
   { view: "reports",   label: "Relatórios",  description: "Análise de progresso e entregas",            icon: BarChart2 },
   { view: "clients",   label: "Clientes",    description: "Gerencie seus clientes e projetos",          icon: Building2 },

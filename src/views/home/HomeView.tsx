@@ -1,7 +1,7 @@
 import { CalendarDays, Users, BarChart2, Building2 } from "lucide-react";
 import { SearchLauncher } from "./components/SearchLauncher";
 import { QuickAccessCard } from "./components/QuickAccessCard";
-import type { ViewType } from "@/components/AppSidebar";
+import type { ViewType } from "@/store/useUIStore";
 
 interface HomeViewProps {
   userName: string;

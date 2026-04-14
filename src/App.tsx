@@ -86,7 +86,7 @@ export default function App() {
     if (!route) return
 
     if (route.startsWith('/dashboard')) {
-      setView('overview')
+      setView('calendar')
     } else if (route === '/profile') {
       // TODO: open profile
     } else if (route === '/clients') {
@@ -263,7 +263,7 @@ export default function App() {
             </RequireAdmin>
           ) : view === "clients" ? (
             <UserClientsView client={selectedClient ?? null} />
-          ) : view === "overview" || view === "calendar" || view === "timeline" || view === "list" ? (
+          ) : view === "calendar" || view === "timeline" || view === "list" ? (
             <DashboardView
               subview={view}
               onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
@@ -277,9 +277,18 @@ export default function App() {
             <MembersView />
           ) : view === "tools" || view === "tools-briefing-analyzer" || view === "tools-import" || view === "tools-export" || view === "tools-integrations" ? (
             <ToolsView subview={view === "tools" ? undefined : view} />
+          ) : view === "reports" || view === "reports-fluxo" || view === "reports-timeline" || view === "reports-membros" || view === "reports-alertas" ? (
+            <ReportsView 
+              subview={view === "reports" ? "geral" : view === "reports-fluxo" ? "fluxo" : view === "reports-timeline" ? "timeline" : view === "reports-membros" ? "membros" : "alertas"} 
+            />
           ) : (
-            <ReportsView />
-            )}
+            <HomeView
+              userName={member?.name ?? user?.email ?? ""}
+              clientName={selectedClient?.name}
+              hasClient={!!effectiveClientId}
+              onViewChange={handleViewChange}
+            />
+          )}
           </TooltipProvider>
         </main>
       </div>

@@ -7,7 +7,6 @@ import {
   ChevronRight,
   ChevronDown,
   Home,
-  LayoutDashboard,
   Building2,
   Settings,
   Sun,
@@ -70,8 +69,6 @@ interface AppSidebarProps {
 const NAV_ITEMS: NavItem[] = [
   { label: "Início", Icon: Home, view: "home" },
 
-  { label: "Visão Geral", Icon: LayoutDashboard, view: "overview", requiresClient: true },
-
   {
     label: "Calendário",
     Icon: CalendarDays,
@@ -84,7 +81,20 @@ const NAV_ITEMS: NavItem[] = [
   },
 
   { label: "Membros", Icon: Users, view: "members", requiresClient: true },
-  { label: "Relatórios", Icon: BarChart2, view: "reports", requiresClient: true },
+
+  {
+    label: "Relatórios",
+    Icon: BarChart2,
+    requiresClient: true,
+    children: [
+      { view: "reports", label: "Geral" },
+      { view: "reports-fluxo", label: "Fluxo" },
+      { view: "reports-timeline", label: "Timeline" },
+      { view: "reports-membros", label: "Membros" },
+      { view: "reports-alertas", label: "Alertas" },
+    ],
+  },
+
   { label: "Clientes", Icon: Building2, view: "clients" },
 
   {
@@ -106,8 +116,9 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-const CALENDAR_VIEWS: ViewType[] = ["overview", "calendar", "timeline", "list"]
+const CALENDAR_VIEWS: ViewType[] = ["calendar", "timeline", "list"]
 const TOOLS_VIEWS: ViewType[] = ["tools", "tools-briefing-analyzer", "tools-import", "tools-export", "tools-integrations"]
+const REPORTS_VIEWS: ViewType[] = ["reports", "reports-fluxo", "reports-timeline", "reports-membros", "reports-alertas"]
 
 function getInitials(email?: string) {
   if (!email) return "?"
@@ -140,6 +151,7 @@ export function AppSidebar({
     const initial: string[] = []
     if (CALENDAR_VIEWS.includes(view)) initial.push("Calendário")
     if (TOOLS_VIEWS.includes(view)) initial.push("Ferramentas")
+    if (REPORTS_VIEWS.includes(view)) initial.push("Relatórios")
     return initial
   })
 
@@ -272,7 +284,7 @@ export function AppSidebar({
               !expanded && "justify-center"
             )}
           >
-            <div className="h-6 w-6 bg-primary text-primary-foreground flex items-center justify-center rounded text-xs shrink-0 font-semibold">
+            <div className="h-6 w-6 bg-white border border-black text-black flex items-center justify-center rounded text-xs shrink-0 font-semibold">
               {selectedClient ? selectedClient.name.slice(0, 2).toUpperCase() : "—"}
             </div>
             {expanded && (
@@ -288,12 +300,6 @@ export function AppSidebar({
         <DropdownMenuContent side="right" align="start" className="w-56">
           {isAdmin && (
             <>
-              <DropdownMenuItem
-                onClick={() => onSelectClient?.(null)}
-                className={!selectedClient ? "font-semibold" : ""}
-              >
-                Todos os clientes
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
@@ -315,7 +321,7 @@ export function AppSidebar({
           !expanded && "justify-center"
         )}
       >
-        <div className="h-6 w-6 bg-muted flex items-center justify-center rounded text-xs shrink-0 font-semibold text-foreground">
+        <div className="h-6 w-6 bg-white border border-black text-black flex items-center justify-center rounded text-xs shrink-0 font-semibold">
           {selectedClient.name.slice(0, 2).toUpperCase()}
         </div>
         {expanded && (
