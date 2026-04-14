@@ -1,6 +1,7 @@
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
+import { useClients } from '@/hooks/useClients';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import type { Task } from '@/lib/steps';
@@ -20,6 +21,7 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
   const { member } = useAuthContext();
   const { tasks, fetchTasks, invalidate } = useTaskStore();
   const { members } = useMemberStore();
+  const { effectiveClientId, isAdmin } = useClients();
 
   const {
     filterAssignee, setFilterAssignee,
@@ -55,8 +57,7 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
 
     toast.success(`"${task.title}" concluída`);
     invalidate();
-    const { selectedClientId } = await import('@/store/useClientStore').then(m => m.useClientStore.getState());
-    await fetchTasks(selectedClientId, false);
+    await fetchTasks(effectiveClientId, isAdmin);
   };
 
   const handleToggleBlock = async (task: Task) => {
@@ -77,8 +78,7 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
 
     toast.success(newBlocked ? `"${task.title}" bloqueada` : `"${task.title}" desbloqueada`);
     invalidate();
-    const { selectedClientId } = await import('@/store/useClientStore').then(m => m.useClientStore.getState());
-    await fetchTasks(selectedClientId, false);
+    await fetchTasks(effectiveClientId, isAdmin);
   };
 
   const togglePeriod = (months: number) => {
