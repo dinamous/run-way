@@ -16,7 +16,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import type { Member } from '@/hooks/useSupabase'
 import type { PendingAuthUser } from '../hooks/useAdminData'
 import type { DbClientRow } from '@/types/db'
-import { Plus, Building, Check, Search, UserCheck, ChevronLeft, ChevronRight, Key, Clock, Mail, Link2 } from 'lucide-react'
+import { Plus, Building, Check, Search, UserCheck, ChevronLeft, ChevronRight, Key, Clock, Mail, Link2, Trash2 } from 'lucide-react'
 
 interface GoogleUser {
   id: string
@@ -43,6 +43,7 @@ interface UsersPanelProps {
   onUpdate: (userId: string, name: string, role: string, email?: string | null) => Promise<boolean>
   onSetAuthId: (userId: string, authUserId: string | null, avatarUrl?: string | null) => Promise<boolean>
   onListGoogleUsers: (search?: string) => Promise<GoogleUser[]>
+  onDelete: (userId: string) => Promise<boolean>
   userClientsMap: Record<string, string[]>
   pendingUsers: PendingAuthUser[]
 }
@@ -148,7 +149,7 @@ type StatusFilter = 'all' | 'active' | 'pending'
 type CurrentTab = 'members' | 'pending'
 
 export function UsersPanel({
-  users, clients, onSetRole, onLink, onUnlink, onCreate, onUpdate, onSetAuthId, onListGoogleUsers, userClientsMap, pendingUsers
+  users, clients, onSetRole, onLink, onUnlink, onCreate, onUpdate, onSetAuthId, onListGoogleUsers, onDelete, userClientsMap, pendingUsers
 }: UsersPanelProps) {
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false)
@@ -161,6 +162,8 @@ export function UsersPanel({
   const [savingEdit, setSavingEdit] = useState(false)
   const [editErrors, setEditErrors] = useState<ValidationErrors>({})
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletingUser, setDeletingUser] = useState(false)
 
   const [createName, setCreateName] = useState('')
   const [createRole, setCreateRole] = useState('')
@@ -551,7 +554,7 @@ export function UsersPanel({
                 }`}
               >
                 <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-                Pendentes
+                Sem acesso
               </button>
             </div>
 )}

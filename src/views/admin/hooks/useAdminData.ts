@@ -333,13 +333,14 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     try {
       setError(null)
       await fetchUsers()
+      await fetchPendingUsers()
       await reloadAppStores()
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, reloadAppStores])
+  }, [fetchUsers, fetchPendingUsers, reloadAppStores])
 
   const updateUser = useCallback(async (
     userId: string,
@@ -364,6 +365,26 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       return false
     }
   }, [fetchUsers, reloadAppStores])
+
+  const deleteUser = useCallback(async (userId: string) => {
+    if (!supabaseAdmin) return false
+    const member = users.find(u => u.id === userId)
+    const { error } = await supabaseAdmin.from('members').delete().eq('id', userId)
+    if (error) return false
+    if (member?.auth_user_id) {
+      await supabaseAdmin.auth.admin.deleteUser(member.auth_user_id)
+    }
+    try {
+      setError(null)
+      await fetchUsers()
+      await fetchPendingUsers()
+      await reloadAppStores()
+      return true
+    } catch (err) {
+      setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
+      return false
+    }
+  }, [users, fetchUsers, fetchPendingUsers, reloadAppStores])
 
   const listGoogleUsers = useCallback(async (search?: string) => {
     if (!supabaseAdmin) return []
@@ -395,6 +416,6 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     fetchAuditLogs, fetchClients, fetchUsers,
     createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
-    createUser, setUserAuthId, updateUser, listGoogleUsers,
+    createUser, setUserAuthId, updateUser, deleteUser, listGoogleUsers,
   }
 }
