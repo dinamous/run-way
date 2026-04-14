@@ -1,8 +1,8 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
-import { useClientStore } from '@/store/useClientStore';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useClients } from '@/hooks/useClients';
 import { BarChart2, DatabaseZap, Calendar, Users, Activity, AlertTriangle } from 'lucide-react';
 import { todayStr, enrichTask, computeMemberLoad, calDaysBetween, calculatePercentile } from './utils';
 import { formatDateToBR } from '@/lib/utils';
@@ -47,7 +47,7 @@ type TimeFilter = 'all' | '30d' | '90d' | '180d' | '365d';
 
 const ReportsView: React.FC = () => {
   const { isAdmin } = useAuthContext();
-  const { selectedClientId } = useClientStore();
+  const { effectiveClientId } = useClients();
   const {
     tasks,
     loading: tasksLoading,
@@ -68,9 +68,9 @@ const ReportsView: React.FC = () => {
   const [memberFilter, setMemberFilter] = useState<string>('all');
 
   useEffect(() => {
-    fetchTasks(selectedClientId, isAdmin);
-    fetchMembers(selectedClientId);
-  }, [selectedClientId, isAdmin, fetchTasks, fetchMembers]);
+    fetchTasks(effectiveClientId, isAdmin);
+    fetchMembers(effectiveClientId);
+  }, [effectiveClientId, isAdmin, fetchTasks, fetchMembers]);
 
   const enriched = useMemo(
     () => tasks.map(task => enrichTask(task, today, members)),
@@ -315,8 +315,8 @@ const ReportsView: React.FC = () => {
   const handleRetry = () => {
     invalidateTasks();
     invalidateMembers();
-    fetchTasks(selectedClientId, isAdmin);
-    fetchMembers(selectedClientId);
+    fetchTasks(effectiveClientId, isAdmin);
+    fetchMembers(effectiveClientId);
   };
 
   if (errorMessage && !hasData) {

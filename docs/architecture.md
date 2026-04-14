@@ -185,6 +185,21 @@ interface ClientOption {
 - **admin** (`access_role = 'admin'`): vê todos os clientes; pode selecionar cliente específico ou `null` (todos)
 - **user**: vê apenas os clientes associados via `user_clients`
 
+### RLS — Visibilidade de Members
+
+A policy de `members` é `members_authenticated_read` (`USING (true)` para autenticados) — qualquer usuário autenticado vê todos os members.
+
+Tentativas de restringir visibilidade por cliente diretamente em `members` (migration `20260415000001_members_rls_same_client.sql`) resultaram em `infinite recursion` no Supabase em todas as abordagens (subquery em `members`, `SECURITY DEFINER`, tabela auxiliar `member_roles`).
+
+### RLS — Visibilidade de user_clients
+
+A tabela `user_clients` tem duas policies de leitura:
+
+- `user_read_own_user_clients` — usuário lê apenas suas próprias linhas (`user_id` = seu member id)
+- `user_read_same_client_user_clients` — usuário lê todas as linhas cujo `client_id` seja um cliente ao qual ele pertence (migration `20260415000002_user_clients_rls_same_client.sql`)
+
+A segunda policy é necessária para que `fetchMembersFromDb` consiga buscar todos os membros de um cliente: sem ela, a query `SELECT user_id FROM user_clients WHERE client_id = :id` retornava apenas o próprio usuário, fazendo `MembersView` exibir somente ele mesmo. Não há recursão pois `members` usa `USING (true)`.
+
 ## Animação de Transição de Views
 
 `<main>` usa `key={view}` + classe `.animate-blur-fade-in` (definida em `src/index.css`) para transição blur+fade de 300ms ao trocar de view.

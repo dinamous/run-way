@@ -53,3 +53,4 @@ export {
   DrawerTitle,
   DrawerDescription,
 } from './Drawer';
+export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';

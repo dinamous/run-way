@@ -7,6 +7,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui";
+import { NotificationBell } from "./NotificationBell";
+import type { Notification } from "@/types/notification";
 
 interface ClientOption {
   id: string;
@@ -24,14 +26,12 @@ interface AppHeaderProps {
   onSelectClient?: (clientId: string | null | undefined) => void;
   isAdmin?: boolean;
   onToggleMobileSidebar?: () => void;
-}
-
-function getInitials(email?: string): string {
-  if (!email) return "?";
-  const name = email.split("@")[0];
-  const parts = name.split(/[._-]/);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
+  notifications?: Notification[];
+  unreadCount?: number;
+  onMarkNotificationAsRead?: (notificationId: string) => void;
+  onMarkAllNotificationsAsRead?: () => void;
+  onNotificationClick?: (notification: Notification) => void;
+  reloadNotifications?: () => void;
 }
 
 export function AppHeader({
@@ -45,7 +45,21 @@ export function AppHeader({
   onSelectClient,
   isAdmin,
   onToggleMobileSidebar,
+  notifications = [],
+  unreadCount = 0,
+  onMarkNotificationAsRead,
+  onMarkAllNotificationsAsRead,
+  onNotificationClick,
+  reloadNotifications,
 }: AppHeaderProps) {
+  function getInitials(email?: string): string {
+    if (!email) return "?";
+    const name = email.split("@")[0];
+    const parts = name.split(/[._-]/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+
   const showClientSelector = availableClients.length > 1 || (isAdmin && availableClients.length > 0);
 
   return (
@@ -122,6 +136,16 @@ export function AppHeader({
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
+
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAsRead={onMarkNotificationAsRead ?? (() => {})}
+              onMarkAllAsRead={onMarkAllNotificationsAsRead ?? (() => {})}
+              onNotificationClick={onNotificationClick ?? (() => {})}
+              reload={reloadNotifications}
+              selectedClientId={selectedClient?.id}
+            />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -198,6 +198,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     try {
       await fetchUsers()
       await fetchUserClientsMap()
+      if (authUserId) await fetchPendingUsers()
       setError(null)
       await reloadAppStores()
       return true
@@ -205,7 +206,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, fetchUserClientsMap, reloadAppStores, setError])
+  }, [fetchUsers, fetchUserClientsMap, fetchPendingUsers, reloadAppStores, setError])
 
   const setUserAuthId = useCallback(async (userId: string, authUserId: string | null, avatarUrl?: string | null) => {
     if (!supabaseAdmin) return false

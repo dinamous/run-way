@@ -19,8 +19,11 @@ import { ToolsView } from "./views/tools";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
+import { useNotifications } from "./hooks/useNotifications";
+import { resolveNotificationRoute } from "./lib/notifications";
 import { Toaster, toast } from "sonner";
 import type { Task } from "./lib/steps";
+import type { Notification } from "./types/notification";
 import type { ViewType } from "@/store/useUIStore";
 import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
 import { ConfirmModal, TooltipProvider } from "@/components/ui";
@@ -64,39 +67,64 @@ export default function App() {
 
   const { holidays } = useHolidays();
 
+  const allClientIds = clients.map((c) => c.id)
+
+  const {
+    notifications,
+    unreadCount,
+    markAsRead: markNotificationAsRead,
+    markAllAsRead: markAllNotificationsAsRead,
+    reload: reloadNotifications,
+  } = useNotifications(member?.id, allClientIds)
+
+  const view = useUIStore((s) => s.view)
+  const setView = useUIStore((s) => s.setView)
+
+  const handleNotificationClick = useCallback((notification: Notification) => {
+    // Navega dentro do cliente atual — não troca de cliente
+    const route = resolveNotificationRoute(notification)
+    if (!route) return
+
+    if (route.startsWith('/dashboard')) {
+      setView('dashboard')
+    } else if (route === '/profile') {
+      // TODO: open profile
+    } else if (route === '/clients') {
+      setView('clients')
+    }
+  }, [setView])
+
   const [darkMode, setDarkMode] = useState(() => {
     return (
       localStorage.getItem("theme") === "dark" ||
       (!localStorage.getItem("theme") &&
         window.matchMedia("(prefers-color-scheme: dark)").matches)
-    );
-  });
+    )
+  })
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
-    localStorage.setItem("theme", darkMode ? "dark" : "light");
-  }, [darkMode]);
+    document.documentElement.classList.toggle("dark", darkMode)
+    localStorage.setItem("theme", darkMode ? "dark" : "light")
+  }, [darkMode])
 
   const [sidebarOpen, setSidebarOpen] = useState(() => {
-    return localStorage.getItem("sidebarOpen") !== "false";
-  });
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+    return localStorage.getItem("sidebarOpen") !== "false"
+  })
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const handleToggleSidebar = () => {
     setSidebarOpen((prev) => {
-      localStorage.setItem("sidebarOpen", String(!prev));
-      return !prev;
-    });
-  };
+      localStorage.setItem("sidebarOpen", String(!prev))
+      return !prev
+    })
+  }
 
-  const view = useUIStore((s) => s.view);
-  const setView = useUIStore((s) => s.setView);
-  const isModalOpen = useUIStore((s) => s.isTaskModalOpen);
-  const openTaskModal = useUIStore((s) => s.openTaskModal);
-  const closeTaskModal = useUIStore((s) => s.closeTaskModal);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null);
-  const [closeTaskModalOnDelete, setCloseTaskModalOnDelete] = useState(false);
+  const isModalOpen = useUIStore((s) => s.isTaskModalOpen)
+  const openTaskModal = useUIStore((s) => s.openTaskModal)
+  const closeTaskModal = useUIStore((s) => s.closeTaskModal)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null)
+  const [closeTaskModalOnDelete, setCloseTaskModalOnDelete] = useState(false)
 
   const handleSelectClient = useCallback((clientId: string | null | undefined) => {
     setClient(clientId);
@@ -181,7 +209,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground font-sans">
-      <Toaster richColors position="top-right" />
+      <Toaster richColors position="bottom-right" />
       <AppHeader
         darkMode={darkMode}
         onToggleDark={() => setDarkMode((d) => !d)}
@@ -193,6 +221,12 @@ export default function App() {
         onSelectClient={handleSelectClient}
         isAdmin={isAdmin}
         onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onMarkNotificationAsRead={markNotificationAsRead}
+        onMarkAllNotificationsAsRead={markAllNotificationsAsRead}
+        onNotificationClick={handleNotificationClick}
+        reloadNotifications={reloadNotifications}
       />
 
       <div className={`flex flex-row flex-1 overflow-hidden transition-opacity duration-300 ${isLoggingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>

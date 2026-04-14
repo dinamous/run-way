@@ -44,6 +44,8 @@ export interface DbClientRow {
   created_at: string
 }
 
+export type Client = DbClientRow
+
 export interface DbUserClientRow {
   user_id: string
   client_id: string

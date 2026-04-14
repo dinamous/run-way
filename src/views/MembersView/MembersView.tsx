@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
-import { useClientStore } from '@/store/useClientStore';
 import { useUIStore } from '@/store/useUIStore';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useClients } from '@/hooks/useClients';
 import MemberCard from './components/MemberCard';
 import { ViewState } from '@/components/ViewState';
 import { DatabaseZap, Users2 } from 'lucide-react';
@@ -31,7 +31,7 @@ function todayStr() {
 
 const MembersView: React.FC = () => {
   const { isAdmin } = useAuthContext();
-  const { selectedClientId } = useClientStore();
+  const { effectiveClientId } = useClients();
   const setView = useUIStore((s) => s.setView);
   const setDashboardRedirect = useUIStore((s) => s.setDashboardRedirect);
   const {
@@ -51,9 +51,9 @@ const MembersView: React.FC = () => {
   const today = todayStr();
 
   useEffect(() => {
-    fetchTasks(selectedClientId, isAdmin);
-    fetchMembers(selectedClientId);
-  }, [selectedClientId, isAdmin, fetchTasks, fetchMembers]);
+    fetchTasks(effectiveClientId, isAdmin);
+    fetchMembers(effectiveClientId);
+  }, [effectiveClientId, isAdmin, fetchTasks, fetchMembers]);
 
   const hasData = tasks.length > 0 || members.length > 0;
   const isLoading = tasksLoading || membersLoading;
@@ -62,8 +62,8 @@ const MembersView: React.FC = () => {
   const handleRetry = () => {
     invalidateTasks();
     invalidateMembers();
-    fetchTasks(selectedClientId, isAdmin);
-    fetchMembers(selectedClientId);
+    fetchTasks(effectiveClientId, isAdmin);
+    fetchMembers(effectiveClientId);
   };
 
   if (errorMessage && !hasData) {

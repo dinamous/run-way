@@ -3,6 +3,7 @@ import { useAdminData } from './hooks/useAdminData'
 import { ClientsPanel } from './components/ClientsPanel'
 import { UsersPanel } from './components/UsersPanel'
 import { AuditLogsPanel } from './components/AuditLogsPanel'
+import { NotificationsPanel } from './components/NotificationsPanel'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { supabaseAdmin } from '@/lib/supabase'
 import { ViewState } from '@/components/ViewState'
@@ -21,7 +22,7 @@ const ADMIN_BONES = {
   ],
 }
 
-type AdminTab = 'clients' | 'users' | 'audit'
+type AdminTab = 'clients' | 'users' | 'audit' | 'notifications'
 
 export function AdminView() {
   const [tab, setTab] = useState<AdminTab>('clients')
@@ -61,6 +62,7 @@ export function AdminView() {
     { key: 'clients', label: 'Clientes', count: clients.length },
     { key: 'users', label: 'Usuários', count: users.length },
     { key: 'audit', label: 'Audit Log', count: auditLogs.length },
+    { key: 'notifications', label: 'Notificações' },
   ]
 
   const content = (
@@ -152,6 +154,14 @@ export function AdminView() {
               users={users}
               loading={loading}
               onFetch={fetchAuditLogs}
+            />
+          </div>
+        )}
+        {tab === 'notifications' && (
+          <div id="admin-panel-notifications" role="tabpanel" aria-labelledby="admin-tab-notifications">
+            <NotificationsPanel
+              clients={clients}
+              users={users}
             />
           </div>
         )}

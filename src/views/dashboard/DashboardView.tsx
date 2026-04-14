@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
-import { useClientStore } from '@/store/useClientStore';
 import { useUIStore } from '@/store/useUIStore';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useClients } from '@/hooks/useClients';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
 import { ListView } from '@/views/list';
@@ -33,7 +33,7 @@ const DASHBOARD_BONES = {
 
 const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
   const { isAdmin } = useAuthContext();
-  const { selectedClientId } = useClientStore();
+  const { effectiveClientId } = useClients();
   const dashboardRedirect = useUIStore((s) => s.dashboardRedirect);
   const clearDashboardRedirect = useUIStore((s) => s.clearDashboardRedirect);
   const {
@@ -53,9 +53,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
   const [calView, setCalView] = useState<CalView>(() => dashboardRedirect?.mode ?? 'timeline');
 
   useEffect(() => {
-    fetchTasks(selectedClientId, isAdmin);
-    fetchMembers(selectedClientId);
-  }, [selectedClientId, isAdmin, fetchTasks, fetchMembers]);
+    fetchTasks(effectiveClientId, isAdmin);
+    fetchMembers(effectiveClientId);
+  }, [effectiveClientId, isAdmin, fetchTasks, fetchMembers]);
 
   const {
     filterAssignee, setFilterAssignee,
@@ -80,8 +80,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
   const handleRetry = () => {
     invalidateTasks();
     invalidateMembers();
-    fetchTasks(selectedClientId, isAdmin);
-    fetchMembers(selectedClientId);
+    fetchTasks(effectiveClientId, isAdmin);
+    fetchMembers(effectiveClientId);
   };
 
   if (errorMessage && !hasData) {
