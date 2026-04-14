@@ -36,6 +36,7 @@ clients: DbClientRow[]
 users: Member[]
 auditLogs: DbAuditLogRow[]
 userClientsMap: Record<string, string[]>   // memberId → clientId[]
+pendingUsers: PendingAuthUser[]            // contas Google sem member vinculado
 loading: boolean
 loadingInitial: boolean
 error: string | null
@@ -45,8 +46,12 @@ error: string | null
 - `createClient / updateClient / deleteClient`
 - `linkUserToClient / unlinkUserFromClient`
 - `createUser / updateUser / setUserRole / setUserAuthId`
+- `deactivateUser(userId)` — seta `is_active: false` no member; preserva tasks e steps
+- `reactivateUser(userId)` — seta `is_active: true` no member
 - `listGoogleUsers(search?)` — busca na Supabase Auth admin API (retorna até 20 resultados)
 - `fetchAuditLogs(filters)` — filtros: clientId, entity, userId, entityName, from/to
+
+> **Nota:** `setUserAuthId` chama `fetchPendingUsers()` após concluir para manter a lista de pendentes sincronizada sem reload de página.
 
 ## UsersPanel — comportamento do drawer de edição
 
@@ -59,7 +64,17 @@ O drawer de edição acumula todas as mudanças em estado local e só dispara re
 
 **Ao fechar com dados não salvos** (botão Cancelar, ESC ou clicar fora), exibe `ConfirmModal` pedindo confirmação antes de descartar.
 
+**Botão Desativar** no canto inferior esquerdo do `DrawerFooter` (variante `destructive`). Ao clicar, salva o `id` do utilizador em `pendingDeactivateId` e abre `ConfirmModal`. A confirmação chama `onDeactivate(pendingDeactivateId)` — o id é capturado antes do drawer fechar para evitar que o `vaul` (que interpreta o clique no modal como "fora do drawer") resete `editingUser` antes da operação. O mesmo padrão aplica-se ao botão **Reativar** via `pendingReactivateId`.
+
 **Dropdown de conta Google** fica fora do container com `overflow-y-auto` para não ser clipado pelo scroll.
+
+## UsersPanel — filtros do tab Membros
+
+No tab **Membros**, os filtros disponíveis são: **Todos / Ativos / Sem acesso / Desativados**.
+
+- **Ativos** filtra members com `is_active !== false`
+- **Sem acesso** filtra members ativos sem `auth_user_id`
+- **Desativados** filtra members com `is_active === false`
 
 ## Impersonation
 

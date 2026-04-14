@@ -16,7 +16,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import type { Member } from '@/hooks/useSupabase'
 import type { PendingAuthUser } from '../hooks/useAdminData'
 import type { DbClientRow } from '@/types/db'
-import { Plus, Building, Check, Search, UserCheck, ChevronLeft, ChevronRight, Key, Clock, Mail, Link2, Trash2 } from 'lucide-react'
+import { Plus, Building, Check, Search, UserCheck, ChevronLeft, ChevronRight, Key, Clock, Mail, Link2, UserX } from 'lucide-react'
 
 interface GoogleUser {
   id: string
@@ -43,7 +43,8 @@ interface UsersPanelProps {
   onUpdate: (userId: string, name: string, role: string, email?: string | null) => Promise<boolean>
   onSetAuthId: (userId: string, authUserId: string | null, avatarUrl?: string | null) => Promise<boolean>
   onListGoogleUsers: (search?: string) => Promise<GoogleUser[]>
-  onDelete: (userId: string) => Promise<boolean>
+  onDeactivate: (userId: string) => Promise<boolean>
+  onReactivate: (userId: string) => Promise<boolean>
   userClientsMap: Record<string, string[]>
   pendingUsers: PendingAuthUser[]
 }
@@ -145,11 +146,11 @@ type ValidationErrors = {
   email?: string
 }
 
-type StatusFilter = 'all' | 'active' | 'pending'
+type StatusFilter = 'all' | 'active' | 'pending' | 'deactivated'
 type CurrentTab = 'members' | 'pending'
 
 export function UsersPanel({
-  users, clients, onSetRole, onLink, onUnlink, onCreate, onUpdate, onSetAuthId, onListGoogleUsers, onDelete, userClientsMap, pendingUsers
+  users, clients, onSetRole, onLink, onUnlink, onCreate, onUpdate, onSetAuthId, onListGoogleUsers, onDeactivate, onReactivate, userClientsMap, pendingUsers
 }: UsersPanelProps) {
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false)
@@ -162,8 +163,13 @@ export function UsersPanel({
   const [savingEdit, setSavingEdit] = useState(false)
   const [editErrors, setEditErrors] = useState<ValidationErrors>({})
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deletingUser, setDeletingUser] = useState(false)
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false)
+  const [showReactivateConfirm, setShowReactivateConfirm] = useState(false)
+  const [togglingActive, setTogglingActive] = useState(false)
+  const [pendingDeactivateId, setPendingDeactivateId] = useState<string | null>(null)
+  const [pendingDeactivateName, setPendingDeactivateName] = useState<string>('')
+  const [pendingReactivateId, setPendingReactivateId] = useState<string | null>(null)
+  const [pendingReactivateName, setPendingReactivateName] = useState<string>('')
 
   const [createName, setCreateName] = useState('')
   const [createRole, setCreateRole] = useState('')
@@ -214,10 +220,15 @@ export function UsersPanel({
   const filteredUsers = useMemo(() => {
     let filtered = users
 
-    if (statusFilter === 'active') {
-      filtered = filtered.filter(u => !!u.auth_user_id)
-    } else if (statusFilter === 'pending') {
-      filtered = filtered.filter(u => !u.auth_user_id)
+    if (statusFilter === 'deactivated') {
+      filtered = filtered.filter(u => u.is_active === false)
+    } else {
+      filtered = filtered.filter(u => u.is_active !== false)
+      if (statusFilter === 'active') {
+        filtered = filtered.filter(u => !!u.auth_user_id)
+      } else if (statusFilter === 'pending') {
+        filtered = filtered.filter(u => !u.auth_user_id)
+      }
     }
 
     if (searchQuery.trim()) {
@@ -460,6 +471,52 @@ export function UsersPanel({
     }
   }
 
+  const handleDeactivateUser = async () => {
+    const userId = pendingDeactivateId
+    const userName = pendingDeactivateName
+    if (!userId) return
+    setTogglingActive(true)
+    try {
+      const ok = await onDeactivate(userId)
+      if (ok) {
+        toast.success(`Utilizador "${userName}" desativado`)
+        setEditDrawerOpen(false)
+        setEditingUser(null)
+      } else {
+        toast.error('Erro ao desativar utilizador')
+      }
+    } catch {
+      toast.error('Ocorreu um erro inesperado ao desativar.')
+    } finally {
+      setTogglingActive(false)
+      setShowDeactivateConfirm(false)
+      setPendingDeactivateId(null)
+    }
+  }
+
+  const handleReactivateUser = async () => {
+    const userId = pendingReactivateId
+    const userName = pendingReactivateName
+    if (!userId) return
+    setTogglingActive(true)
+    try {
+      const ok = await onReactivate(userId)
+      if (ok) {
+        toast.success(`Utilizador "${userName}" reativado`)
+        setEditDrawerOpen(false)
+        setEditingUser(null)
+      } else {
+        toast.error('Erro ao reativar utilizador')
+      }
+    } catch {
+      toast.error('Ocorreu um erro inesperado ao reativar.')
+    } finally {
+      setTogglingActive(false)
+      setShowReactivateConfirm(false)
+      setPendingReactivateId(null)
+    }
+  }
+
   const handleLinkClient = (_clientId: string, _clientName: string) => {
     setEditClients(prev => [...prev, _clientId])
   }
@@ -556,6 +613,17 @@ export function UsersPanel({
                 <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
                 Sem acesso
               </button>
+              <button
+                onClick={() => { setStatusFilter('deactivated'); setPage(1) }}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                  statusFilter === 'deactivated'
+                    ? 'bg-background shadow-sm font-medium'
+                    : 'hover:bg-background/50 text-muted-foreground'
+                }`}
+              >
+                <UserX className="w-3.5 h-3.5 text-gray-500" />
+                Desativados
+              </button>
             </div>
 )}
         </div>
@@ -636,7 +704,14 @@ export function UsersPanel({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-base truncate">{u.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-base truncate">{u.name}</CardTitle>
+                      {u.is_active === false && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                          Desativado
+                        </span>
+                      )}
+                    </div>
                     <CardDescription className="text-xs truncate">{u.role}</CardDescription>
                     {hasEmail && (
                       <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
@@ -932,7 +1007,7 @@ export function UsersPanel({
         </DrawerContent>
       </Drawer>
 
-      <Drawer direction="right" open={editDrawerOpen} onOpenChange={open => { if (!open) closeEditDrawer() }}>
+      <Drawer direction="right" open={editDrawerOpen} onOpenChange={open => { if (!open && !showDeactivateConfirm && !showReactivateConfirm && !showDiscardConfirm) closeEditDrawer() }}>
         <DrawerContent data-vaul-drawer-direction="right">
           <DrawerHeader>
             <DrawerTitle>Editar Utilizador</DrawerTitle>
@@ -1164,9 +1239,32 @@ export function UsersPanel({
             </div>
           )}
 
-          <DrawerFooter className="flex-row justify-end gap-2">
-            <Button variant="outline" onClick={() => closeEditDrawer()} disabled={savingEdit}>Cancelar</Button>
-            <Button onClick={handleUpdateUser} isLoading={savingEdit}>Guardar</Button>
+          <DrawerFooter className="flex-row justify-between gap-2">
+            {editingUser?.is_active !== false ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => { setPendingDeactivateId(editingUser?.id ?? null); setPendingDeactivateName(editingUser?.name ?? ''); setShowDeactivateConfirm(true) }}
+                disabled={savingEdit || togglingActive}
+              >
+                <UserX className="w-4 h-4 mr-1" />
+                Desativar
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setPendingReactivateId(editingUser?.id ?? null); setPendingReactivateName(editingUser?.name ?? ''); setShowReactivateConfirm(true) }}
+                disabled={savingEdit || togglingActive}
+              >
+                <UserCheck className="w-4 h-4 mr-1" />
+                Reativar
+              </Button>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => closeEditDrawer()} disabled={savingEdit || togglingActive}>Cancelar</Button>
+              <Button onClick={handleUpdateUser} isLoading={savingEdit} disabled={togglingActive}>Guardar</Button>
+            </div>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
@@ -1267,6 +1365,28 @@ export function UsersPanel({
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      {showDeactivateConfirm && (
+        <ConfirmModal
+          title="Desativar utilizador?"
+          message={`O membro "${pendingDeactivateName}" perderá o acesso à plataforma. As tasks e steps associadas serão preservadas. Esta ação pode ser revertida.`}
+          confirmLabel="Desativar"
+          cancelLabel="Cancelar"
+          onConfirm={handleDeactivateUser}
+          onCancel={() => setShowDeactivateConfirm(false)}
+        />
+      )}
+
+      {showReactivateConfirm && (
+        <ConfirmModal
+          title="Reativar utilizador?"
+          message={`O membro "${pendingReactivateName}" voltará a ter acesso à plataforma.`}
+          confirmLabel="Reativar"
+          cancelLabel="Cancelar"
+          onConfirm={handleReactivateUser}
+          onCancel={() => setShowReactivateConfirm(false)}
+        />
+      )}
 
       {showDiscardConfirm && (
         <ConfirmModal

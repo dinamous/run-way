@@ -19,6 +19,7 @@ export interface Member {
   email?: string | null
   auth_user_id?: string | null
   access_role?: 'admin' | 'user'
+  is_active?: boolean
 }
 
 interface UseSupabaseOptions {

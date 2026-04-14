@@ -32,7 +32,7 @@ export function AdminView() {
     fetchAuditLogs,
     createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
-    createUser, setUserAuthId, updateUser, listGoogleUsers,
+    createUser, setUserAuthId, updateUser, deactivateUser, reactivateUser, listGoogleUsers,
   } = useAdminData({ actorUserId: member?.id ?? null })
 
   if (!supabaseAdmin) {
@@ -137,6 +137,8 @@ export function AdminView() {
               onUpdate={updateUser}
               onSetAuthId={setUserAuthId}
               onListGoogleUsers={listGoogleUsers}
+              onDeactivate={deactivateUser}
+              onReactivate={reactivateUser}
               userClientsMap={userClientsMap}
               pendingUsers={pendingUsers}
             />

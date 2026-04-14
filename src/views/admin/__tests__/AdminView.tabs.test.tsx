@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import * as Boneyard from 'boneyard-js/react'
 import { AdminView } from '../AdminView'
 import type { AuthContextValue } from '@/contexts/AuthContext'
+
+vi.spyOn(Boneyard, 'Skeleton').mockImplementation(({ children }) => <>{children}</>)
 
 const mockContextValue: AuthContextValue = {
   session: null,

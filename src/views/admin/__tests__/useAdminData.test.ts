@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { useAdminData } from '../hooks/useAdminData'
 
 vi.mock('@/lib/supabase', () => ({
@@ -58,5 +58,78 @@ describe('useAdminData', () => {
     expect(typeof result.current.createUser).toBe('function')
     expect(typeof result.current.listGoogleUsers).toBe('function')
     expect(typeof result.current.fetchAuditLogs).toBe('function')
+  })
+})
+
+function makeFromMock(updateEqResult: { error: null | { message: string } }) {
+  const eqMock = vi.fn().mockResolvedValue(updateEqResult)
+  const updateMock = vi.fn().mockReturnValue({ eq: eqMock })
+  const selectMock = vi.fn().mockReturnValue({
+    order: vi.fn().mockResolvedValue({ data: [], error: null }),
+    eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+  })
+  const fromMock = vi.fn().mockReturnValue({
+    select: selectMock,
+    update: updateMock,
+    delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
+    insert: vi.fn(() => Promise.resolve({ error: null })),
+    upsert: vi.fn(() => Promise.resolve({ error: null })),
+  })
+  return { fromMock, updateMock, eqMock }
+}
+
+describe('deactivateUser', () => {
+  it('chama update com is_active: false e retorna true', async () => {
+    const { supabaseAdmin } = await import('@/lib/supabase')
+    const { fromMock, updateMock, eqMock } = makeFromMock({ error: null })
+    vi.mocked(supabaseAdmin!.from).mockImplementation(fromMock)
+
+    const { result } = renderHook(() => useAdminData())
+    await waitFor(() => expect(result.current.loadingInitial).toBe(false))
+
+    let ok: boolean | undefined
+    await act(async () => {
+      ok = await result.current.deactivateUser('member-1')
+    })
+
+    expect(ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith({ is_active: false })
+    expect(eqMock).toHaveBeenCalledWith('id', 'member-1')
+  })
+
+  it('retorna false quando Supabase falha', async () => {
+    const { supabaseAdmin } = await import('@/lib/supabase')
+    const { fromMock } = makeFromMock({ error: { message: 'fail' } })
+    vi.mocked(supabaseAdmin!.from).mockImplementation(fromMock)
+
+    const { result } = renderHook(() => useAdminData())
+    await waitFor(() => expect(result.current.loadingInitial).toBe(false))
+
+    let ok: boolean | undefined
+    await act(async () => {
+      ok = await result.current.deactivateUser('member-1')
+    })
+
+    expect(ok).toBe(false)
+  })
+})
+
+describe('reactivateUser', () => {
+  it('chama update com is_active: true e retorna true', async () => {
+    const { supabaseAdmin } = await import('@/lib/supabase')
+    const { fromMock, updateMock, eqMock } = makeFromMock({ error: null })
+    vi.mocked(supabaseAdmin!.from).mockImplementation(fromMock)
+
+    const { result } = renderHook(() => useAdminData())
+    await waitFor(() => expect(result.current.loadingInitial).toBe(false))
+
+    let ok: boolean | undefined
+    await act(async () => {
+      ok = await result.current.reactivateUser('member-1')
+    })
+
+    expect(ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith({ is_active: true })
+    expect(eqMock).toHaveBeenCalledWith('id', 'member-1')
   })
 })
