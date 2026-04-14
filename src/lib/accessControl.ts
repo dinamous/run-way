@@ -46,6 +46,13 @@ const VIEW_RULES: Record<ViewType, ViewRule> = {
   reports: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:reports' },
   admin: { requiresClient: false, roles: ['admin'], permission: 'view:admin' },
   tools: { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
+  'tools-briefing-analyzer': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
+  'tools-import': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
+  'tools-export': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
+  'tools-integrations': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
+  'calendar-day': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  'calendar-week': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  'calendar-month': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
 }
 
 export function resolveAccessRole(member: Member | null): AccessRole | null {

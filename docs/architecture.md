@@ -8,7 +8,7 @@ src/
 ├── main.tsx                   # Entry point
 ├── components/
 │   ├── TaskModal.tsx          # Modal criar/editar demanda
-│   ├── AppHeader.tsx          # Header com seletor de cliente
+│   ├── AppHeader.tsx          # Header: logo, hamburger mobile, NotificationBell
 │   ├── AppSidebar.tsx         # Sidebar de navegação
 │   └── ui/                    # Design system (Button, Input, Label, Badge)
 ├── views/
@@ -56,12 +56,15 @@ App.tsx (inicialização, roteamento, clientMembers)
     ├── useUIStore      → view, isTaskModalOpen
     ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
     ├── clientMembers (useMemo) → membros filtrados pelo cliente ativo
-    ├── view="home"      → HomeView
-    ├── view="clients"   → UserClientsView
-    ├── view="dashboard" → DashboardView → Calendar/Timeline
-    ├── view="members"   → MembersView (recebe clientMembers)
-    ├── view="reports"   → ReportsView (recebe clientMembers)
-    ├── view="tools"     → ToolsView (grid de ferramentas; navegação interna por activeTool)
+    ├── view="home"                    → HomeView
+    ├── view="clients"                 → UserClientsView
+    ├── view="dashboard"               → DashboardView
+    ├── view="calendar-day/week/month" → DashboardView (subviews; implementação pendente)
+    ├── view="members"                 → MembersView
+    ├── view="reports"                 → ReportsView
+    ├── view="tools"                   → ToolsView (grid de ferramentas)
+    ├── view="tools-briefing-analyzer" → ToolsView com subview (BriefingAnalyzerView)
+    ├── view="tools-import/export/integrations" → ToolsView com subview (em breve)
     └── TaskModal → criar/editar (useFormState → cascata de fases)
 ```
 
@@ -70,7 +73,10 @@ App.tsx (inicialização, roteamento, clientMembers)
 ### `useUIStore`
 Estado de navegação e modal. Não persiste.
 ```ts
-view: ViewType                  // 'home' | 'dashboard' | 'members' | 'reports' | 'admin' | 'clients' | 'tools'
+view: ViewType
+// 'home' | 'dashboard' | 'calendar-day' | 'calendar-week' | 'calendar-month'
+// | 'members' | 'reports' | 'admin' | 'clients'
+// | 'tools' | 'tools-briefing-analyzer' | 'tools-import' | 'tools-export' | 'tools-integrations'
 setView(view)
 isTaskModalOpen: boolean
 openTaskModal() / closeTaskModal()

@@ -211,15 +211,6 @@ export default function App() {
     <div className="flex flex-col h-screen bg-background text-foreground font-sans">
       <Toaster richColors position="bottom-right" />
       <AppHeader
-        darkMode={darkMode}
-        onToggleDark={() => setDarkMode((d) => !d)}
-        userEmail={user?.email}
-        userAvatarUrl={member?.avatar_url}
-        onSignOut={handleSignOut}
-        selectedClient={selectedClient ?? null}
-        availableClients={clients}
-        onSelectClient={handleSelectClient}
-        isAdmin={isAdmin}
         onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
         notifications={notifications}
         unreadCount={unreadCount}
@@ -227,6 +218,7 @@ export default function App() {
         onMarkAllNotificationsAsRead={markAllNotificationsAsRead}
         onNotificationClick={handleNotificationClick}
         reloadNotifications={reloadNotifications}
+        selectedClientId={effectiveClientId ?? null}
       />
 
       <div className={`flex flex-row flex-1 overflow-hidden transition-opacity duration-300 ${isLoggingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
@@ -244,6 +236,10 @@ export default function App() {
             userEmail={user?.email}
             userAvatarUrl={member?.avatar_url}
             onSignOut={handleSignOut}
+            selectedClient={selectedClient ?? null}
+            availableClients={clients}
+            onSelectClient={handleSelectClient}
+            isAdmin={isAdmin}
           />
 
         <main key={view} className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 animate-blur-fade-in">
@@ -274,10 +270,19 @@ export default function App() {
               onExport={() => window.print()}
               holidays={holidays}
             />
+          ) : view === "calendar-day" || view === "calendar-week" || view === "calendar-month" ? (
+            <DashboardView
+              onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
+              onDelete={(id: string) => requestDeleteTask(id)}
+              onUpdateTask={updateTask}
+              onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
+              onExport={() => window.print()}
+              holidays={holidays}
+            />
           ) : view === "members" ? (
             <MembersView />
-          ) : view === "tools" ? (
-            <ToolsView />
+          ) : view === "tools" || view === "tools-briefing-analyzer" || view === "tools-import" || view === "tools-export" || view === "tools-integrations" ? (
+            <ToolsView subview={view === "tools" ? undefined : view} />
           ) : (
             <ReportsView />
             )}
