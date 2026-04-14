@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 interface UseNotificationPollingProps {
   enabled: boolean
@@ -14,8 +14,9 @@ export function useNotificationPolling({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const runningRef = useRef(false)
   const currentInterval = useRef(interval)
+  const runRef = useRef<(() => Promise<void>) | null>(null)
 
-  const run = async () => {
+  const run = useCallback(async () => {
     if (runningRef.current) return
     if (document.visibilityState !== 'visible') return
 
@@ -29,10 +30,12 @@ export function useNotificationPolling({
     } finally {
       runningRef.current = false
       if (enabled) {
-        timerRef.current = setTimeout(run, currentInterval.current)
+        timerRef.current = setTimeout(() => runRef.current?.(), currentInterval.current)
       }
     }
-  }
+  }, [enabled, fn, interval])
+
+  runRef.current = run
 
   useEffect(() => {
     if (!enabled || !fn) return
@@ -42,7 +45,7 @@ export function useNotificationPolling({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [enabled, fn])
+  }, [enabled, fn, run])
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -53,5 +56,5 @@ export function useNotificationPolling({
 
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [enabled])
+  }, [enabled, run])
 }
