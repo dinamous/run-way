@@ -30,7 +30,9 @@
       "Bash(git push:*)",
       "Bash(node_modules/.bin/tsc --noEmit)",
       "Bash(cmd:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" npm run test:run -- src/views/admin)",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" npm run test:run)"
     ]
   },
   "hooks": {

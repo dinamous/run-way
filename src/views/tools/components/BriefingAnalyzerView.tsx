@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { ChevronRight, Copy, CheckCircle2, Circle, HelpCircle, ShieldAlert, FileText, Zap, Monitor, Code2, Image, Film, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -792,7 +792,7 @@ function analyzeFinanceiro(text: string): AnalysisResult | null {
   const results: ChecklistResults = Object.fromEntries(CHECKLIST_FIN.map(c => [c.id, false]))
 
   if (/relatório|aprovação|nota fiscal|nf|reembolso|contrato|pagamento|requisição|po\b|purchase order/.test(t)) results.type = true
-  if (/r\$|reais|valor|verba|budget|orçamento|\d+[\.,]\d{2}/.test(t)) results.value = true
+  if (/r\$|reais|valor|verba|budget|orçamento|\d+[.,]\d{2}/.test(t)) results.value = true
   if (/cc\b|centro de custo|cost center|projeto|verba de/.test(t)) results.costcenter = true
   if (/aprovação|aprovador|alçada|assinar|autorização|gestor/.test(t)) results.approver = true
   if (/fornecedor|empresa|prestador|beneficiário|cnpj|cpf/.test(t)) results.supplier = true
@@ -986,7 +986,7 @@ export function BriefingAnalyzerView({ onBack }: BriefingAnalyzerViewProps) {
   const scope = SCOPES.find(s => s.id === activeScope)!
   const result = input.trim().length >= 10 ? scope.analyze(input) : null
 
-  const handleCopy = useCallback(() => {
+  const handleCopy = () => {
     if (!result) return
     navigator.clipboard.writeText(result.output).catch(() => {
       const el = document.createElement('textarea')
@@ -998,7 +998,7 @@ export function BriefingAnalyzerView({ onBack }: BriefingAnalyzerViewProps) {
     })
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }, [result])
+  }
 
   const clarityColor = result
     ? result.metrics.clarity > 75

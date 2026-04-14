@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import * as Boneyard from 'boneyard-js/react'
 import { AdminView } from '../AdminView'
-import type { AuthContextValue } from '@/contexts/AuthContext'
 
-vi.spyOn(Boneyard, 'Skeleton').mockImplementation(({ children }) => <>{children}</>)
+vi.mock('boneyard-js/react', () => ({
+  Skeleton: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+}))
 
-const mockContextValue: AuthContextValue = {
+type MockContext = ReturnType<typeof import('@/contexts/AuthContext').useAuthContext>
+
+const mockContextValue: MockContext = {
   session: null,
   user: null,
   member: { id: 'admin-1', name: 'Admin User' } as never,
@@ -31,7 +33,7 @@ vi.mock('@/lib/supabase', () => ({
   },
 }))
 
-vi.mock('./hooks/useAdminData', () => ({
+vi.mock('../hooks/useAdminData', () => ({
   useAdminData: () => ({
     clients: [{ id: 'c1', name: 'Acme', slug: 'acme' }],
     users: [{ id: 'u1', name: 'Ana', role: 'Designer', avatar: 'AN', auth_user_id: null, access_role: 'user', email: null, avatar_url: null }],

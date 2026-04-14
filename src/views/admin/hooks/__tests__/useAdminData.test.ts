@@ -28,36 +28,55 @@ vi.mock('@/store/useClientStore', () => ({
     selector({ selectedClientId: null }),
 }))
 
+const mockPatchUser = vi.fn()
+const mockSetError = vi.fn()
+const mockRefreshAll = vi.fn().mockResolvedValue(undefined)
+const mockFetchClients = vi.fn().mockResolvedValue(undefined)
+const mockFetchUsers = vi.fn().mockResolvedValue(undefined)
+const mockFetchUserClientsMap = vi.fn().mockResolvedValue(undefined)
+const mockFetchPendingUsers = vi.fn().mockResolvedValue(undefined)
+const mockFetchAuditLogs = vi.fn().mockResolvedValue(undefined)
+
+vi.mock('@/store/useAdminStore', () => ({
+  useAdminStore: () => ({
+    clients: [],
+    users: [],
+    auditLogs: [],
+    userClientsMap: {},
+    pendingUsers: [],
+    loading: false,
+    loadingInitial: false,
+    error: null,
+    initialized: true,
+    fetchClients: mockFetchClients,
+    fetchUsers: mockFetchUsers,
+    fetchUserClientsMap: mockFetchUserClientsMap,
+    fetchPendingUsers: mockFetchPendingUsers,
+    fetchAuditLogs: mockFetchAuditLogs,
+    refreshAll: mockRefreshAll,
+    patchUser: mockPatchUser,
+    setError: mockSetError,
+  }),
+}))
+
 import { useAdminData } from '../useAdminData'
 import { supabaseAdmin } from '@/lib/supabase'
 
-// Helper para criar mock de query chain do Supabase
-// O objeto retornado é um thenable (Promise-like) para que `await query.select().order()` funcione
-function makeQueryMock(returnValue: { data?: unknown; error?: unknown }) {
-  const mock: Record<string, unknown> = {}
-  const self = () => mock
-  mock.select = vi.fn().mockReturnThis()
-  mock.order = vi.fn().mockReturnThis()
-  mock.eq = vi.fn().mockReturnThis()
-  mock.delete = vi.fn().mockReturnThis()
-  mock.update = vi.fn().mockReturnThis()
-  mock.upsert = vi.fn().mockReturnThis()
-  mock.insert = vi.fn().mockReturnThis()
-  mock.single = vi.fn().mockResolvedValue(returnValue)
-  mock.limit = vi.fn().mockReturnThis()
-  mock.gte = vi.fn().mockReturnThis()
-  mock.lte = vi.fn().mockReturnThis()
-  mock.ilike = vi.fn().mockReturnThis()
-  // Thenable: quando o chain é awaited diretamente
-  mock.then = (resolve: (v: unknown) => void) => {
-    resolve(returnValue)
-    return Promise.resolve(returnValue)
+// Helper para criar mock de query chain do Supabase.
+// Todos os métodos retornam `this` para permitir encadeamento, EXCETO `.single()` que resolve.
+// O objeto mock em si é uma Promise resolvida (via Promise.resolve) para que `await chain` funcione
+// sem expor `.then` diretamente no objeto (o que causaria loop infinito).
+function makeQueryMock(returnValue: { data?: unknown; error?: unknown }): Promise<typeof returnValue> & Record<string, unknown> {
+  const base = Promise.resolve(returnValue) as Promise<typeof returnValue> & Record<string, unknown>
+  const chainMethods = ['select', 'order', 'limit', 'gte', 'lte', 'ilike', 'eq', 'match', 'delete', 'update', 'upsert', 'insert']
+  for (const method of chainMethods) {
+    base[method] = vi.fn().mockReturnValue(base)
   }
-  void self
-  return mock
+  base['single'] = vi.fn().mockResolvedValue(returnValue)
+  return base
 }
 
-// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+ 
 const admin = supabaseAdmin!
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,24 +156,19 @@ describe('reactivateUser', () => {
 })
 
 describe('setUserAuthId — atualiza pendingUsers após vincular', () => {
-    it('chama listUsers (fetchPendingUsers) após um setUserAuthId bem-sucedido', async () => {
+    it('chama fetchPendingUsers após um setUserAuthId bem-sucedido', async () => {
       const updateQuery = makeQueryMock({ data: null, error: null })
       vi.mocked(admin.from).mockReturnValue(updateQuery as AnyQuery)
-      vi.mocked(admin.auth.admin.listUsers).mockResolvedValue({
-        data: { users: [], aud: '', nextPage: 0, lastPage: 0, total: 0 },
-        error: null,
-      } as unknown as Awaited<ReturnType<typeof admin.auth.admin.listUsers>>)
 
       const { result } = renderHook(() => useAdminData())
 
-      const callsBefore = vi.mocked(admin.auth.admin.listUsers).mock.calls.length
+      mockFetchPendingUsers.mockClear()
 
       await act(async () => {
         await result.current.setUserAuthId('member-1', 'auth-uuid-new', null)
       })
 
-      const callsAfter = vi.mocked(admin.auth.admin.listUsers).mock.calls.length
-      expect(callsAfter).toBeGreaterThan(callsBefore)
+      expect(mockFetchPendingUsers).toHaveBeenCalled()
     })
   })
 })

@@ -1,4 +1,4 @@
-import { LinkIcon, FileText, BarChart, Code, Sparkles, ScanSearch } from 'lucide-react'
+import { ScanSearch } from 'lucide-react'
 import type React from 'react'
 
 export type Tool = {

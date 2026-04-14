@@ -1,7 +1,5 @@
 import { useEffect, useCallback } from 'react'
 import { supabaseAdmin } from '@/lib/supabase'
-import type { DbClientRow, DbAuditLogRow } from '@/types/db'
-import type { Member } from '@/hooks/useSupabase'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useMemberStore } from '@/store/useMemberStore'
