@@ -29,7 +29,8 @@
       "Bash(git pull:*)",
       "Bash(git push:*)",
       "Bash(node_modules/.bin/tsc --noEmit)",
-      "Bash(cmd:*)"
+      "Bash(cmd:*)",
+      "Bash(npx eslint:*)"
     ]
   },
   "hooks": {

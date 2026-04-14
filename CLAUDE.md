@@ -68,6 +68,7 @@ npm run lint      # ESLint
 | useAuth, login | [docs/hooks/auth.md](docs/hooks/auth.md) |
 | useFormState | [docs/hooks/form-state.md](docs/hooks/form-state.md) |
 | dateUtils, dias úteis, cascadePhases | [docs/utils/date-utils.md](docs/utils/date-utils.md) |
+| ToolsView, BriefingAnalyzerView, padrão de subview | [docs/views/tools.md](docs/views/tools.md) |
 | Convenções, padrões, env vars | [docs/guidelines.md](docs/guidelines.md) |
 | TODOs e melhorias pendentes | [docs/todo/melhorias.md](docs/todo/melhorias.md) |
 | TODO: upsert steps (detalhado) | [docs/todo/upsert-steps.md](docs/todo/upsert-steps.md) |
