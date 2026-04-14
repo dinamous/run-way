@@ -38,11 +38,11 @@ export function AuditLogsPanel({ logs, clients, users, loading, onFetch }: Audit
       <h2 className="text-lg font-semibold">Audit Log</h2>
 
       {/* Filtros */}
-      <div className="flex flex-wrap gap-2 items-end">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">Cliente</span>
           <select
-            className="border rounded px-2 py-1 text-sm bg-background"
+            className="border rounded px-2 py-1.5 text-sm bg-background w-full"
             value={clientId}
             onChange={e => setClientId(e.target.value)}
           >
@@ -54,7 +54,7 @@ export function AuditLogsPanel({ logs, clients, users, loading, onFetch }: Audit
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">Usuário</span>
           <select
-            className="border rounded px-2 py-1 text-sm bg-background"
+            className="border rounded px-2 py-1.5 text-sm bg-background w-full"
             value={userId}
             onChange={e => setUserId(e.target.value)}
           >
@@ -66,7 +66,7 @@ export function AuditLogsPanel({ logs, clients, users, loading, onFetch }: Audit
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">Entidade</span>
           <select
-            className="border rounded px-2 py-1 text-sm bg-background"
+            className="border rounded px-2 py-1.5 text-sm bg-background w-full"
             value={entity}
             onChange={e => setEntity(e.target.value)}
           >
@@ -83,20 +83,22 @@ export function AuditLogsPanel({ logs, clients, users, loading, onFetch }: Audit
             placeholder="Nome da entidade"
             value={entityName}
             onChange={e => setEntityName(e.target.value)}
-            className="w-40 h-8 text-sm"
+            className="h-9 text-sm w-full"
           />
         </div>
 
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">De</span>
-          <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="w-36 h-8 text-sm" />
+          <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 text-sm w-full" />
         </div>
 
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">Até</span>
-          <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="w-36 h-8 text-sm" />
+          <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 text-sm w-full" />
         </div>
+      </div>
 
+      <div>
         <Button size="sm" onClick={handleSearch} disabled={loading}>
           {loading ? 'Buscando…' : 'Buscar'}
         </Button>

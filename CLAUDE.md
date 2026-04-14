@@ -16,7 +16,7 @@ npm run lint      # ESLint
 
 **Task:** `id, title, clickupLink?, assignee, status ('backlog'|'em andamento'|'bloqueado'|'concluído'), phases {design,approval,dev,qa} cada com {start,end} YYYY-MM-DD, createdAt`
 
-**Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais)`
+**Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais), avatar_url?, email?, auth_user_id?, access_role ('admin'|'user'), is_active?, created_at?, deactivated_at?`
 
 **Fases:** Design (5d, violeta) → Approval (3d, laranja) → Dev (7d, azul) → QA (3d, esmeralda). Cascata automática.
 
@@ -41,6 +41,7 @@ npm run lint      # ESLint
 - Views devem ser pastas (`src/views/<nome>/`) com componentes, hooks e `index.ts` — nunca arquivos monolíticos
 - **Co-location:** componentes e hooks **privados** de uma view ficam dentro dela (`views/<nome>/components/`, `views/<nome>/hooks/`). Só sobem para `src/components/` ou `src/hooks/` quando usados por 2+ views
 - `.env` nunca commitado
+- **Testes:** toda nova feature ou bugfix deve ter testes unitários com Vitest. Rodar com `npm run test:run`. Arquivos de teste ficam em `src/**/__tests__/` co-localizados com o módulo testado
 
 ## CI/CD (.github/workflows/)
 
@@ -60,13 +61,14 @@ npm run lint      # ESLint
 | Estrutura, fluxo de dados, decisões | [docs/architecture.md](docs/architecture.md) |
 | DashboardView, Calendar, Timeline, drag-drop | [docs/views/dashboard.md](docs/views/dashboard.md) |
 | MembersView, capacidade | [docs/views/members.md](docs/views/members.md) |
-| AdminView, UsersPanel, useAdminData | [docs/views/admin.md](docs/views/admin.md) |
+| AdminView, UsersPanel, useAdminData, useAdminStore | [docs/views/admin.md](docs/views/admin.md) |
 | TaskModal, cascata de fases | [docs/components/task-modal.md](docs/components/task-modal.md) |
 | Design system (Button, Input, Label, Badge) | [docs/components/ui.md](docs/components/ui.md) |
 | useSupabase, CRUD, steps | [docs/hooks/supabase.md](docs/hooks/supabase.md) |
 | useAuth, login | [docs/hooks/auth.md](docs/hooks/auth.md) |
 | useFormState | [docs/hooks/form-state.md](docs/hooks/form-state.md) |
 | dateUtils, dias úteis, cascadePhases | [docs/utils/date-utils.md](docs/utils/date-utils.md) |
+| ToolsView, BriefingAnalyzerView, padrão de subview | [docs/views/tools.md](docs/views/tools.md) |
 | Convenções, padrões, env vars | [docs/guidelines.md](docs/guidelines.md) |
 | TODOs e melhorias pendentes | [docs/todo/melhorias.md](docs/todo/melhorias.md) |
 | TODO: upsert steps (detalhado) | [docs/todo/upsert-steps.md](docs/todo/upsert-steps.md) |

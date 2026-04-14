@@ -1,30 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
 import { supabaseAdmin } from '@/lib/supabase'
-import type { DbClientRow, DbAuditLogRow } from '@/types/db'
-import type { Member } from '@/hooks/useSupabase'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useMemberStore } from '@/store/useMemberStore'
 import { useClientStore } from '@/store/useClientStore'
+import { useAdminStore } from '@/store/useAdminStore'
+import type { PendingAuthUser, AuditFilters } from '@/store/useAdminStore'
 
-const ALLOWED_DOMAIN = import.meta.env.VITE_ALLOWED_DOMAIN as string | undefined
-
-export interface PendingAuthUser {
-  id: string
-  email: string
-  name: string
-  avatarUrl: string | null
-  lastSignInAt: string | null
-}
-
-export interface AuditFilters {
-  clientId?: string
-  entityName?: string
-  entity?: string
-  userId?: string
-  from?: string   // YYYY-MM-DD
-  to?: string     // YYYY-MM-DD
-}
+export type { PendingAuthUser, AuditFilters }
 
 interface UseAdminDataOptions {
   actorUserId?: string | null
@@ -32,140 +15,38 @@ interface UseAdminDataOptions {
 
 export function useAdminData(options: UseAdminDataOptions = {}) {
   const { actorUserId } = options
+
   const selectedClientId = useClientStore((state) => state.selectedClientId)
   const invalidateTasks = useTaskStore((state) => state.invalidate)
   const fetchTasks = useTaskStore((state) => state.fetchTasks)
   const invalidateMembers = useMemberStore((state) => state.invalidate)
   const fetchMembers = useMemberStore((state) => state.fetchMembers)
 
-  const [clients, setClients] = useState<DbClientRow[]>([])
-  const [users, setUsers] = useState<Member[]>([])
-  const [auditLogs, setAuditLogs] = useState<DbAuditLogRow[]>([])
-  const [userClientsMap, setUserClientsMap] = useState<Record<string, string[]>>({})
-  const [pendingUsers, setPendingUsers] = useState<PendingAuthUser[]>([])
-  const [loading, setLoading] = useState(false)
-  const [loadingInitial, setLoadingInitial] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    clients, users, auditLogs, loading, loadingInitial, error,
+    userClientsMap, pendingUsers, initialized,
+    fetchClients, fetchUsers, fetchUserClientsMap, fetchPendingUsers,
+    fetchAuditLogs, refreshAll, patchUser, setError,
+  } = useAdminStore()
 
-  const fetchClients = useCallback(async () => {
-    if (!supabaseAdmin) return
-    const { data, error: queryError } = await supabaseAdmin
-      .from('clients')
-      .select('*')
-      .order('name')
-    if (queryError) throw new Error(queryError.message)
-    setClients(data ?? [])
-  }, [])
-
-  const fetchUsers = useCallback(async () => {
-    if (!supabaseAdmin) return
-    const { data, error: queryError } = await supabaseAdmin
-      .from('members')
-      .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
-      .order('name')
-    if (queryError) throw new Error(queryError.message)
-    setUsers(data ?? [])
-  }, [])
-
-  const fetchUserClientsMap = useCallback(async () => {
-    if (!supabaseAdmin) return
-    const { data, error: queryError } = await supabaseAdmin
-      .from('user_clients')
-      .select('user_id, client_id')
-    if (queryError) throw new Error(queryError.message)
-    const map: Record<string, string[]> = {}
-    ;(data ?? []).forEach(({ user_id, client_id }) => {
-      if (!map[user_id]) map[user_id] = []
-      map[user_id].push(client_id)
-    })
-    setUserClientsMap(map)
-  }, [])
-
-  const fetchPendingUsers = useCallback(async () => {
-    if (!supabaseAdmin) return
-    const { data, error: queryError } = await supabaseAdmin.auth.admin.listUsers()
-    if (queryError || !data) return
-
-    const { data: members } = await supabaseAdmin
-      .from('members')
-      .select('auth_user_id')
-    const linkedAuthIds = new Set((members ?? []).map(m => m.auth_user_id).filter(Boolean))
-
-    const pending: PendingAuthUser[] = []
-    for (const u of data.users) {
-      if (!u.email) continue
-      const domain = u.email.split('@')[1]
-      if (ALLOWED_DOMAIN && domain !== ALLOWED_DOMAIN) continue
-      if (linkedAuthIds.has(u.id)) continue
-
-      pending.push({
-        id: u.id,
-        email: u.email,
-        name: u.user_metadata?.full_name ?? u.email.split('@')[0],
-        avatarUrl: u.user_metadata?.avatar_url ?? null,
-        lastSignInAt: u.last_sign_in_at ?? null,
-      })
+  // Carrega os dados apenas na primeira vez que o AdminView montar
+  useEffect(() => {
+    if (!initialized && !loadingInitial) {
+      refreshAll()
     }
-
-    setPendingUsers(pending)
-  }, [])
-
-  const fetchAuditLogs = useCallback(async (filters: AuditFilters = {}) => {
-    if (!supabaseAdmin) return
-    setLoading(true)
-
-    let query = supabaseAdmin
-      .from('audit_logs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200)
-
-    if (filters.clientId) query = query.eq('client_id', filters.clientId)
-    if (filters.entity)   query = query.eq('entity', filters.entity)
-    if (filters.userId)   query = query.eq('user_id', filters.userId)
-    if (filters.entityName) query = query.ilike('entity_name', `%${filters.entityName}%`)
-    if (filters.from) query = query.gte('created_at', `${filters.from}T00:00:00Z`)
-    if (filters.to)   query = query.lte('created_at', `${filters.to}T23:59:59Z`)
-
-    const { data, error: queryError } = await query
-    if (queryError) {
-      setError(toSafeUiErrorMessage(queryError.message))
-      setLoading(false)
-      return
-    }
-    setError(null)
-    setAuditLogs(data ?? [])
-    setLoading(false)
-  }, [])
-
-  const refreshAll = useCallback(async () => {
-    if (!supabaseAdmin) {
-      setLoadingInitial(false)
-      return
-    }
-
-    setLoadingInitial(true)
-    setError(null)
-    try {
-      await Promise.all([fetchClients(), fetchUsers(), fetchUserClientsMap(), fetchPendingUsers()])
-    } catch (err) {
-      setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
-    } finally {
-      setLoadingInitial(false)
-    }
-  }, [fetchClients, fetchUsers, fetchUserClientsMap, fetchPendingUsers])
+  }, [initialized, loadingInitial, refreshAll])
 
   const reloadAppStores = useCallback(async () => {
     invalidateTasks()
     invalidateMembers()
-
     await Promise.all([
       fetchTasks(selectedClientId, true),
       fetchMembers(selectedClientId),
     ])
   }, [fetchMembers, fetchTasks, invalidateMembers, invalidateTasks, selectedClientId])
 
-  // CRUD clients
+  // ── CRUD clients ────────────────────────────────────────────────────────────
+
   const createClient = useCallback(async (name: string, slug: string) => {
     if (!supabaseAdmin) return false
     const { error } = await supabaseAdmin.from('clients').insert({ name, slug })
@@ -179,7 +60,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchClients, reloadAppStores])
+  }, [fetchClients, reloadAppStores, setError])
 
   const updateClient = useCallback(async (id: string, name: string, slug: string) => {
     if (!supabaseAdmin) return false
@@ -194,7 +75,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchClients, reloadAppStores])
+  }, [fetchClients, reloadAppStores, setError])
 
   const deleteClient = useCallback(async (id: string, name: string) => {
     if (!supabaseAdmin) return false
@@ -225,9 +106,10 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [actorUserId, clients, fetchClients, reloadAppStores])
+  }, [actorUserId, clients, fetchClients, reloadAppStores, setError])
 
-  // Vínculo user ↔ client
+  // ── Vínculo user ↔ client ────────────────────────────────────────────────────
+
   const linkUserToClient = useCallback(async (userId: string, clientId: string) => {
     if (!supabaseAdmin) return false
     const { error } = await supabaseAdmin
@@ -244,7 +126,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, fetchUserClientsMap, reloadAppStores])
+  }, [fetchUsers, fetchUserClientsMap, reloadAppStores, setError])
 
   const unlinkUserFromClient = useCallback(async (userId: string, clientId: string) => {
     if (!supabaseAdmin) return false
@@ -263,7 +145,9 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, fetchUserClientsMap, reloadAppStores])
+  }, [fetchUsers, fetchUserClientsMap, reloadAppStores, setError])
+
+  // ── CRUD users ───────────────────────────────────────────────────────────────
 
   const setUserRole = useCallback(async (userId: string, role: 'admin' | 'user') => {
     if (!supabaseAdmin) return false
@@ -281,7 +165,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, reloadAppStores])
+  }, [fetchUsers, reloadAppStores, setError])
 
   const createUser = useCallback(async (
     name: string,
@@ -321,7 +205,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, fetchUserClientsMap, reloadAppStores])
+  }, [fetchUsers, fetchUserClientsMap, reloadAppStores, setError])
 
   const setUserAuthId = useCallback(async (userId: string, authUserId: string | null, avatarUrl?: string | null) => {
     if (!supabaseAdmin) return false
@@ -333,13 +217,14 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     try {
       setError(null)
       await fetchUsers()
+      await fetchPendingUsers()
       await reloadAppStores()
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, reloadAppStores])
+  }, [fetchUsers, fetchPendingUsers, reloadAppStores, setError])
 
   const updateUser = useCallback(async (
     userId: string,
@@ -363,7 +248,36 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, reloadAppStores])
+  }, [fetchUsers, reloadAppStores, setError])
+
+  const deactivateUser = useCallback(async (userId: string) => {
+    if (!supabaseAdmin) return false
+    const deactivated_at = new Date().toISOString()
+    const { error } = await supabaseAdmin
+      .from('members')
+      .update({ is_active: false, deactivated_at })
+      .eq('id', userId)
+    if (error) {
+      console.error('[deactivateUser] error:', error)
+      return false
+    }
+    patchUser(userId, { is_active: false, deactivated_at })
+    return true
+  }, [patchUser])
+
+  const reactivateUser = useCallback(async (userId: string) => {
+    if (!supabaseAdmin) return false
+    const { error } = await supabaseAdmin
+      .from('members')
+      .update({ is_active: true, deactivated_at: null })
+      .eq('id', userId)
+    if (error) {
+      console.error('[reactivateUser] error:', error)
+      return false
+    }
+    patchUser(userId, { is_active: true, deactivated_at: null })
+    return true
+  }, [patchUser])
 
   const listGoogleUsers = useCallback(async (search?: string) => {
     if (!supabaseAdmin) return []
@@ -385,16 +299,13 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     }))
   }, [])
 
-  useEffect(() => {
-    refreshAll()
-  }, [refreshAll])
-
   return {
     clients, users, auditLogs, loading, loadingInitial, error, userClientsMap, pendingUsers,
     refreshAll,
     fetchAuditLogs, fetchClients, fetchUsers,
     createClient, updateClient, deleteClient,
     linkUserToClient, unlinkUserFromClient, setUserRole,
-    createUser, setUserAuthId, updateUser, listGoogleUsers,
+    createUser, setUserAuthId, updateUser, deactivateUser, reactivateUser, listGoogleUsers,
   }
 }
+

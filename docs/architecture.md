@@ -61,7 +61,7 @@ App.tsx (inicialização, roteamento, clientMembers)
     ├── view="dashboard" → DashboardView → Calendar/Timeline
     ├── view="members"   → MembersView (recebe clientMembers)
     ├── view="reports"   → ReportsView (recebe clientMembers)
-    ├── view="tools"     → ToolsView (skeleton, sem dados reais)
+    ├── view="tools"     → ToolsView (grid de ferramentas; navegação interna por activeTool)
     └── TaskModal → criar/editar (useFormState → cascata de fases)
 ```
 

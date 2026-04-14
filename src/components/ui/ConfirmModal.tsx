@@ -25,7 +25,7 @@ export function ConfirmModal({
   if (typeof document === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm pointer-events-auto">
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-sm flex flex-col gap-4 p-6">
         <h3 className="text-base font-semibold text-foreground">{title}</h3>
         <p className="text-sm text-muted-foreground whitespace-pre-line">{message}</p>

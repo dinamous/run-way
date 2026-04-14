@@ -194,53 +194,51 @@ export function ClientsPanel({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2 flex-1 min-w-[300px] max-w-2xl">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome ou slug..."
-              value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
-              className="pl-9"
-            />
-          </div>
-          <div className="flex gap-1 bg-muted p-1 rounded-lg">
-            <button
-              onClick={() => { setStatusFilter('all'); setPage(1) }}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                statusFilter === 'all'
-                  ? 'bg-background shadow-sm font-medium'
-                  : 'hover:bg-background/50 text-muted-foreground'
-              }`}
-            >
-              Todos
-            </button>
-            <button
-              onClick={() => { setStatusFilter('with_pending'); setPage(1) }}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                statusFilter === 'with_pending'
-                  ? 'bg-background shadow-sm font-medium'
-                  : 'hover:bg-background/50 text-muted-foreground'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-              Com pendentes
-            </button>
-            <button
-              onClick={() => { setStatusFilter('no_pending'); setPage(1) }}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                statusFilter === 'no_pending'
-                  ? 'bg-background shadow-sm font-medium'
-                  : 'hover:bg-background/50 text-muted-foreground'
-              }`}
-            >
-              <Building className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-              Todos ativos
-            </button>
-          </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-56 md:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome ou slug..."
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
+            className="pl-9"
+          />
         </div>
-        <Button onClick={openCreateDrawer} aria-label="Criar novo cliente">
+        <div className="flex gap-1 bg-muted p-1 rounded-lg">
+          <button
+            onClick={() => { setStatusFilter('all'); setPage(1) }}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+              statusFilter === 'all'
+                ? 'bg-background shadow-sm font-medium'
+                : 'hover:bg-background/50 text-muted-foreground'
+            }`}
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => { setStatusFilter('with_pending'); setPage(1) }}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+              statusFilter === 'with_pending'
+                ? 'bg-background shadow-sm font-medium'
+                : 'hover:bg-background/50 text-muted-foreground'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+            Com pendentes
+          </button>
+          <button
+            onClick={() => { setStatusFilter('no_pending'); setPage(1) }}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+              statusFilter === 'no_pending'
+                ? 'bg-background shadow-sm font-medium'
+                : 'hover:bg-background/50 text-muted-foreground'
+            }`}
+          >
+            <Building className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+            Todos ativos
+          </button>
+        </div>
+        <Button onClick={openCreateDrawer} aria-label="Criar novo cliente" className="ml-auto">
           <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
           Novo cliente
         </Button>

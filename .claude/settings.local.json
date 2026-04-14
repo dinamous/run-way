@@ -27,19 +27,13 @@
       "Bash(grep -E \"\\(eyJ[A-Za-z0-9+/=]{20,}|https://[a-z]{20,}\\\\.supabase\\\\.co|sb-[a-z0-9\\\\-]+-auth-token\\)\")",
       "Bash(git checkout:*)",
       "Bash(git pull:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(cmd:*)",
+      "Bash(npx eslint:*)",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" npm run test:run -- src/views/admin)",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" npm run test:run)"
     ]
-  },
-  "extraKnownMarketplaces": {
-    "vercel": {
-      "source": {
-        "source": "github",
-        "repo": "vercel/vercel-plugin"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "vercel@vercel": true
   },
   "hooks": {
     "Stop": [
@@ -52,5 +46,16 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "vercel@vercel": true
+  },
+  "extraKnownMarketplaces": {
+    "vercel": {
+      "source": {
+        "source": "github",
+        "repo": "vercel/vercel-plugin"
+      }
+    }
   }
 }
