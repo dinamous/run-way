@@ -1,10 +1,24 @@
 # DashboardView + CalendarView + TimelineView
 
+## Navegação
+
+A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cada modo tem uma `ViewType` própria na sidebar (grupo "Calendário") e uma entrada separada "Visão Geral":
+
+| ViewType | Subview | O que renderiza |
+|---|---|---|
+| `overview` | — | Métricas resumo sem conteúdo de calendário |
+| `calendar` | — | Calendário mensal com drag-drop |
+| `timeline` | — | Gantt/linha do tempo |
+| `list` | — | Tabela de demandas |
+
+`DashboardView` recebe `subview: 'overview' | 'calendar' | 'timeline' | 'list'` e renderiza diretamente o modo correspondente, sem tabs internos.
+
 ## Ficheiros
 
 | Ficheiro | Responsabilidade |
 |---|---|
-| `src/views/DashboardView.tsx` | Header, filtros, métricas, toggle Calendar/Timeline |
+| `src/views/dashboard/DashboardView.tsx` | Orquestra dados, filtros, métricas e renderiza a subview correta |
+| `src/views/dashboard/components/DashboardHeader.tsx` | **Removido** — substituído por título inline derivado de `subview` |
 | `src/views/CalendarView.tsx` | Calendário mensal com drag-drop e slots |
 | `src/views/timeline/TimelineView.tsx` | Timeline/Gantt — componente raiz |
 | `src/views/timeline/components/TimelineHeader.tsx` | Selector de range (14/30/60/90d) |

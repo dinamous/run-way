@@ -1,4 +1,4 @@
-import { Menu, LayoutDashboard } from "lucide-react";
+import { Menu, LayoutDashboard, Sun, Moon } from "lucide-react";
 import { NotificationBell } from "./NotificationBell";
 import type { Notification } from "@/types/notification";
 
@@ -11,6 +11,8 @@ interface AppHeaderProps {
   onNotificationClick?: (notification: Notification) => void;
   reloadNotifications?: () => void;
   selectedClientId?: string | null;
+  darkMode?: boolean;
+  onToggleDark?: () => void;
 }
 
 export function AppHeader({
@@ -22,6 +24,8 @@ export function AppHeader({
   onNotificationClick,
   reloadNotifications,
   selectedClientId,
+  darkMode,
+  onToggleDark,
 }: AppHeaderProps) {
   return (
     <header className="bg-card border-b border-border sticky top-0 z-10 print:hidden">
@@ -44,15 +48,24 @@ export function AppHeader({
           </div>
         </div>
 
-        <NotificationBell
-          notifications={notifications}
-          unreadCount={unreadCount}
-          onMarkAsRead={onMarkNotificationAsRead ?? (() => {})}
-          onMarkAllAsRead={onMarkAllNotificationsAsRead ?? (() => {})}
-          onNotificationClick={onNotificationClick ?? (() => {})}
-          reload={reloadNotifications}
-          selectedClientId={selectedClientId ?? undefined}
-        />
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onToggleDark}
+            className="hidden md:flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Alternar tema"
+          >
+            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <NotificationBell
+            notifications={notifications}
+            unreadCount={unreadCount}
+            onMarkAsRead={onMarkNotificationAsRead ?? (() => {})}
+            onMarkAllAsRead={onMarkAllNotificationsAsRead ?? (() => {})}
+            onNotificationClick={onNotificationClick ?? (() => {})}
+            reload={reloadNotifications}
+            selectedClientId={selectedClientId ?? undefined}
+          />
+        </div>
       </div>
     </header>
   );

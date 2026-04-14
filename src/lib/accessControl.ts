@@ -41,7 +41,10 @@ const ROLE_PERMISSIONS: Record<AccessRole, ReadonlySet<AppPermission>> = {
 const VIEW_RULES: Record<ViewType, ViewRule> = {
   home: { requiresClient: false, roles: ['admin', 'user'], permission: 'view:home' },
   clients: { requiresClient: false, roles: ['admin', 'user'], permission: 'view:clients' },
-  dashboard: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  overview: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  calendar: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  timeline: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  list: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
   members: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:members' },
   reports: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:reports' },
   admin: { requiresClient: false, roles: ['admin'], permission: 'view:admin' },
@@ -50,9 +53,6 @@ const VIEW_RULES: Record<ViewType, ViewRule> = {
   'tools-import': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
   'tools-export': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
   'tools-integrations': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
-  'calendar-day': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
-  'calendar-week': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
-  'calendar-month': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
 }
 
 export function resolveAccessRole(member: Member | null): AccessRole | null {

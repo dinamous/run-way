@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
 import { useUIStore } from '@/store/useUIStore';
@@ -8,8 +8,6 @@ import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
 import { ListView } from '@/views/list';
 import { useTaskFilters } from './hooks/useTaskFilters';
-import { DashboardHeader } from './components/DashboardHeader';
-import type { CalView } from './components/DashboardHeader';
 import { FilterBar } from './components/FilterBar';
 import { MetricsBar } from './components/MetricsBar';
 import { StepsLegend } from './components/StepsLegend';
@@ -31,7 +29,14 @@ const DASHBOARD_BONES = {
   ],
 };
 
-const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
+const VIEW_TITLES: Record<string, { title: string; description: string }> = {
+  overview: { title: 'Visão Geral', description: 'Gestão das entregas criativas e de desenvolvimento.' },
+  calendar: { title: 'Calendário', description: 'Visualize as demandas em calendário mensal.' },
+  timeline: { title: 'Linha do Tempo', description: 'Acompanhe as fases das demandas em Gantt.' },
+  list: { title: 'Lista', description: 'Todas as demandas em formato de tabela.' },
+};
+
+const DashboardView: React.FC<DashboardViewProps> = ({ subview, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
   const { isAdmin } = useAuthContext();
   const { effectiveClientId } = useClients();
   const dashboardRedirect = useUIStore((s) => s.dashboardRedirect);
@@ -50,7 +55,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
     fetchMembers,
     invalidate: invalidateMembers,
   } = useMemberStore();
-  const [calView, setCalView] = useState<CalView>(() => dashboardRedirect?.mode ?? 'timeline');
 
   useEffect(() => {
     fetchTasks(effectiveClientId, isAdmin);
@@ -66,7 +70,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
     hasActiveFilters,
     clearFilters, toggleStepFilter,
     filteredTasks, blockedCount, activeCount,
-  } = useTaskFilters(tasks ?? [], calView === 'timeline', dashboardRedirect?.assigneeId ?? '');
+  } = useTaskFilters(tasks ?? [], subview === 'timeline', dashboardRedirect?.assigneeId ?? '');
 
   useEffect(() => {
     if (!dashboardRedirect) return;
@@ -108,55 +112,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
     );
   }
 
-  const content = filteredTasks.length === 0 ? (
-    <div className="space-y-5">
-      <DashboardHeader
-        calView={calView}
-        onChangeView={setCalView}
-      />
-      <MetricsBar
-        totalCount={(tasks ?? []).length}
-        visibleCount={filteredTasks.length}
-        activeCount={activeCount}
-        blockedCount={blockedCount}
-      />
-      {calView !== 'list' && (
-      <FilterBar
-        members={members ?? []}
-        filterAssignee={filterAssignee}
-        onChangeAssignee={setFilterAssignee}
-        filterStatus={filterStatus}
-        onChangeStatus={setFilterStatus}
-        filterSteps={filterSteps}
-        onToggleStep={toggleStepFilter}
-        showPeriodFilter={calView === 'timeline'}
-        filterPeriodDays={filterPeriodDays}
-        onChangePeriodDays={setFilterPeriodDays}
-        viewMode={viewMode}
-        onChangeViewMode={setViewMode}
-        onExport={onExport}
-        onOpenNew={onOpenNew}
-        hasActiveFilters={hasActiveFilters}
-        onClear={clearFilters}
-        filteredCount={filteredTasks.length}
-        totalCount={(tasks ?? []).length}
-      />
-      )}
-      <ViewState
-        icon={FilterX}
-        title="Nenhuma demanda com os filtros atuais"
-        description="Limpe os filtros para voltar a ver as demandas deste cliente."
-        actionLabel="Limpar filtros"
-        onAction={clearFilters}
-      />
-      <StepsLegend />
+  const { title, description } = VIEW_TITLES[subview] ?? VIEW_TITLES.overview;
+
+  const header = (
+    <div>
+      <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
+      <p className="text-muted-foreground text-sm">{description}</p>
     </div>
-  ) : (
+  );
+
+  const showFilters = subview !== 'list' && subview !== 'overview';
+
+  const content = (
     <div className="space-y-5">
-      <DashboardHeader
-        calView={calView}
-        onChangeView={setCalView}
-      />
+      {header}
       <MetricsBar
         totalCount={(tasks ?? []).length}
         visibleCount={filteredTasks.length}
@@ -164,37 +133,45 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onEdit, onDelete, onUpdat
         blockedCount={blockedCount}
       />
 
-      {calView !== 'list' && (
-      <FilterBar
-        members={members ?? []}
-        filterAssignee={filterAssignee}
-        onChangeAssignee={setFilterAssignee}
-        filterStatus={filterStatus}
-        onChangeStatus={setFilterStatus}
-        filterSteps={filterSteps}
-        onToggleStep={toggleStepFilter}
-        showPeriodFilter={calView === 'timeline'}
-        filterPeriodDays={filterPeriodDays}
-        onChangePeriodDays={setFilterPeriodDays}
-        showViewMode={calView === 'calendar'}
-        viewMode={viewMode}
-        onChangeViewMode={setViewMode}
-        onExport={onExport}
-        onOpenNew={onOpenNew}
-        hasActiveFilters={hasActiveFilters}
-        onClear={clearFilters}
-        filteredCount={filteredTasks.length}
-        totalCount={(tasks ?? []).length}
-      />
+      {showFilters && (
+        <FilterBar
+          members={members ?? []}
+          filterAssignee={filterAssignee}
+          onChangeAssignee={setFilterAssignee}
+          filterStatus={filterStatus}
+          onChangeStatus={setFilterStatus}
+          filterSteps={filterSteps}
+          onToggleStep={toggleStepFilter}
+          showPeriodFilter={subview === 'timeline'}
+          filterPeriodDays={filterPeriodDays}
+          onChangePeriodDays={setFilterPeriodDays}
+          showViewMode={subview === 'calendar'}
+          viewMode={viewMode}
+          onChangeViewMode={setViewMode}
+          onExport={onExport}
+          onOpenNew={onOpenNew}
+          hasActiveFilters={hasActiveFilters}
+          onClear={clearFilters}
+          filteredCount={filteredTasks.length}
+          totalCount={(tasks ?? []).length}
+        />
       )}
 
-      {calView === 'calendar' ? (
+      {filteredTasks.length === 0 && showFilters ? (
+        <ViewState
+          icon={FilterX}
+          title="Nenhuma demanda com os filtros atuais"
+          description="Limpe os filtros para voltar a ver as demandas deste cliente."
+          actionLabel="Limpar filtros"
+          onAction={clearFilters}
+        />
+      ) : subview === 'calendar' ? (
         <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} viewMode={viewMode} />
-      ) : calView === 'timeline' ? (
+      ) : subview === 'timeline' ? (
         <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} daysRange={filterPeriodDays} />
-      ) : (
+      ) : subview === 'list' ? (
         <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
-      )}
+      ) : null}
 
       <StepsLegend />
     </div>

@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ChevronDown,
   Home,
+  LayoutDashboard,
   Building2,
   Settings,
   Sun,
@@ -69,15 +70,16 @@ interface AppSidebarProps {
 const NAV_ITEMS: NavItem[] = [
   { label: "Início", Icon: Home, view: "home" },
 
+  { label: "Visão Geral", Icon: LayoutDashboard, view: "overview", requiresClient: true },
+
   {
     label: "Calendário",
     Icon: CalendarDays,
     requiresClient: true,
     children: [
-      { view: "dashboard", label: "Visão geral" },
-      { view: "calendar-day", label: "Dia" },
-      { view: "calendar-week", label: "Semana" },
-      { view: "calendar-month", label: "Mês" },
+      { view: "calendar", label: "Calendário" },
+      { view: "timeline", label: "Linha do Tempo" },
+      { view: "list", label: "Lista" },
     ],
   },
 
@@ -104,7 +106,7 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-const CALENDAR_VIEWS: ViewType[] = ["dashboard", "calendar-day", "calendar-week", "calendar-month"]
+const CALENDAR_VIEWS: ViewType[] = ["overview", "calendar", "timeline", "list"]
 const TOOLS_VIEWS: ViewType[] = ["tools", "tools-briefing-analyzer", "tools-import", "tools-export", "tools-integrations"]
 
 function getInitials(email?: string) {
@@ -324,17 +326,8 @@ export function AppSidebar({
 
   const sidebarFooter = (expanded: boolean) => (
     <div className="p-2 border-t flex flex-col gap-1">
-      {/* Dark mode + collapse na mesma linha quando expanded */}
       {expanded ? (
         <div className="flex items-center gap-1">
-          <button
-            onClick={onToggleDark}
-            className="flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="Alternar tema"
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex-1 flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted transition-colors min-w-0">
@@ -368,14 +361,6 @@ export function AppSidebar({
         </div>
       ) : (
         <div className="flex flex-col gap-1 items-center">
-          <button
-            onClick={onToggleDark}
-            className="flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="Alternar tema"
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -434,6 +419,16 @@ export function AppSidebar({
           <nav className="flex-1 p-2 flex flex-col gap-0.5 overflow-y-auto">
             {filteredItems.map((item) => renderItem(item, true, true))}
           </nav>
+          <div className="p-2 border-t">
+            <button
+              onClick={onToggleDark}
+              className="flex items-center gap-3 w-full px-2 py-2 text-sm rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              aria-label="Alternar tema"
+            >
+              {darkMode ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
+              <span>{darkMode ? "Modo claro" : "Modo escuro"}</span>
+            </button>
+          </div>
         </aside>
 
         {/* DESKTOP SIDEBAR */}

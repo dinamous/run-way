@@ -8,8 +8,8 @@ src/
 ├── main.tsx                   # Entry point
 ├── components/
 │   ├── TaskModal.tsx          # Modal criar/editar demanda
-│   ├── AppHeader.tsx          # Header: logo, hamburger mobile, NotificationBell
-│   ├── AppSidebar.tsx         # Sidebar de navegação
+│   ├── AppHeader.tsx          # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
+│   ├── AppSidebar.tsx         # Sidebar de navegação; theme toggle no footer mobile
 │   └── ui/                    # Design system (Button, Input, Label, Badge)
 ├── views/
 │   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess
@@ -58,8 +58,10 @@ App.tsx (inicialização, roteamento, clientMembers)
     ├── clientMembers (useMemo) → membros filtrados pelo cliente ativo
     ├── view="home"                    → HomeView
     ├── view="clients"                 → UserClientsView
-    ├── view="dashboard"               → DashboardView
-    ├── view="calendar-day/week/month" → DashboardView (subviews; implementação pendente)
+    ├── view="overview"                → DashboardView (subview="overview") — métricas e resumo
+    ├── view="calendar"                → DashboardView (subview="calendar") — calendário mensal
+    ├── view="timeline"                → DashboardView (subview="timeline") — Gantt
+    ├── view="list"                    → DashboardView (subview="list") — tabela
     ├── view="members"                 → MembersView
     ├── view="reports"                 → ReportsView
     ├── view="tools"                   → ToolsView (grid de ferramentas)
@@ -74,7 +76,7 @@ App.tsx (inicialização, roteamento, clientMembers)
 Estado de navegação e modal. Não persiste.
 ```ts
 view: ViewType
-// 'home' | 'dashboard' | 'calendar-day' | 'calendar-week' | 'calendar-month'
+// 'home' | 'overview' | 'calendar' | 'timeline' | 'list'
 // | 'members' | 'reports' | 'admin' | 'clients'
 // | 'tools' | 'tools-briefing-analyzer' | 'tools-import' | 'tools-export' | 'tools-integrations'
 setView(view)

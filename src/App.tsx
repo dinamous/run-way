@@ -86,7 +86,7 @@ export default function App() {
     if (!route) return
 
     if (route.startsWith('/dashboard')) {
-      setView('dashboard')
+      setView('overview')
     } else if (route === '/profile') {
       // TODO: open profile
     } else if (route === '/clients') {
@@ -219,6 +219,8 @@ export default function App() {
         onNotificationClick={handleNotificationClick}
         reloadNotifications={reloadNotifications}
         selectedClientId={effectiveClientId ?? null}
+        darkMode={darkMode}
+        onToggleDark={() => setDarkMode((d) => !d)}
       />
 
       <div className={`flex flex-row flex-1 overflow-hidden transition-opacity duration-300 ${isLoggingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
@@ -261,17 +263,9 @@ export default function App() {
             </RequireAdmin>
           ) : view === "clients" ? (
             <UserClientsView client={selectedClient ?? null} />
-          ) : view === "dashboard" ? (
+          ) : view === "overview" || view === "calendar" || view === "timeline" || view === "list" ? (
             <DashboardView
-              onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
-              onDelete={(id: string) => requestDeleteTask(id)}
-              onUpdateTask={updateTask}
-              onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
-              onExport={() => window.print()}
-              holidays={holidays}
-            />
-          ) : view === "calendar-day" || view === "calendar-week" || view === "calendar-month" ? (
-            <DashboardView
+              subview={view}
               onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
               onDelete={(id: string) => requestDeleteTask(id)}
               onUpdateTask={updateTask}
