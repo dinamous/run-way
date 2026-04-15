@@ -13,6 +13,7 @@ import {
   Moon,
   LogOut,
   Wrench,
+  ListChecks,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -68,6 +69,8 @@ interface AppSidebarProps {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Início", Icon: Home, view: "home" },
+
+  { label: "Demandas", Icon: ListChecks, view: "demandas", requiresClient: true },
 
   {
     label: "Calendário",

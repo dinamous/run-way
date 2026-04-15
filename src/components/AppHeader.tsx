@@ -28,7 +28,7 @@ export function AppHeader({
   onToggleDark,
 }: AppHeaderProps) {
   return (
-    <header className="bg-card border-b border-border sticky top-0 z-10 print:hidden">
+    <header className="bg-neutral-100 dark:bg-neutral-950 border-b border-border sticky top-0 z-10 print:hidden">
       <div className="px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button

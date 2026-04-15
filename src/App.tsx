@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { useClientStore } from "@/store/useClientStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useMemberStore } from "@/store/useMemberStore";
@@ -16,6 +17,7 @@ import { UserClientsView } from "./views/user/UserClientsView";
 import { NoClientView } from "./components/NoClientView";
 import { HomeView } from "./views/home";
 import { ToolsView } from "./views/tools";
+import DemandasView from "./views/demandas";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
@@ -244,7 +246,7 @@ export default function App() {
             isAdmin={isAdmin}
           />
 
-        <main key={view} className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 animate-blur-fade-in">
+        <main key={view} className={cn("flex-1 overflow-auto animate-blur-fade-in", view === "home" ? "p-0" : "px-4 sm:px-6 lg:px-8 py-8")}>
           <TooltipProvider>
             {showNoClientView ? (
             <NoClientView hasClients={false} onGoToClients={() => setView("clients")} />
@@ -272,6 +274,11 @@ export default function App() {
               onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
               onExport={() => window.print()}
               holidays={holidays}
+            />
+          ) : view === "demandas" ? (
+            <DemandasView 
+              onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
+              onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
             />
           ) : view === "members" ? (
             <MembersView />
