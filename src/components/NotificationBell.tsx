@@ -109,7 +109,7 @@ function NotificationItem({
       {/* Ícone de audiência */}
       <div className={`mt-0.5 flex-shrink-0 p-1.5 rounded-full ${
         isPersonal
-          ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
+          ? 'bg-blue-200/80 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300'
           : 'bg-muted text-muted-foreground'
       }`}>
         {isPersonal ? <User className="w-3 h-3" /> : <Users className="w-3 h-3" />}
@@ -164,6 +164,7 @@ export function NotificationBell({
   const [activeTab, setActiveTab] = useState<'all' | 'current'>('all')
   const prevIdsRef = useRef<Set<string>>(new Set())
   const initialOpenDone = useRef(false)
+  const hasInitiallyLoaded = useRef(false)
 
   const handleReload = useCallback(() => reload?.(), [reload])
 
@@ -179,12 +180,18 @@ export function NotificationBell({
 
   // Detecta novas notificações — toca som (toast já está no useNotifications via realtime)
   useEffect(() => {
+    if (!hasInitiallyLoaded.current) {
+      hasInitiallyLoaded.current = true
+      prevIdsRef.current = new Set(notifications.map((n) => n.id))
+      return
+    }
+
     const newIds = new Set<string>()
     let hasNew = false
 
     for (const n of notifications) {
       newIds.add(n.id)
-      if (!prevIdsRef.current.has(n.id) && prevIdsRef.current.size > 0) {
+      if (!prevIdsRef.current.has(n.id)) {
         hasNew = true
       }
     }
@@ -250,11 +257,17 @@ export function NotificationBell({
         {/* Tabs */}
         <div className="px-3 pb-2">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'current')}>
-            <TabsList className="h-7 w-full">
-              <TabsTrigger value="all" className="flex-1 text-xs">
+            <TabsList variant="pills" className="h-8 w-full p-1">
+              <TabsTrigger
+                value="all"
+                className="flex-1 text-xs font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
                 Todas
               </TabsTrigger>
-              <TabsTrigger value="current" className="flex-1 text-xs">
+              <TabsTrigger
+                value="current"
+                className="flex-1 text-xs font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
                 Cliente atual
               </TabsTrigger>
             </TabsList>
@@ -278,7 +291,7 @@ export function NotificationBell({
 
                 return (
                   <div key={groupKey}>
-                    <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 bg-muted/20 sticky top-0">
+                    <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 sticky top-0">
                       {GROUP_LABELS[groupKey]}
                     </div>
                     {items.map((notification) => (

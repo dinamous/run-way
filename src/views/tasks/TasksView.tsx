@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { STEP_TYPES_ORDER, type Task, type StepType } from '@/lib/steps';
 import { Button } from '@/components/ui/Button';
 import { Search, Plus } from 'lucide-react';
-import { DemandasFilters, type FiltersState } from './components/DemandasFilters';
+import { TasksFilters, type FiltersState } from './components/TasksFilters';
 import { StepGroup } from './components/StepGroup';
 
 const EMPTY_FILTERS: FiltersState = {
@@ -19,12 +19,12 @@ const EMPTY_FILTERS: FiltersState = {
   showOnlyBlocked: false,
 };
 
-interface DemandasViewProps {
+interface TasksViewProps {
   onEdit: (task: Task) => void;
   onOpenNew: () => void;
 }
 
-export default function DemandasView({ onEdit, onOpenNew }: DemandasViewProps) {
+export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
   const { member } = useAuthContext();
   const { tasks, fetchTasks, invalidate } = useTaskStore();
   const { members, fetchMembers } = useMemberStore();
@@ -119,7 +119,7 @@ export default function DemandasView({ onEdit, onOpenNew }: DemandasViewProps) {
         </Button>
       </div>
 
-      <DemandasFilters
+      <TasksFilters
         filters={filters}
         members={members}
         onChange={next => setFilters(prev => ({ ...prev, ...next }))}

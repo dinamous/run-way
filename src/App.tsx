@@ -17,7 +17,7 @@ import { UserClientsView } from "./views/user/UserClientsView";
 import { NoClientView } from "./components/NoClientView";
 import { HomeView } from "./views/home";
 import { ToolsView } from "./views/tools";
-import DemandasView from "./views/demandas";
+import TasksView from "./views/tasks";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
@@ -276,7 +276,7 @@ export default function App() {
               holidays={holidays}
             />
           ) : view === "demandas" ? (
-            <DemandasView 
+            <TasksView
               onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
               onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
             />

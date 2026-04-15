@@ -1,23 +1,23 @@
-# DemandasView — Lista de Demandas por Etapa
+# TasksView — Lista de Demandas por Etapa
 
 ## Visão Geral
 
 View que lista todas as demandas agrupadas pela **etapa atual** (step ativo). Focada em acompanhamento operacional: prazo, responsáveis por etapa, bloqueios e ações rápidas.
 
-Localização: `src/views/demandas/`
+Localização: `src/views/tasks/`
 
 ## Estrutura de Arquivos
 
 ```
-src/views/demandas/
-  DemandasView.tsx              # componente principal (~115 linhas) — orquestração
+src/views/tasks/
+  TasksView.tsx                 # componente principal (~115 linhas) — orquestração
   utils.ts                      # formatDueDate
   index.ts                      # barrel export
   components/
     ActionMenu.tsx              # dropdown de ações (shadcn DropdownMenu)
     TaskRow.tsx                 # linha de uma demanda
     StepGroup.tsx               # grupo colapsável por etapa
-    DemandasFilters.tsx         # barra de filtros (shadcn Select)
+    TasksFilters.tsx            # barra de filtros (shadcn Select)
 ```
 
 Todos os subcomponentes são privados da view (co-located) pois não são usados em outro lugar.
@@ -45,13 +45,14 @@ Usa `DropdownMenu` / `DropdownMenuItem` do shadcn (`src/components/ui/DropdownMe
 
 Não requer `useRef`/`useEffect` — o fechamento é gerenciado pelo Radix via `DropdownMenu`.
 
-### `DemandasFilters`
+### `TasksFilters`
 Barra de filtros extraída em componente próprio. Recebe `FiltersState` + `onChange: (next: Partial<FiltersState>) => void`. Usa:
 - `Select` / `SelectTrigger` / `SelectItem` do shadcn para etapa e responsável
 - Tabs de período customizadas (botões simples)
 - Toggle de bloqueadas
+- Botão "Limpar" em container de largura fixa (`w-[68px]`) para evitar layout shift ao aparecer/desaparecer
 
-O estado dos filtros é um único objeto `FiltersState` no `DemandasView`, com `EMPTY_FILTERS` como constante de reset.
+O estado dos filtros é um único objeto `FiltersState` no `TasksView`, com `EMPTY_FILTERS` como constante de reset.
 
 ## Badge de Prazo (`formatDueDate`)
 
@@ -79,7 +80,7 @@ Utilitário local que compara `step.end` com hoje:
 ## Props
 
 ```ts
-interface DemandasViewProps {
+interface TasksViewProps {
   onEdit: (task: Task) => void;   // abre TaskModal no modo edição
   onOpenNew: () => void;          // abre TaskModal para nova tarefa
 }

@@ -26,32 +26,33 @@ export interface FiltersState {
   showOnlyBlocked: boolean;
 }
 
-interface DemandasFiltersProps {
+interface TasksFiltersProps {
   filters: FiltersState;
   members: Member[];
   onChange: (next: Partial<FiltersState>) => void;
   onClear: () => void;
 }
 
-export function DemandasFilters({ filters, members, onChange, onClear }: DemandasFiltersProps) {
+export function TasksFilters({ filters, members, onChange, onClear }: TasksFiltersProps) {
   const { searchTerm, selectedStep, selectedMemberId, selectedPeriod, showOnlyBlocked } = filters;
   const hasActiveFilters = searchTerm !== '' || selectedStep !== '' || selectedMemberId !== '' || selectedPeriod !== '' || showOnlyBlocked;
 
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 rounded-lg border border-border bg-muted/20">
-      {/* Search */}
-      <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      {/* Search — grows to fill available space */}
+      <div className="relative min-w-0 flex-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <Input
           type="text"
           placeholder="Pesquisar demanda ou ID..."
           value={searchTerm}
           onChange={e => onChange({ searchTerm: e.target.value })}
-          className="pl-9"
+          className="pl-9 w-full"
         />
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+      {/* Controls — fixed, won't collapse or shift */}
+      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
         {/* Etapa */}
         <Select
           value={selectedStep || '__all__'}
@@ -116,11 +117,14 @@ export function DemandasFilters({ filters, members, onChange, onClear }: Demanda
           Bloqueadas
         </button>
 
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={onClear}>
-            Limpar
-          </Button>
-        )}
+        {/* Limpar — reserva espaço fixo para evitar layout shift */}
+        <div className="w-[68px]">
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={onClear} className="w-full">
+              Limpar
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
