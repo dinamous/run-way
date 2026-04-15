@@ -96,10 +96,26 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
     const groups = new Map<StepType, Task[]>();
     STEP_TYPES_ORDER.forEach(step => groups.set(step, []));
     filteredTasks.forEach(task => {
-      const currentStep = task.steps.find(s => s.active) ?? task.steps[0];
-      const stepType = currentStep?.type ?? 'desenvolvimento';
-      groups.get(stepType)!.push(task);
+      const activeSteps = task.steps.filter(s => s.active);
+      const stepsToUse = activeSteps.length > 0 ? activeSteps : task.steps.slice(0, 1);
+      stepsToUse.forEach(step => {
+        const bucket = groups.get(step.type);
+        if (bucket) bucket.push(task);
+      });
     });
+
+    // Ordena cada grupo pelo end do step correspondente: mais atrasada primeiro, sem data por último
+    groups.forEach((bucket, stepType) => {
+      bucket.sort((a, b) => {
+        const endA = a.steps.find(s => s.type === stepType)?.end;
+        const endB = b.steps.find(s => s.type === stepType)?.end;
+        if (!endA && !endB) return 0;
+        if (!endA) return 1;
+        if (!endB) return -1;
+        return endA < endB ? -1 : endA > endB ? 1 : 0;
+      });
+    });
+
     return groups;
   }, [filteredTasks]);
 
@@ -127,23 +143,17 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
       />
 
       {/* Content */}
-      {filteredTasks.length === 0 ? (
+      {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border border-dashed border-border rounded-xl bg-muted/10">
           <Search className="w-8 h-8 mb-3 text-muted-foreground/50" />
-          <p className="text-sm">Nenhuma demanda encontrada com os filtros atuais.</p>
-          {hasActiveFilters && (
-            <button
-              onClick={() => setFilters(EMPTY_FILTERS)}
-              className="mt-3 text-xs text-primary hover:underline"
-            >
-              Limpar filtros
-            </button>
-          )}
+          <p className="text-sm">Nenhuma demanda cadastrada ainda.</p>
+          <button onClick={onOpenNew} className="mt-3 text-xs text-primary hover:underline">
+            Criar primeira demanda
+          </button>
         </div>
       ) : (
         <div className="space-y-2 pb-16">
           {([...groupedTasks.entries()] as [StepType, Task[]][])
-            .filter(([, stepTasks]) => stepTasks.length > 0)
             .map(([stepType, stepTasks]) => (
               <StepGroup
                 key={stepType}
@@ -153,8 +163,20 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
                 onToggleBlock={handleToggleBlock}
                 onConclude={handleConclude}
                 onEdit={onEdit}
+                hasActiveFilters={hasActiveFilters}
               />
             ))}
+          {filteredTasks.length === 0 && hasActiveFilters && (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <p className="text-sm">Nenhuma demanda encontrada com os filtros atuais.</p>
+              <button
+                onClick={() => setFilters(EMPTY_FILTERS)}
+                className="mt-2 text-xs text-primary hover:underline"
+              >
+                Limpar filtros
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

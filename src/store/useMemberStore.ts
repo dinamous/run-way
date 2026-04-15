@@ -15,21 +15,22 @@ async function fetchMembersFromDb(clientId: string | null | undefined): Promise<
     return data ?? []
   }
 
-  const { data: userClients, error: ucError } = await supabase
+  // Busca todos os membros vinculados ao cliente via user_clients
+  const ucResult = await supabase
     .from('user_clients')
     .select('user_id')
     .eq('client_id', clientId)
 
-  if (ucError) throw new Error(ucError.message)
+  if (ucResult.error) throw new Error(ucResult.error.message)
 
-  const memberIds = (userClients ?? []).map(uc => uc.user_id)
+  const allIds = (ucResult.data ?? []).map(uc => uc.user_id)
 
-  if (memberIds.length === 0) return []
+  if (allIds.length === 0) return []
 
   const { data, error } = await supabase
     .from('members')
     .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
-    .in('id', memberIds)
+    .in('id', allIds)
     .order('name')
 
   if (error) throw new Error(error.message)

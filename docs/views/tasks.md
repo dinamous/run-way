@@ -25,15 +25,23 @@ Todos os subcomponentes são privados da view (co-located) pois não são usados
 ## Subcomponentes
 
 ### `StepGroup`
-Agrupa tasks por `StepType`. Colapsa/expande via `ChevronDown`/`ChevronRight`. Grupos vazios após filtro são ocultados.
+Agrupa tasks por `StepType`. Colapsa/expande via `ChevronDown`/`ChevronRight`.
+
+Recebe `hasActiveFilters?: boolean`. Comportamento por estado:
+- **Com tasks:** expansível normalmente, cabeçalho com contador colorido
+- **Vazio + filtros ativos:** cabeçalho apagado (contador `0`), mensagem de filtro em itálico, botão de expansão oculto
+- **Vazio sem filtros:** renderizado normalmente com contador `0` — todas as 8 categorias são sempre exibidas
 
 ### `TaskRow`
-Linha de uma demanda. Exibe:
+Linha de uma demanda. A div inteira é clicável (chama `onEdit`) — o `ActionMenu` tem `stopPropagation` para não conflitar.
+
+Exibe:
 - Título com risco (`line-through`) quando bloqueada
 - Ícone `Link2` inline ao lado do título para abrir o ClickUp diretamente
-- Badge "Bloqueada" (vermelho) quando `task.status.blocked`
+- Badge "Bloqueada" (vermelho) quando `task.status.blocked` — fundo da linha fica vermelho sutil
+- Badge "Concluída" (muted) quando `task.concludedAt` — linha com opacidade reduzida
 - Badge de prazo dinâmico (relativo a hoje) baseado no `end` do step ativo
-- Avatares dos responsáveis **apenas do step atual** (não globais da tarefa)
+- Avatares dos responsáveis **do step correspondente ao grupo** onde a task é exibida (recebe `stepType` via prop) — usa `bg-primary text-primary-foreground` (sólido)
 - Menu de ações (`ActionMenu`)
 
 ### `ActionMenu`
@@ -65,6 +73,10 @@ Utilitário local que compara `step.end` com hoje:
 | `diffDays === 1` | "Vence amanhã" | azul |
 | `diffDays >= 2` | "Em X dias" | muted |
 
+## Ordenação
+
+Dentro de cada grupo de etapa, as tasks são ordenadas pelo `end` do step correspondente — da mais atrasada para a mais recente. Tasks sem data de vencimento ficam no final.
+
 ## Filtros
 
 | Filtro | Implementação |
@@ -75,7 +87,7 @@ Utilitário local que compara `step.end` com hoje:
 | Período (prazo) | Tabs "Todos / 7d / 15d / 30d" — compara `currentStep.end` com `today + N dias` |
 | Bloqueadas | Toggle — filtra `task.status.blocked === true` |
 
-"Etapa atual" é resolvida como `task.steps.find(s => s.active) ?? task.steps[0]`.
+"Etapa atual" para fins de filtro é resolvida como `task.steps.find(s => s.active) ?? task.steps[0]`. Para agrupamento na listagem, uma task aparece em **todas** as categorias cujos steps estão `active: true` (podendo aparecer em múltiplas colunas simultaneamente).
 
 ## Props
 
@@ -93,6 +105,14 @@ interface TasksViewProps {
 - **Client:** `useClients()` → `effectiveClientId`
 
 Mutations vão direto ao Supabase (tabela `tasks`), depois chamam `invalidate()` + `fetchTasks()` para recarregar.
+
+### Cache de tasks (`useTaskStore`)
+
+Cache key é `"${clientId ?? 'all'}:${isAdmin}"` — invalida automaticamente quando `isAdmin` muda sem mudança de `clientId`. Antes era baseado só em `cachedClientId`.
+
+### Fetch de membros (`useMemberStore`)
+
+Para um `clientId` específico, busca todos os membros vinculados via `user_clients` — essa é a fonte de verdade de quem pertence ao cliente. Todos esses membros aparecem nos filtros e avatares, independentemente de terem tasks atribuídas.
 
 | Ação | Campo atualizado |
 |---|---|

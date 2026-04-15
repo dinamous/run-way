@@ -291,7 +291,7 @@ export function NotificationBell({
 
                 return (
                   <div key={groupKey}>
-                    <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 sticky top-0">
+                    <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 sticky top-0 z-10">
                       {GROUP_LABELS[groupKey]}
                     </div>
                     {items.map((notification) => (

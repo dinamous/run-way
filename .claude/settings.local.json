@@ -34,7 +34,8 @@
       "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" npm run test:run -- src/views/admin)",
       "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" npm run test:run)",
       "Bash(mv DemandasView.tsx TasksView.tsx)",
-      "Bash(mv components/DemandasFilters.tsx components/TasksFilters.tsx)"
+      "Bash(mv components/DemandasFilters.tsx components/TasksFilters.tsx)",
+      "Bash(npx --yes tsc --noEmit --project \"c:/Users/dinam/Documents/Projetos/run-way/tsconfig.json\")"
     ]
   },
   "hooks": {
