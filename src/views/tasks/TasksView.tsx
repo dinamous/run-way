@@ -1,4 +1,39 @@
 import { useMemo, useState, useEffect } from 'react';
+import { Skeleton } from 'boneyard-js/react';
+
+const TASKS_BONES = {
+  name: 'tasks-view',
+  viewportWidth: 1280,
+  width: 1100,
+  height: 1000,
+  bones: [
+    // header
+    { x: 0, y: 0, w: 30, h: 32, r: 8 },
+    { x: 0, y: 40, w: 55, h: 16, r: 6 },
+
+    // filters bar
+    { x: 0, y: 76, w: 100, h: 44, r: 8 },
+
+    // group 1 (3 rows)
+    { x: 0, y: 136, w: 100, h: 80, r: 10 },
+    { x: 0, y: 228, w: 100, h: 80, r: 8 },
+    { x: 0, y: 320, w: 100, h: 80, r: 8 },
+    { x: 0, y: 412, w: 100, h: 80, r: 8 },
+
+    // group 2 (2 rows)
+    { x: 0, y: 504, w: 100, h: 80, r: 10 },
+    { x: 0, y: 596, w: 100, h: 80, r: 8 },
+    { x: 0, y: 688, w: 100, h: 80, r: 8 },
+
+    // group 3 (1 row)
+    { x: 0, y: 780, w: 100, h: 80, r: 10 },
+    { x: 0, y: 872, w: 100, h: 80, r: 8 },
+
+    // group 4 (1 row)
+    { x: 0, y: 964, w: 100, h: 80, r: 10 },
+    { x: 0, y: 1056, w: 100, h: 80, r: 8 },
+  ],
+};
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemberStore } from '@/store/useMemberStore';
@@ -13,8 +48,8 @@ import { StepGroup } from './components/StepGroup';
 
 const EMPTY_FILTERS: FiltersState = {
   searchTerm: '',
-  selectedStep: '',
-  selectedMemberId: '',
+  selectedSteps: [],
+  selectedMemberIds: [],
   selectedPeriod: '',
   showOnlyBlocked: false,
 };
@@ -26,7 +61,7 @@ interface TasksViewProps {
 
 export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
   const { member } = useAuthContext();
-  const { tasks, fetchTasks, invalidate } = useTaskStore();
+  const { tasks, fetchTasks, invalidate, loading } = useTaskStore();
   const { members, fetchMembers } = useMemberStore();
   const { effectiveClientId, isAdmin } = useClients();
 
@@ -65,16 +100,16 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
   };
 
   const filteredTasks = useMemo(() => {
-    const { searchTerm, selectedStep, selectedMemberId, showOnlyBlocked, selectedPeriod } = filters;
+    const { searchTerm, selectedSteps, selectedMemberIds, showOnlyBlocked, selectedPeriod } = filters;
     return tasks.filter(task => {
       const matchSearch =
         task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.id.toLowerCase().includes(searchTerm.toLowerCase());
 
       const currentStep = task.steps.find(s => s.active) ?? task.steps[0];
-      const matchStep = selectedStep ? currentStep?.type === selectedStep : true;
-      const matchMember = selectedMemberId
-        ? task.steps.some(s => s.assignees.includes(selectedMemberId))
+      const matchStep = selectedSteps.length > 0 ? selectedSteps.includes(currentStep?.type) : true;
+      const matchMember = selectedMemberIds.length > 0
+        ? task.steps.some(s => s.assignees.some(a => selectedMemberIds.includes(a)))
         : true;
       const matchBlocked = showOnlyBlocked ? task.status.blocked : true;
 
@@ -93,11 +128,21 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
   }, [tasks, filters]);
 
   const groupedTasks = useMemo(() => {
+    const { selectedMemberIds } = filters;
     const groups = new Map<StepType, Task[]>();
     STEP_TYPES_ORDER.forEach(step => groups.set(step, []));
     filteredTasks.forEach(task => {
-      const activeSteps = task.steps.filter(s => s.active);
-      const stepsToUse = activeSteps.length > 0 ? activeSteps : task.steps.slice(0, 1);
+      let stepsToUse = task.steps.filter(s => s.active);
+      if (stepsToUse.length === 0) stepsToUse = task.steps.slice(0, 1);
+
+      // Se há filtro por membro, mostra a task em todos os steps onde o membro está
+      if (selectedMemberIds.length > 0) {
+        const memberSteps = task.steps.filter(s =>
+          s.assignees.some(a => selectedMemberIds.includes(a))
+        );
+        if (memberSteps.length > 0) stepsToUse = memberSteps;
+      }
+
       stepsToUse.forEach(step => {
         const bucket = groups.get(step.type);
         if (bucket) bucket.push(task);
@@ -117,9 +162,14 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
     });
 
     return groups;
-  }, [filteredTasks]);
+  }, [filteredTasks, filters]);
 
-  const hasActiveFilters = Object.entries(filters).some(([, v]) => v !== '' && v !== false);
+  const hasActiveFilters =
+    filters.searchTerm !== '' ||
+    filters.selectedSteps.length > 0 ||
+    filters.selectedMemberIds.length > 0 ||
+    filters.selectedPeriod !== '' ||
+    filters.showOnlyBlocked;
 
   return (
     <div className="space-y-5">
@@ -143,6 +193,7 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
       />
 
       {/* Content */}
+      <Skeleton loading={loading} initialBones={TASKS_BONES} animate="shimmer">
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border border-dashed border-border rounded-xl bg-muted/10">
           <Search className="w-8 h-8 mb-3 text-muted-foreground/50" />
@@ -152,8 +203,11 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
           </button>
         </div>
       ) : (
-        <div className="space-y-2 pb-16">
+        <div className="space-y-3 pb-16">
           {([...groupedTasks.entries()] as [StepType, Task[]][])
+            .filter(([stepType]) =>
+              filters.selectedSteps.length === 0 || filters.selectedSteps.includes(stepType)
+            )
             .map(([stepType, stepTasks]) => (
               <StepGroup
                 key={stepType}
@@ -179,6 +233,7 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
           )}
         </div>
       )}
+      </Skeleton>
     </div>
   );
 }

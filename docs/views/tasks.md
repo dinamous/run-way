@@ -55,7 +55,7 @@ Não requer `useRef`/`useEffect` — o fechamento é gerenciado pelo Radix via `
 
 ### `TasksFilters`
 Barra de filtros extraída em componente próprio. Recebe `FiltersState` + `onChange: (next: Partial<FiltersState>) => void`. Usa:
-- `Select` / `SelectTrigger` / `SelectItem` do shadcn para etapa e responsável
+- `CheckboxDropdown` customizado (interno ao arquivo) para etapa e responsável — permite múltipla seleção via checkboxes; label exibe nome quando um item selecionado, "N selecionados" quando múltiplos
 - Tabs de período customizadas (botões simples)
 - Toggle de bloqueadas
 - Botão "Limpar" em container de largura fixa (`w-[68px]`) para evitar layout shift ao aparecer/desaparecer
@@ -82,12 +82,12 @@ Dentro de cada grupo de etapa, as tasks são ordenadas pelo `end` do step corres
 | Filtro | Implementação |
 |---|---|
 | Busca por texto/ID | `task.title` e `task.id` case-insensitive |
-| Etapa | `currentStep.type === selectedStep` |
-| Responsável | `member.id` — verifica em todos os steps da tarefa |
+| Etapa | `selectedSteps: StepType[]` — verifica se `currentStep.type` está na lista (vazio = todos) |
+| Responsável | `selectedMemberIds: string[]` — verifica se qualquer assignee de qualquer step está na lista |
 | Período (prazo) | Tabs "Todos / 7d / 15d / 30d" — compara `currentStep.end` com `today + N dias` |
 | Bloqueadas | Toggle — filtra `task.status.blocked === true` |
 
-"Etapa atual" para fins de filtro é resolvida como `task.steps.find(s => s.active) ?? task.steps[0]`. Para agrupamento na listagem, uma task aparece em **todas** as categorias cujos steps estão `active: true` (podendo aparecer em múltiplas colunas simultaneamente).
+"Etapa atual" para fins de filtro é resolvida como `task.steps.find(s => s.active) ?? task.steps[0]`. Para agrupamento na listagem, uma task aparece em **todas** as categorias cujos steps estão `active: true`. Quando há filtro por membro ativo, a task aparece nos grupos de **todos os steps onde o membro está atribuído** — não apenas o step ativo.
 
 ## Props
 
@@ -97,6 +97,10 @@ interface TasksViewProps {
   onOpenNew: () => void;          // abre TaskModal para nova tarefa
 }
 ```
+
+## Loading State
+
+O conteúdo principal é envolvido em `<Skeleton loading={loading} initialBones={TASKS_BONES} animate="shimmer">` da lib `boneyard-js`. O `loading` vem de `useTaskStore`. `TASKS_BONES` é uma constante definida no topo do arquivo com coordenadas manuais (`name`, `viewportWidth`, `width`, `height`, `bones[]`) que aproximam o layout real da lista — mesmo padrão usado em `DashboardView` e `AdminView`.
 
 ## Dados
 

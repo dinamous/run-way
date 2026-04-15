@@ -17,32 +17,50 @@ interface StepGroupProps {
 export function StepGroup({ stepType, tasks, members, onToggleBlock, onConclude, onEdit, hasActiveFilters }: StepGroupProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const meta = STEP_META[stepType];
-
   const isEmpty = tasks.length === 0;
 
   return (
-    <div className="mb-4">
+    <div className={`rounded-xl border transition-colors ${isEmpty ? 'border-border/40 bg-muted/5' : 'border-border bg-card'}`}>
+      {/* Header da categoria */}
       <button
-        className="flex items-center gap-2 mb-2 w-full text-left select-none"
+        className="flex items-center gap-3 w-full text-left select-none px-4 py-3 disabled:cursor-default"
         onClick={() => setIsExpanded(prev => !prev)}
         disabled={isEmpty}
       >
-        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isEmpty ? 'bg-muted-foreground/30' : meta.dot}`} />
-        <span className={`text-sm font-semibold ${isEmpty ? 'text-muted-foreground/60' : 'text-foreground'}`}>
+        {/* Faixa colorida lateral */}
+        <div className={`w-1 h-7 rounded-full shrink-0 ${isEmpty ? 'bg-muted-foreground/20' : meta.dot}`} />
+
+        <span className={`text-sm font-semibold tracking-tight ${isEmpty ? 'text-muted-foreground/50' : 'text-foreground'}`}>
           {meta.label}
         </span>
-        <span className={`text-xs font-normal px-1.5 py-0.5 rounded-full ${isEmpty ? 'text-muted-foreground/50 bg-muted/40' : 'text-muted-foreground bg-muted/60'}`}>
+
+        {/* Badge de contagem */}
+        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full leading-none ${
+          isEmpty
+            ? 'text-muted-foreground/40 bg-muted/40'
+            : `${meta.tagBg} opacity-90`
+        }`}>
           {tasks.length}
         </span>
+
+        {/* Separador flex */}
+        <div className="flex-1" />
+
         {!isEmpty && (
-          <span className="ml-0.5 text-muted-foreground">
-            {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          <span className="text-muted-foreground">
+            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </span>
         )}
       </button>
 
+      {/* Separator entre header e lista */}
       {!isEmpty && isExpanded && (
-        <div className="space-y-1.5">
+        <div className="h-px bg-border/60 mx-4" />
+      )}
+
+      {/* Lista de tarefas */}
+      {!isEmpty && isExpanded && (
+        <div className="p-3 space-y-2">
           {tasks.map(task => (
             <TaskRow
               key={task.id}
@@ -58,8 +76,8 @@ export function StepGroup({ stepType, tasks, members, onToggleBlock, onConclude,
       )}
 
       {isEmpty && hasActiveFilters && (
-        <div className="ml-5 py-2 text-xs text-muted-foreground/50 italic">
-          Nenhuma demanda nesta etapa com os filtros atuais
+        <div className="px-4 pb-3 text-xs text-muted-foreground/40 italic">
+          Nenhuma demanda com os filtros atuais
         </div>
       )}
     </div>

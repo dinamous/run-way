@@ -1,13 +1,7 @@
-import { Search, User, Calendar, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Search, User, Calendar, AlertCircle, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/Select';
 import { STEP_META, STEP_TYPES_ORDER, type StepType } from '@/lib/steps';
 import type { Member } from '@/hooks/useSupabase';
 
@@ -20,8 +14,8 @@ const PERIOD_TABS = [
 
 export interface FiltersState {
   searchTerm: string;
-  selectedStep: StepType | '';
-  selectedMemberId: string;
+  selectedSteps: StepType[];
+  selectedMemberIds: string[];
   selectedPeriod: string;
   showOnlyBlocked: boolean;
 }
@@ -33,9 +27,88 @@ interface TasksFiltersProps {
   onClear: () => void;
 }
 
+function CheckboxDropdown({
+  label,
+  icon,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const displayLabel =
+    selected.length === 0
+      ? label
+      : selected.length === 1
+        ? options.find(o => o.value === selected[0])?.label ?? label
+        : `${selected.length} selecionados`;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-md border transition-colors whitespace-nowrap min-w-[11rem] justify-between ${
+          selected.length > 0
+            ? 'border-primary bg-primary/5 text-foreground'
+            : 'border-input bg-background text-muted-foreground hover:bg-muted'
+        }`}
+      >
+        <span className="flex items-center gap-1.5 min-w-0">
+          {icon}
+          <span className="truncate">{displayLabel}</span>
+        </span>
+        <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 z-20 w-52 bg-popover border border-border rounded-md shadow-md py-1">
+            {options.map(opt => (
+              <label
+                key={opt.value}
+                className="flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-muted select-none"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.includes(opt.value)}
+                  onChange={() => onToggle(opt.value)}
+                  className="w-3.5 h-3.5 accent-primary shrink-0"
+                />
+                <span className="truncate">{opt.label}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function TasksFilters({ filters, members, onChange, onClear }: TasksFiltersProps) {
-  const { searchTerm, selectedStep, selectedMemberId, selectedPeriod, showOnlyBlocked } = filters;
-  const hasActiveFilters = searchTerm !== '' || selectedStep !== '' || selectedMemberId !== '' || selectedPeriod !== '' || showOnlyBlocked;
+  const { searchTerm, selectedSteps, selectedMemberIds, selectedPeriod, showOnlyBlocked } = filters;
+  const hasActiveFilters = searchTerm !== '' || selectedSteps.length > 0 || selectedMemberIds.length > 0 || selectedPeriod !== '' || showOnlyBlocked;
+
+  function toggleStep(step: StepType) {
+    const next = selectedSteps.includes(step)
+      ? selectedSteps.filter(s => s !== step)
+      : [...selectedSteps, step];
+    onChange({ selectedSteps: next });
+  }
+
+  function toggleMember(id: string) {
+    const next = selectedMemberIds.includes(id)
+      ? selectedMemberIds.filter(m => m !== id)
+      : [...selectedMemberIds, id];
+    onChange({ selectedMemberIds: next });
+  }
 
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 rounded-lg border border-border bg-muted/20">
@@ -53,38 +126,22 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
 
       {/* Controls — fixed, won't collapse or shift */}
       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-        {/* Etapa */}
-        <Select
-          value={selectedStep || '__all__'}
-          onValueChange={v => onChange({ selectedStep: v === '__all__' ? '' : v as StepType })}
-        >
-          <SelectTrigger className="w-44 text-sm">
-            <SelectValue placeholder="Todas as etapas" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Todas as etapas</SelectItem>
-            {STEP_TYPES_ORDER.map(step => (
-              <SelectItem key={step} value={step}>{STEP_META[step].label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Etapa — checkbox dropdown */}
+        <CheckboxDropdown
+          label="Todas as etapas"
+          options={STEP_TYPES_ORDER.map(s => ({ value: s, label: STEP_META[s].label }))}
+          selected={selectedSteps}
+          onToggle={v => toggleStep(v as StepType)}
+        />
 
-        {/* Responsável */}
-        <Select
-          value={selectedMemberId || '__all__'}
-          onValueChange={v => onChange({ selectedMemberId: v === '__all__' ? '' : v })}
-        >
-          <SelectTrigger className="w-44 text-sm">
-            <User className="w-4 h-4 text-muted-foreground" />
-            <SelectValue placeholder="Todos responsáveis" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Todos responsáveis</SelectItem>
-            {members.map(m => (
-              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Responsável — checkbox dropdown */}
+        <CheckboxDropdown
+          label="Todos responsáveis"
+          icon={<User className="w-4 h-4 shrink-0" />}
+          options={members.map(m => ({ value: m.id, label: m.name }))}
+          selected={selectedMemberIds}
+          onToggle={toggleMember}
+        />
 
         {/* Período (prazo) */}
         <div className="flex items-center gap-1 border border-input bg-background rounded-md px-2 py-1">
