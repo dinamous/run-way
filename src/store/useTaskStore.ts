@@ -73,7 +73,7 @@ interface TaskState {
   tasks: Task[]
   loading: boolean
   error: string | null
-  cachedClientId: string | null | undefined
+  cacheKey: string | undefined  // `${clientId ?? 'all'}:${isAdmin}`
 }
 
 interface TaskActions {
@@ -89,7 +89,7 @@ export const useTaskStore = create<TaskStore>()(
       tasks: [],
       loading: false,
       error: null,
-      cachedClientId: undefined,
+      cacheKey: undefined,
 
       fetchTasks: async (clientId, isAdmin) => {
         if (clientId === undefined) return
@@ -97,16 +97,13 @@ export const useTaskStore = create<TaskStore>()(
         const state = get()
         if (state.loading) return
 
-        const shouldFetch =
-          clientId !== state.cachedClientId ||
-          state.tasks.length === 0
-
-        if (!shouldFetch) return
+        const key = `${clientId ?? 'all'}:${isAdmin}`
+        if (state.cacheKey === key && state.tasks.length > 0) return
 
         set({ loading: true, error: null })
         try {
           const tasks = await fetchTasksFromDb(clientId, isAdmin)
-          set({ tasks, cachedClientId: clientId, loading: false })
+          set({ tasks, cacheKey: key, loading: false })
         } catch (err) {
           set({
             error: err instanceof Error ? err.message : 'Erro ao carregar tarefas',
@@ -116,7 +113,7 @@ export const useTaskStore = create<TaskStore>()(
       },
 
       invalidate: () => {
-        set({ tasks: [], cachedClientId: undefined, error: null })
+        set({ tasks: [], cacheKey: undefined, error: null })
       },
     }),
     { name: 'app/tasks', enabled: true }

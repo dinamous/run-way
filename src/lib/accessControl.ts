@@ -41,11 +41,22 @@ const ROLE_PERMISSIONS: Record<AccessRole, ReadonlySet<AppPermission>> = {
 const VIEW_RULES: Record<ViewType, ViewRule> = {
   home: { requiresClient: false, roles: ['admin', 'user'], permission: 'view:home' },
   clients: { requiresClient: false, roles: ['admin', 'user'], permission: 'view:clients' },
-  dashboard: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  calendar: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  timeline: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  list: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  demandas: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
   members: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:members' },
   reports: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:reports' },
+  'reports-fluxo': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:reports' },
+  'reports-timeline': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:reports' },
+  'reports-membros': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:reports' },
+  'reports-alertas': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:reports' },
   admin: { requiresClient: false, roles: ['admin'], permission: 'view:admin' },
   tools: { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
+  'tools-briefing-analyzer': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
+  'tools-import': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
+  'tools-export': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
+  'tools-integrations': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
 }
 
 export function resolveAccessRole(member: Member | null): AccessRole | null {

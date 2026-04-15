@@ -165,8 +165,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
   const activeCount = steps.filter(s => s.active).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-hidden flex flex-col">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={handleRequestClose}
+    >
+      <div
+        className="bg-card rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
 
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-5 border-b border-border">

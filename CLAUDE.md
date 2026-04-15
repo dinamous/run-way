@@ -60,6 +60,7 @@ npm run lint      # ESLint
 |---|---|
 | Estrutura, fluxo de dados, decisões | [docs/architecture.md](docs/architecture.md) |
 | DashboardView, Calendar, Timeline, drag-drop | [docs/views/dashboard.md](docs/views/dashboard.md) |
+| TasksView, filtros, badge de prazo, ActionMenu | [docs/views/tasks.md](docs/views/tasks.md) |
 | MembersView, capacidade | [docs/views/members.md](docs/views/members.md) |
 | AdminView, UsersPanel, useAdminData, useAdminStore | [docs/views/admin.md](docs/views/admin.md) |
 | TaskModal, cascata de fases | [docs/components/task-modal.md](docs/components/task-modal.md) |

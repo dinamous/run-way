@@ -2,7 +2,7 @@
 
 ## Visão Geral
 
-View de ferramentas (`view="tools"`). Exibe um grid de cards e, ao clicar em um card, navega para a subview da ferramenta correspondente. A navegação é **interna à view** — não usa o roteamento global (`useUIStore`), apenas estado local (`activeTool: string | null`).
+View de ferramentas. A navegação entre ferramentas é feita via **roteamento global** (`useUIStore`): cada ferramenta tem uma `ViewType` própria (`tools-briefing-analyzer`, `tools-import`, `tools-export`, `tools-integrations`). A sidebar lista as ferramentas como subviews do grupo "Ferramentas". `ToolsView` recebe a prop `subview?: ToolsSubview` e renderiza diretamente a ferramenta correspondente.
 
 ## Estrutura de Arquivos
 
@@ -20,19 +20,26 @@ src/views/tools/
     └── BriefingAnalyzerView.tsx         # Subview: Analisador de Briefing
 ```
 
-## Padrão de Navegação Interna
+## Padrão de Navegação
+
+A navegação é via `useUIStore`. A sidebar chama `setView('tools-briefing-analyzer')` etc. `App.tsx` repassa `subview` para `ToolsView`:
 
 ```tsx
-// ToolsView.tsx
-const [activeTool, setActiveTool] = useState<string | null>(null)
+// App.tsx
+view === "tools-briefing-analyzer" → <ToolsView subview="tools-briefing-analyzer" />
+view === "tools"                   → <ToolsView />  // grid
 
-if (activeTool === 'briefing-analyzer') {
-  return <BriefingAnalyzerView onBack={() => setActiveTool(null)} />
+// ToolsView.tsx
+interface ToolsViewProps {
+  subview?: 'tools-briefing-analyzer' | 'tools-import' | 'tools-export' | 'tools-integrations'
 }
-// caso contrário: renderiza grid
+
+if (subview === 'tools-briefing-analyzer') {
+  return <BriefingAnalyzerView onBack={() => setView('tools')} />
+}
 ```
 
-Cada subview recebe `onBack: () => void` para retornar ao grid. Novas ferramentas seguem o mesmo padrão — adicionar um `id` em `tools.mock.ts` e um `if (activeTool === '<id>')` no `ToolsView`.
+Para adicionar uma nova ferramenta: registrar nova `ViewType` em `useUIStore`, adicionar entrada em `VIEW_RULES` em `accessControl.ts`, adicionar item em `NAV_ITEMS` da sidebar, e tratar o `subview` em `ToolsView`.
 
 ## tools.mock.ts
 

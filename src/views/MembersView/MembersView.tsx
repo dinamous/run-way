@@ -105,7 +105,7 @@ const MembersView: React.FC = () => {
             today={today}
             onOpenCalendar={(memberId: string) => {
               setDashboardRedirect({ assigneeId: memberId, mode: 'calendar' });
-              setView('dashboard');
+              setView('calendar');
             }}
           />
         ))}

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Search } from "lucide-react";
-import { CalendarDays, Users, BarChart2, Building2 } from "lucide-react";
-import type { ViewType } from "@/components/AppSidebar";
+import { Search, Users, BarChart2, Building2, LayoutDashboard, FileText, Upload, Download, Settings, Zap } from "lucide-react";
+import type { ViewType } from "@/store/useUIStore";
 
 interface SearchItem {
   view: ViewType;
@@ -11,10 +10,22 @@ interface SearchItem {
 }
 
 const SEARCH_ITEMS: SearchItem[] = [
-  { view: "dashboard", label: "Calendário",  description: "Visualize demandas e fases no calendário", icon: CalendarDays },
-  { view: "members",   label: "Membros",     description: "Capacidade e alocação da equipe",           icon: Users },
-  { view: "reports",   label: "Relatórios",  description: "Análise de progresso e entregas",            icon: BarChart2 },
-  { view: "clients",   label: "Clientes",    description: "Gerencie seus clientes e projetos",          icon: Building2 },
+  { view: "calendar", label: "Dashboard", description: "Visão geral do projeto", icon: LayoutDashboard },
+  { view: "timeline", label: "Linha do Tempo", description: "Timeline das tarefas", icon: FileText },
+  { view: "list", label: "Lista de Demandas", description: "Lista completa de demandas", icon: LayoutDashboard },
+  { view: "members", label: "Membros", description: "Capacidade e alocação da equipe", icon: Users },
+  { view: "reports", label: "Relatórios", description: "Visão geral de relatórios", icon: BarChart2 },
+  { view: "reports-fluxo", label: "Relatórios - Fluxo", description: "Métricas de fluxo de trabalho", icon: BarChart2 },
+  { view: "reports-timeline", label: "Relatórios - Timeline", description: "Análise temporal", icon: BarChart2 },
+  { view: "reports-membros", label: "Relatórios - Membros", description: "Desempenho da equipe", icon: BarChart2 },
+  { view: "reports-alertas", label: "Relatórios - Alertas", description: "Alertas e previsões", icon: BarChart2 },
+  { view: "clients", label: "Clientes", description: "Gerencie seus clientes e projetos", icon: Building2 },
+  { view: "admin", label: "Administração", description: "Configurações e usuários", icon: Settings },
+  { view: "tools", label: "Ferramentas", description: "Ferramentas auxiliares", icon: Zap },
+  { view: "tools-briefing-analyzer", label: "Briefing Analyzer", description: "Analisador de briefing", icon: FileText },
+  { view: "tools-import", label: "Importar", description: "Importar dados", icon: Upload },
+  { view: "tools-export", label: "Exportar", description: "Exportar dados", icon: Download },
+  { view: "tools-integrations", label: "Integrações", description: "Configurar integrações", icon: Zap },
 ];
 
 interface SearchLauncherProps {
@@ -52,7 +63,7 @@ export function SearchLauncher({ onViewChange }: SearchLauncherProps) {
 
   return (
     <div className="relative w-full max-w-md">
-      <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-primary/40">
+      <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-white dark:bg-neutral-900 px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-primary/40">
         <Search className="w-4 h-4 text-muted-foreground shrink-0" />
         <input
           ref={inputRef}

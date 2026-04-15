@@ -30,12 +30,12 @@ export function QuickAccessCard({
         "flex flex-col items-start gap-2 rounded-xl border p-5 text-left transition-colors w-full",
         disabled
           ? "border-border bg-muted/30 cursor-not-allowed opacity-50"
-          : "border-border bg-card hover:bg-muted/60 hover:border-primary/40 cursor-pointer"
+          : "border-border/50 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:border-primary/30 cursor-pointer"
       )}
     >
       <div className={cn(
         "flex items-center justify-center w-9 h-9 rounded-lg",
-        disabled ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+        disabled ? "bg-muted text-muted-foreground" : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300"
       )}>
         <Icon className="w-5 h-5" />
       </div>

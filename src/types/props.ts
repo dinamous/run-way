@@ -27,6 +27,7 @@ export interface TaskModalProps {
 // ─── DashboardView ────────────────────────────────────────────────────────────
 
 export interface DashboardViewProps {
+  subview: 'calendar' | 'timeline' | 'list';
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;

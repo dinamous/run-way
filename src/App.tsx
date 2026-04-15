@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { useClientStore } from "@/store/useClientStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useMemberStore } from "@/store/useMemberStore";
@@ -16,6 +17,7 @@ import { UserClientsView } from "./views/user/UserClientsView";
 import { NoClientView } from "./components/NoClientView";
 import { HomeView } from "./views/home";
 import { ToolsView } from "./views/tools";
+import TasksView from "./views/tasks";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
@@ -86,7 +88,7 @@ export default function App() {
     if (!route) return
 
     if (route.startsWith('/dashboard')) {
-      setView('dashboard')
+      setView('calendar')
     } else if (route === '/profile') {
       // TODO: open profile
     } else if (route === '/clients') {
@@ -211,15 +213,6 @@ export default function App() {
     <div className="flex flex-col h-screen bg-background text-foreground font-sans">
       <Toaster richColors position="bottom-right" />
       <AppHeader
-        darkMode={darkMode}
-        onToggleDark={() => setDarkMode((d) => !d)}
-        userEmail={user?.email}
-        userAvatarUrl={member?.avatar_url}
-        onSignOut={handleSignOut}
-        selectedClient={selectedClient ?? null}
-        availableClients={clients}
-        onSelectClient={handleSelectClient}
-        isAdmin={isAdmin}
         onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
         notifications={notifications}
         unreadCount={unreadCount}
@@ -227,6 +220,9 @@ export default function App() {
         onMarkAllNotificationsAsRead={markAllNotificationsAsRead}
         onNotificationClick={handleNotificationClick}
         reloadNotifications={reloadNotifications}
+        selectedClientId={effectiveClientId ?? null}
+        darkMode={darkMode}
+        onToggleDark={() => setDarkMode((d) => !d)}
       />
 
       <div className={`flex flex-row flex-1 overflow-hidden transition-opacity duration-300 ${isLoggingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
@@ -244,9 +240,13 @@ export default function App() {
             userEmail={user?.email}
             userAvatarUrl={member?.avatar_url}
             onSignOut={handleSignOut}
+            selectedClient={selectedClient ?? null}
+            availableClients={clients}
+            onSelectClient={handleSelectClient}
+            isAdmin={isAdmin}
           />
 
-        <main key={view} className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-8 animate-blur-fade-in">
+        <main key={view} className={cn("flex-1 overflow-auto animate-blur-fade-in", view === "home" ? "p-0" : "px-4 sm:px-6 lg:px-8 py-8")}>
           <TooltipProvider>
             {showNoClientView ? (
             <NoClientView hasClients={false} onGoToClients={() => setView("clients")} />
@@ -265,8 +265,9 @@ export default function App() {
             </RequireAdmin>
           ) : view === "clients" ? (
             <UserClientsView client={selectedClient ?? null} />
-          ) : view === "dashboard" ? (
+          ) : view === "calendar" || view === "timeline" || view === "list" ? (
             <DashboardView
+              subview={view}
               onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
               onDelete={(id: string) => requestDeleteTask(id)}
               onUpdateTask={updateTask}
@@ -274,13 +275,27 @@ export default function App() {
               onExport={() => window.print()}
               holidays={holidays}
             />
+          ) : view === "demandas" ? (
+            <TasksView
+              onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
+              onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
+            />
           ) : view === "members" ? (
             <MembersView />
-          ) : view === "tools" ? (
-            <ToolsView />
+          ) : view === "tools" || view === "tools-briefing-analyzer" || view === "tools-import" || view === "tools-export" || view === "tools-integrations" ? (
+            <ToolsView subview={view === "tools" ? undefined : view} />
+          ) : view === "reports" || view === "reports-fluxo" || view === "reports-timeline" || view === "reports-membros" || view === "reports-alertas" ? (
+            <ReportsView 
+              subview={view === "reports" ? "geral" : view === "reports-fluxo" ? "fluxo" : view === "reports-timeline" ? "timeline" : view === "reports-membros" ? "membros" : "alertas"} 
+            />
           ) : (
-            <ReportsView />
-            )}
+            <HomeView
+              userName={member?.name ?? user?.email ?? ""}
+              clientName={selectedClient?.name}
+              hasClient={!!effectiveClientId}
+              onViewChange={handleViewChange}
+            />
+          )}
           </TooltipProvider>
         </main>
       </div>

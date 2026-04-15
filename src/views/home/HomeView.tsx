@@ -1,7 +1,7 @@
-import { CalendarDays, Users, BarChart2, Building2 } from "lucide-react";
+import { CalendarDays, Users, BarChart2, Building2, LayoutList, FileText, Settings, Zap } from "lucide-react";
 import { SearchLauncher } from "./components/SearchLauncher";
 import { QuickAccessCard } from "./components/QuickAccessCard";
-import type { ViewType } from "@/components/AppSidebar";
+import type { ViewType } from "@/store/useUIStore";
 
 interface HomeViewProps {
   userName: string;
@@ -12,10 +12,24 @@ interface HomeViewProps {
 
 const QUICK_ACCESS = [
   {
-    view: "dashboard" as ViewType,
+    view: "calendar" as ViewType,
     icon: CalendarDays,
     title: "Calendário",
     description: "Visualize demandas e fases no calendário",
+    requiresClient: true,
+  },
+  {
+    view: "timeline" as ViewType,
+    icon: FileText,
+    title: "Linha do Tempo",
+    description: "Timeline visual das tarefas",
+    requiresClient: true,
+  },
+  {
+    view: "list" as ViewType,
+    icon: LayoutList,
+    title: "Lista de Demandas",
+    description: "Lista completa de demandas",
     requiresClient: true,
   },
   {
@@ -39,6 +53,20 @@ const QUICK_ACCESS = [
     description: "Gerencie seus clientes e projetos",
     requiresClient: false,
   },
+  {
+    view: "tools" as ViewType,
+    icon: Zap,
+    title: "Ferramentas",
+    description: "Briefing analyzer e importações",
+    requiresClient: false,
+  },
+  {
+    view: "admin" as ViewType,
+    icon: Settings,
+    title: "Administração",
+    description: "Configurações e usuários",
+    requiresClient: false,
+  },
 ];
 
 function formatDate(): { day: string; weekday: string; month: string } {
@@ -54,9 +82,10 @@ export function HomeView({ userName, clientName, hasClient, onViewChange }: Home
   const firstName = userName.split(" ")[0];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-full gap-8 py-12">
-      {/* Saudação */}
-      <div className="flex flex-col items-center gap-2 text-center">
+    <div className="relative flex flex-col items-center justify-center min-h-full gap-8 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-neutral-50 via-neutral-100 to-neutral-200 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-950" />
+      <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle, #71717a 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+      <div className="relative z-10 flex flex-col items-center gap-2 text-center">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           Olá, {firstName}
         </h1>
@@ -74,7 +103,7 @@ export function HomeView({ userName, clientName, hasClient, onViewChange }: Home
       <SearchLauncher onViewChange={onViewChange} />
 
       {/* QuickAccess */}
-      <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+      <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-2xl">
         {QUICK_ACCESS.map((item) => (
           <QuickAccessCard
             key={item.view}
