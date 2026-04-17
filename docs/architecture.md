@@ -7,10 +7,11 @@ src/
 ├── App.tsx                    # Root: providers, roteamento, inicialização do cliente
 ├── main.tsx                   # Entry point
 ├── components/
-│   ├── TaskModal.tsx          # Modal criar/editar demanda
-│   ├── AppHeader.tsx          # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
-│   ├── AppSidebar.tsx         # Sidebar de navegação; theme toggle no footer mobile
-│   └── ui/                    # Design system (Button, Input, Label, Badge)
+│   ├── TaskModal.tsx                  # Modal criar/editar demanda
+│   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
+│   ├── AppSidebar.tsx                 # Sidebar de navegação; theme toggle no footer mobile
+│   ├── ClientTransitionOverlay.tsx    # Overlay animado exibido ao trocar de cliente
+│   └── ui/                            # Design system (Button, Input, Label, Badge)
 ├── views/
 │   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess
 │   ├── dashboard/             # DashboardView → Calendar/Timeline
@@ -155,13 +156,39 @@ Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de aut
 
 ## Troca de Cliente
 
+A troca de cliente exibe um overlay de transição animado antes de efetivar a mudança:
+
 ```
 handleSelectClient(newId)
-  → invalidate()          ← limpa tasks/members imediatamente (sem vazamento)
-  → setClient(newId)      ← persiste no localStorage
+  → setTransitionClient({ id, name })   ← exibe ClientTransitionOverlay (~3s)
+      ↓ onComplete (após fade-out)
+  → setClient(newId)                    ← persiste no localStorage
   → setView("home")
+  → toast cinza "Trocado para <Cliente>" (sonner, 3s)
   → useEffect dispara fetchData(newId)
 ```
+
+### `ClientTransitionOverlay` (`src/components/ClientTransitionOverlay.tsx`)
+
+Overlay fullscreen (`z-[9999]`) exibido ao trocar de cliente. Duração total ~3.8s.
+
+**Camadas visuais (profundidade):**
+- Gradiente radial fixo no fundo (`--muted`) simulando luminosidade de céu — não anima
+- 8 nuvens SVG com posição, escala e opacidade fixas no `style`; cada nuvem anima **apenas `translateX`** via keyframe único gerado dinamicamente por valor de `dx` (`ct-cloud-8`, `ct-cloud-10`, etc.) — isso evita que o `scale` do style seja sobrescrito e mantém o drift orgânico e independente
+- Linha de horizonte + pista SVG posicionadas em `bottom: 24-26%`, criando perspectiva de chão
+
+**Avião lateral (`PlaneSide`) + rastro:**
+- SVG de vista lateral: fuselagem em perspectiva, asa principal, cauda vertical e horizontal, janelas
+- Percorre da esquerda para a direita em arco de decolagem (`ct-takeoff`): táxi → inclinação suave → saída diagonal em ~25°
+- Rastro de condensação duplo com gradiente linear atrás do avião
+
+**Conteúdo central (sem card):**
+- Label "DESTINO" em uppercase + tracking largo
+- Nome do cliente em `text-5xl` bold, fonte Syne
+- Separador decorativo `✦`
+- Mensagens rotativas com fade + `translateY(3px)` suave (350ms): `🛂 Verificando passaporte` → `🎫 Confirmando embarque` → `🛫 Decolando agora` → `✈️ Em rota de cruzeiro`
+
+Ao fechar, dispara `onComplete` → efetiva a troca no store e exibe toast de confirmação.
 
 ## `ClientOption` (tipo em `src/contexts/AuthContext.ts`)
 

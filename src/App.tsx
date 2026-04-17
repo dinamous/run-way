@@ -29,6 +29,7 @@ import type { Notification } from "./types/notification";
 import type { ViewType } from "@/store/useUIStore";
 import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
 import { ConfirmModal, TooltipProvider } from "@/components/ui";
+import { ClientTransitionOverlay } from "@/components/ClientTransitionOverlay";
 
 export default function App() {
   const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients, refreshProfile } = useAuthContext();
@@ -128,10 +129,25 @@ export default function App() {
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null)
   const [closeTaskModalOnDelete, setCloseTaskModalOnDelete] = useState(false)
 
+  const [transitionClient, setTransitionClient] = useState<{ id: string | null | undefined; name: string } | null>(null)
+
   const handleSelectClient = useCallback((clientId: string | null | undefined) => {
-    setClient(clientId);
-    setView("home");
-  }, [setClient, setView]);
+    const targetClient = clients.find((c) => c.id === clientId)
+    if (!targetClient || clientId === effectiveClientId) return
+    setTransitionClient({ id: clientId, name: targetClient.name })
+  }, [clients, effectiveClientId])
+
+  const handleTransitionComplete = useCallback(() => {
+    if (!transitionClient) return
+    setClient(transitionClient.id)
+    setView("home")
+    toast('Visualização alterada', {
+      description: `Trocado para ${transitionClient.name}`,
+      style: { background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' },
+      duration: 3000,
+    })
+    setTransitionClient(null)
+  }, [transitionClient, setClient, setView])
 
   const handleViewChange = useCallback((newView: ViewType) => {
     setMobileSidebarOpen(false);
@@ -329,6 +345,13 @@ export default function App() {
             closeTaskModal();
           }}
           holidays={holidays}
+        />
+      )}
+
+      {transitionClient && (
+        <ClientTransitionOverlay
+          clientName={transitionClient.name}
+          onComplete={handleTransitionComplete}
         />
       )}
 
