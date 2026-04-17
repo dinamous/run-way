@@ -70,16 +70,14 @@ interface AppSidebarProps {
 const NAV_ITEMS: NavItem[] = [
   { label: "Início", Icon: Home, view: "home" },
 
-  { label: "Demandas", Icon: ListChecks, view: "demandas", requiresClient: true },
-
   {
-    label: "Calendário",
-    Icon: CalendarDays,
+    label: "Demandas",
+    Icon: ListChecks,
     requiresClient: true,
     children: [
+      { view: "demandas", label: "Todas Demandas" },
       { view: "calendar", label: "Calendário" },
       { view: "timeline", label: "Linha do Tempo" },
-      { view: "list", label: "Lista" },
     ],
   },
 
@@ -301,11 +299,13 @@ export function AppSidebar({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="right" align="start" className="w-56">
-          {isAdmin && (
+          {/* {isAdmin && (
             <>
               <DropdownMenuSeparator />
             </>
-          )}
+          )} */}
+
+          
           {availableClients.map((client) => (
             <DropdownMenuItem
               key={client.id}
