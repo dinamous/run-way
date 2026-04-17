@@ -134,20 +134,23 @@ export default function App() {
   const handleSelectClient = useCallback((clientId: string | null | undefined) => {
     const targetClient = clients.find((c) => c.id === clientId)
     if (!targetClient || clientId === effectiveClientId) return
+    // Exibe o overlay primeiro; após o fade-in (~650ms) dispara a troca para o fetch ocorrer em background
     setTransitionClient({ id: clientId, name: targetClient.name })
-  }, [clients, effectiveClientId])
+    setTimeout(() => {
+      setClient(clientId)
+      setView("home")
+    }, 650)
+  }, [clients, effectiveClientId, setClient, setView])
 
   const handleTransitionComplete = useCallback(() => {
     if (!transitionClient) return
-    setClient(transitionClient.id)
-    setView("home")
     toast('Visualização alterada', {
       description: `Trocado para ${transitionClient.name}`,
       style: { background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' },
       duration: 3000,
     })
     setTransitionClient(null)
-  }, [transitionClient, setClient, setView])
+  }, [transitionClient])
 
   const handleViewChange = useCallback((newView: ViewType) => {
     setMobileSidebarOpen(false);

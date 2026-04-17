@@ -160,13 +160,16 @@ A troca de cliente exibe um overlay de transição animado antes de efetivar a m
 
 ```
 handleSelectClient(newId)
-  → setTransitionClient({ id, name })   ← exibe ClientTransitionOverlay (~3s)
-      ↓ onComplete (após fade-out)
-  → setClient(newId)                    ← persiste no localStorage
-  → setView("home")
+  → setClient(newId)                    ← persiste no localStorage (imediato)
+  → setView("home")                     ← imediato
+  → setTransitionClient({ id, name })   ← exibe ClientTransitionOverlay (~3.2s)
+  → useEffect dispara fetchData(newId)  ← inicia em background durante o overlay
+      ↓ onComplete (após fade-out do overlay)
   → toast cinza "Trocado para <Cliente>" (sonner, 3s)
-  → useEffect dispara fetchData(newId)
+  → setTransitionClient(null)
 ```
+
+> A store e o fetch são disparados **imediatamente** ao clicar, antes do overlay fechar. Quando a animação termina, os dados já chegaram ou estão a caminho — sem espera visível após a transição.
 
 ### `ClientTransitionOverlay` (`src/components/ClientTransitionOverlay.tsx`)
 

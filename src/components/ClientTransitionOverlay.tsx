@@ -1,107 +1,113 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
+// --- TIPO DAS PROPS ---
 interface ClientTransitionOverlayProps {
   clientName: string
   onComplete: () => void
 }
 
 const MESSAGES = [
-  '🛂 Verificando passaporte',
+  '🛂 Verificando credenciais',
   '🎫 Confirmando embarque',
-  '🛫 Decolando agora',
-  '✈️  Em rota de cruzeiro',
+  '🛫 Autorização de torre',
+  '✈️ Em rota de cruzeiro',
 ]
 
-const TOTAL_MS = 3800
+const TOTAL_MS = 3200 // Transição mais rápida (reduzida de 4600ms para 3200ms)
 const MSG_INTERVAL = TOTAL_MS / MESSAGES.length
 
-// Nuvens
+// Nuvens com posições e velocidades otimizadas para fluir da direita para a esquerda
 const CLOUDS = [
-  { x: 6,  y: 12, s: 1.0, o: 0.06, d: 22, dx: 10 },
-  { x: 70, y:  8, s: 0.7, o: 0.04, d: 28, dx: 8  },
-  { x: 35, y: 20, s: 1.3, o: 0.05, d: 18, dx: 14 },
-  { x: 82, y: 32, s: 0.85,o: 0.04, d: 24, dx: 9  },
-  { x: 15, y: 48, s: 1.1, o: 0.05, d: 20, dx: 12 },
-  { x: 58, y: 58, s: 0.65,o: 0.03, d: 30, dx: 7  },
-  { x: 3,  y: 68, s: 0.9, o: 0.05, d: 26, dx: 11 },
-  { x: 88, y: 65, s: 1.2, o: 0.04, d: 16, dx: 13 },
+  { top: 5, size: 200, opacity: 0.45, duration: 45, delay: -10 },
+  { top: 15, size: 300, opacity: 0.35, duration: 35, delay: -5 },
+  { top: 30, size: 250, opacity: 0.25, duration: 50, delay: -20 },
+  { top: 45, size: 400, opacity: 0.3, duration: 40, delay: -15 },
+  { top: 10, size: 150, opacity: 0.5, duration: 25, delay: -2 },
+  { top: 60, size: 350, opacity: 0.2, duration: 60, delay: -30 },
 ]
 
-function PlaneSide({ size = 56 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size * 0.66}
-      viewBox="0 0 120 80"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="text-foreground drop-shadow-md"
-    >
-      {/* O avião agora é desenhado RETO. A rotação acontece na keyframe do CSS */}
-      <g>
-        {/* ELEMENTOS DE FUNDO */}
-        <path d="M 55 36 L 75 36 L 62 20 L 48 20 Z" fill="currentColor" opacity="0.2" />
-        <rect x="65" y="24" width="14" height="6" rx="2" fill="currentColor" opacity="0.2" />
-        <path d="M 30 32 L 22 22 L 14 22 L 24 32 Z" fill="currentColor" opacity="0.25" />
+// --- COMPONENTES AUXILIARES ---
 
-        {/* ELEMENTOS PRINCIPAIS */}
-        <path
-          d="M 20 38 C 18 36, 25 28, 40 28 L 85 28 C 105 28, 112 32, 112 36 C 112 42, 102 46, 85 46 L 40 46 C 25 46, 18 40, 20 38 Z"
-          fill="currentColor"
-          opacity="0.9"
-        />
-        <path d="M 98 28.5 Q 106 28.5 109 33 L 100 33 Z" fill="currentColor" opacity="0.5" />
-        <path
-          d="M 45 35 L 85 35"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeDasharray="1 6"
-          strokeLinecap="round"
-          opacity="0.35"
-        />
-        <path d="M 40 28 L 24 8 L 14 8 L 28 28 Z" fill="currentColor" opacity="0.85" />
-        <path d="M 24 40 L 34 40 L 22 52 L 14 52 Z" fill="currentColor" opacity="0.85" />
-        <path d="M 48 40 L 75 40 L 52 64 L 35 64 Z" fill="currentColor" opacity="0.85" />
-        <path d="M 58 44 L 62 40 L 68 40 L 64 44 Z" fill="currentColor" opacity="0.9" />
-        <rect x="54" y="42" width="18" height="8" rx="3" fill="currentColor" />
-      </g>
-    </svg>
-  )
-}
-
-function Cloud({ x, y, s, o, d, dx }: typeof CLOUDS[0]) {
-  const delay = -(d * 0.4)
+function NoiseOverlay() {
   return (
-    <div
-      className="absolute pointer-events-none"
-      style={{
-        left: `${x}%`,
-        top: `${y}%`,
-        opacity: o,
-        transform: `scale(${s})`,
-        transformOrigin: 'left center',
-        animation: `ct-cloud-${Math.round(dx)} ${d}s ease-in-out ${delay}s infinite alternate`,
-      }}
-    >
-      <svg width="110" height="44" viewBox="0 0 110 44" fill="currentColor" className="text-foreground blur-[1px]">
-        <ellipse cx="55" cy="34" rx="48" ry="12" />
-        <ellipse cx="36" cy="26" rx="26" ry="16" />
-        <ellipse cx="66" cy="22" rx="30" ry="18" />
-        <ellipse cx="50" cy="18" rx="20" ry="14" />
+    <div className="pointer-events-none absolute inset-0 z-0 opacity-[0.03] mix-blend-overlay">
+      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="h-full w-full opacity-50">
+        <filter id="noiseFilter">
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#noiseFilter)" />
       </svg>
     </div>
   )
 }
 
+function Cloud({ top, size, opacity, duration, delay }: typeof CLOUDS[0]) {
+  return (
+    <div
+      className="absolute right-0 z-0 pointer-events-none text-zinc-900 dark:text-white"
+      style={{
+        top: `${top}%`,
+        width: size,
+        height: size * 0.4,
+        background: 'radial-gradient(ellipse at center, currentColor 0%, transparent 70%)',
+        opacity: opacity * 0.5, // Suavizado para funcionar bem tanto no claro quanto no escuro
+        filter: 'blur(8px)',
+        transform: 'translateX(100%)',
+        animation: `ct-drift ${duration}s linear ${delay}s infinite`,
+      }}
+    />
+  )
+}
+
+function PlaneIcon() {
+  return (
+    <svg width="84" height="84" viewBox="0 0 120 120" fill="none" className="text-zinc-800 dark:text-zinc-200 drop-shadow-2xl">
+      <g style={{ transformOrigin: 'center' }}>
+        {/* Fuselagem */}
+        <path d="M100.5 60C100.5 64.1421 82.5 68 60 68C37.5 68 19.5 64.1421 19.5 60C19.5 55.8579 37.5 52 60 52C82.5 52 100.5 55.8579 100.5 60Z" fill="currentColor" opacity="0.9" />
+        {/* Asa Principal */}
+        <path d="M65 54L35 15C32 10 38 10 42 15L75 54H65Z" fill="currentColor" />
+        <path d="M65 66L35 105C32 110 38 110 42 105L75 66H65Z" fill="currentColor" />
+        {/* Asa Traseira */}
+        <path d="M30 55L15 35C13 32 16 31 18 35L35 55H30Z" fill="currentColor" opacity="0.8" />
+        <path d="M30 65L15 85C13 88 16 89 18 85L35 65H30Z" fill="currentColor" opacity="0.8" />
+        {/* Cockpit Window */}
+        <path d="M85 60C85 61.5 82 63 78 63C74 63 71 61.5 71 60C71 58.5 74 57 78 57C82 57 85 58.5 85 60Z" fill="currentColor" opacity="0.2" />
+      </g>
+    </svg>
+  )
+}
+
+function Barcode() {
+  const bars = React.useMemo(() => {
+    return Array.from({ length: 32 }).map(() => ({
+      width: Math.random() > 0.6 ? '3px' : '1.5px',
+      height: `${40 + Math.random() * 60}%`,
+    }))
+  }, [])
+
+  return (
+    <div className="flex items-end gap-[3px] h-8 opacity-40">
+      {bars.map((bar, i) => (
+        <div key={i} className="bg-zinc-900 dark:bg-white" style={bar} />
+      ))}
+    </div>
+  )
+}
+
+// --- COMPONENTE PRINCIPAL ---
+
 export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransitionOverlayProps) {
   const [messageIndex, setMessageIndex] = useState(0)
   const [msgOut, setMsgOut] = useState(false)
   const [visible, setVisible] = useState(false)
+  
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
 
   useEffect(() => {
-    const showTimer = setTimeout(() => setVisible(true), 20)
+    // Pequeno delay para garantir que a animação de entrada seja vista
+    const showTimer = setTimeout(() => setVisible(true), 50)
 
     let current = 0
     const msgInterval = setInterval(() => {
@@ -110,12 +116,12 @@ export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransi
         current = (current + 1) % MESSAGES.length
         setMessageIndex(current)
         setMsgOut(false)
-      }, 350)
+      }, 300) // Fade out do texto mais rápido
     }, MSG_INTERVAL)
 
     const fadeOutTimer = setTimeout(() => {
       setVisible(false)
-      setTimeout(() => onCompleteRef.current(), 500)
+      setTimeout(() => onCompleteRef.current(), 600) // Fade global mais ágil
     }, TOTAL_MS)
 
     return () => {
@@ -125,135 +131,233 @@ export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransi
     }
   }, [])
 
-  const uniqueDx = [...new Set(CLOUDS.map((c) => Math.round(c.dx)))]
-
   return (
     <div
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden bg-background"
-      style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.5s ease' }}
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden bg-zinc-50 dark:bg-zinc-950 font-sans transition-colors duration-500"
+      style={{
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1)',
+      }}
     >
-      {/* Gradiente de céu */}
+      <NoiseOverlay />
+
+      {/* CÉU GRADIENTE SUAVE - Adaptável ao tema via pseudo-elemento / var CSS local */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 z-0 pointer-events-none opacity-50 dark:opacity-100"
         style={{
-          background: 'radial-gradient(ellipse 70% 50% at 50% 35%, var(--muted) 0%, transparent 100%)',
-          opacity: 0.6,
+          background: 'radial-gradient(circle at 50% -20%, rgba(150,150,150,0.2) 0%, transparent 80%)',
         }}
       />
 
-      {/* Nuvens */}
+      {/* NUVENS ATMOSFÉRICAS */}
       {CLOUDS.map((c, i) => (
         <Cloud key={i} {...c} />
       ))}
 
-      {/* Linha de horizonte */}
-      <div
-        className="absolute w-full pointer-events-none"
-        style={{ bottom: '26%', height: '1px', background: 'var(--border)', opacity: 0.3 }}
-      />
-
-      {/* Pista animada (Ilusão de velocidade) */}
-      <div
-        className="absolute pointer-events-none overflow-hidden"
-        style={{ bottom: '24%', left: '50%', transform: 'translateX(-50%)', width: '300px' }}
-      >
-        <svg width="400" height="24" viewBox="0 0 400 24" fill="none" className="text-foreground">
-          <line x1="0" y1="1" x2="400" y2="1" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.18" />
-          <line x1="0" y1="23" x2="400" y2="23" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.18" />
-          <g style={{ animation: 'ct-runway 0.4s linear infinite' }}>
-            {Array.from({ length: 14 }).map((_, i) => (
-              <rect key={i} x={i * 35} y={10} width={20} height={4} rx={2} fill="currentColor" opacity="0.1" />
-            ))}
-          </g>
-        </svg>
+      {/* CHÃO / PISTA - Adaptável */}
+      <div className="absolute bottom-0 z-0 w-full h-[25vh] bg-black/5 dark:bg-white/5 border-t border-black/10 dark:border-white/10 flex flex-col items-center justify-start overflow-hidden">
+        {/* Linha Central da Pista Animada */}
+        <div className="w-full h-[2px] mt-6 relative opacity-30">
+          <div className="absolute inset-0 w-[200%] animate-runway-lines flex gap-12">
+             {Array.from({ length: 30 }).map((_, i) => (
+                <div key={i} className="h-full w-16 bg-black/30 dark:bg-white/30" />
+             ))}
+          </div>
+        </div>
       </div>
 
-      {/* Avião lateral + rastro (Animado via GPU usando Translate3D) */}
+      {/* AVIÃO ANIMADO - Movimento contínuo e mais rápido */}
       <div
-        className="absolute pointer-events-none"
+        className="absolute z-10 pointer-events-none"
         style={{
-          bottom: '24%',
-          left: '0', // Ponto de partida fixo para usar apenas translate3d
-          animation: 'ct-takeoff 3.8s cubic-bezier(0.3, 0, 0.2, 1) forwards',
+          bottom: 'calc(25vh + 10px)',
+          left: '-10%',
+          transformOrigin: 'center',
+          animation: 'ct-takeoff 3s ease-in forwards',
         }}
       >
-        {/* Rastro */}
-        <div
-          className="absolute pointer-events-none"
-          style={{ right: '100%', top: '40%', transform: 'translateY(-50%)' }}
-        >
-          <svg width="180" height="8" viewBox="0 0 180 8" fill="none">
-            <defs>
-              <linearGradient id="tg" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="currentColor" stopOpacity="0" />
-                <stop offset="100%" stopColor="currentColor" stopOpacity="0.15" />
-              </linearGradient>
-            </defs>
-            <rect x="0" y="1" width="180" height="2.5" rx="1.5" fill="url(#tg)" className="text-foreground" />
-            <rect x="20" y="5" width="130" height="1.5" rx="1" fill="url(#tg)" className="text-foreground" opacity="0.4" />
-          </svg>
-        </div>
-
-        <PlaneSide size={64} />
+        <PlaneIcon />
       </div>
 
-      {/* Conteúdo central */}
-      <div className="relative flex flex-col items-center gap-4 z-10 backdrop-blur-sm bg-background/30 p-8 rounded-3xl">
-        <p className="text-xs font-semibold tracking-[0.35em] uppercase text-muted-foreground">
-          Destino
-        </p>
+      {/* TICKET DE EMBARQUE PREMIUM - Tema Adaptável */}
+      <div
+        className="ct-ticket relative z-20 w-[360px] max-w-[90vw] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] border border-zinc-200 dark:border-zinc-800 -translate-y-8 flex flex-col"
+        style={{
+          animation: visible
+            ? 'ct-card-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, ct-float 4s ease-in-out 0.8s infinite alternate'
+            : 'none',
+          opacity: 0,
+        }}
+      >
+        {/* Topo do Ticket */}
+        <div className="p-8 pb-6 relative">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+             {/* Símbolo decorativo */}
+             <svg width="40" height="40" viewBox="0 0 100 100" fill="currentColor">
+                <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="2" fill="none" />
+                <circle cx="50" cy="50" r="15" fill="currentColor" />
+             </svg>
+          </div>
 
-        <h2
-          className="text-5xl font-bold text-foreground text-center leading-tight px-8 drop-shadow-sm"
-          style={{ fontFamily: "'Syne', sans-serif" }}
-        >
-          {clientName}
-        </h2>
+          <div className="flex justify-between items-center mb-8">
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
+              Boarding Pass
+            </span>
+            <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-sm">
+              Priority
+            </span>
+          </div>
 
-        <div className="flex items-center gap-3 w-44">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-muted-foreground/30 text-xs">✦</span>
-          <div className="flex-1 h-px bg-border" />
+          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 mb-1 font-medium">
+            Passenger
+          </p>
+          <h2 className="text-3xl font-black truncate tracking-tighter text-zinc-900 dark:text-white">
+            {clientName}
+          </h2>
+          
+          <div className="mt-6 flex justify-between items-end border-t border-zinc-200 dark:border-zinc-800 pt-4">
+             <div>
+                <p className="text-[8px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Flight</p>
+                <p className="text-sm font-bold font-mono tracking-wide mt-0.5">NX-012</p>
+             </div>
+             <div>
+                <p className="text-[8px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500 text-right">Gate</p>
+                <p className="text-sm font-bold font-mono tracking-wide mt-0.5 text-right">A-42</p>
+             </div>
+          </div>
         </div>
 
-        <p
-          className="text-sm font-medium text-muted-foreground text-center whitespace-nowrap"
-          style={{
-            opacity: msgOut ? 0 : 0.85,
-            transform: msgOut ? 'translateY(4px)' : 'translateY(0)',
-            transition: 'opacity 0.35s ease, transform 0.35s ease',
-          }}
-        >
-          {MESSAGES[messageIndex]}
-        </p>
+        {/* Linha Picotada */}
+        <div className="relative h-4 flex items-center justify-center bg-white dark:bg-zinc-900">
+          <div className="absolute left-[-8px] w-4 h-4 bg-zinc-50 dark:bg-zinc-950 rounded-full border-r border-zinc-200 dark:border-zinc-800" />
+          <div className="absolute right-[-8px] w-4 h-4 bg-zinc-50 dark:bg-zinc-950 rounded-full border-l border-zinc-200 dark:border-zinc-800" />
+          <div className="w-[85%] border-t-[2px] border-dashed border-zinc-300 dark:border-zinc-700" />
+        </div>
+
+        {/* Canhoto Inferior */}
+        <div className="p-8 pt-6 bg-white dark:bg-zinc-900 flex flex-col items-center justify-between min-h-[120px] rounded-b-2xl">
+          <p
+            className="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-400 text-center uppercase"
+            style={{
+              opacity: msgOut ? 0 : 1,
+              transform: msgOut ? 'translateY(-4px)' : 'translateY(0)',
+              transition: 'opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0, 0.2, 1)',
+            }}
+          >
+            {MESSAGES[messageIndex]}
+          </p>
+
+          <div className="w-full mt-4 flex flex-col items-center gap-2">
+            <Barcode />
+            <p className="text-[8px] font-mono tracking-[0.4em] text-zinc-400 dark:text-zinc-500">
+              0010110 0110001
+            </p>
+          </div>
+        </div>
       </div>
 
+      {/* --- ESTILOS INJETADOS (KEYFRAMES) --- */}
       <style>{`
-        /* Animação via GPU usando viewports (vw/vh) e translate3d */
-        @keyframes ct-takeoff {
-          0%   { transform: translate3d(-15vw, 0, 0) rotate(0deg); }
-          45%  { transform: translate3d(45vw, 0, 0) rotate(0deg); }
-          65%  { transform: translate3d(60vw, -8vh, 0) rotate(-12deg); }
-          85%  { transform: translate3d(80vw, -30vh, 0) rotate(-22deg); }
-          100% { transform: translate3d(120vw, -60vh, 0) rotate(-28deg); }
+        /* Recorte de ticket suave */
+        .ct-ticket {
+          border-radius: 1.25rem;
         }
 
-        /* Faz a pista correr para trás dando ilusão de velocidade horizontal */
-        @keyframes ct-runway {
+        /* Movimento contínuo das nuvens */
+        @keyframes ct-drift {
+          from { transform: translateX(100vw); }
+          to   { transform: translateX(-100vw); }
+        }
+
+        /* Linhas da pista correndo para trás para dar ilusão de velocidade */
+        @keyframes runway-lines {
           from { transform: translateX(0); }
-          to   { transform: translateX(-35px); }
+          to   { transform: translateX(-50%); }
         }
 
-        ${uniqueDx
-          .map(
-            (dx) => `
-        @keyframes ct-cloud-${dx} {
-          from { transform: translateX(-${dx}px); }
-          to   { transform: translateX(${dx}px); }
-        }`
-          )
-          .join('\n')}
+        /* Animação Física FLUIDA do Avião (Sem "travadinhas") */
+        @keyframes ct-takeoff {
+          0% { 
+            transform: translate3d(-20vw, 0, 0) rotate(0deg); 
+          }
+          30% { 
+            transform: translate3d(25vw, 0, 0) rotate(0deg); /* Corre suavemente sem bobbing */
+          }
+          100% { 
+            transform: translate3d(120vw, -55vh, 0) rotate(-22deg); /* Sobe num único fluxo */
+          }
+        }
+
+        /* Entrada orgânica do Ticket */
+        @keyframes ct-card-enter {
+          0% { 
+            opacity: 0; 
+            transform: translateY(4rem) scale(0.9) rotateX(-10deg); 
+          }
+          100% { 
+            opacity: 1; 
+            transform: translateY(0) scale(1) rotateX(0deg); 
+          }
+        }
+
+        /* Flutuação leve e orgânica após a entrada */
+        @keyframes ct-float {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-8px); }
+        }
+
+        .animate-runway-lines {
+          animation: runway-lines 0.4s linear infinite;
+        }
       `}</style>
+    </div>
+  )
+}
+
+// === COMPONENTE APP DE DEMONSTRAÇÃO (Apenas para o Preview) ===
+export default function App() {
+  const [showOverlay, setShowOverlay] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(false)
+
+  // Injeta a classe dark no HTML para o Tailwind aplicar os estilos adaptáveis
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [isDarkMode])
+
+  return (
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300">
+      <div className="absolute top-4 right-4">
+        <button 
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          className="px-4 py-2 text-sm border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+        >
+          Tema Atual: {isDarkMode ? '🌙 Escuro' : '☀️ Claro'}
+        </button>
+      </div>
+
+      <div className="text-center">
+        <h1 className="text-3xl font-black mb-4">Dashboard Principal</h1>
+        <p className="text-zinc-500 dark:text-zinc-400 mb-8 max-w-md mx-auto">
+          Clique no botão abaixo para ver a transição 100% fluida e adaptável.
+        </p>
+        <button
+          onClick={() => setShowOverlay(true)}
+          className="px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-full font-medium shadow-lg hover:scale-105 active:scale-95 transition-transform"
+        >
+          Iniciar Transição
+        </button>
+      </div>
+
+      {showOverlay && (
+        <ClientTransitionOverlay
+          clientName="ALEXANDRE SILVA"
+          onComplete={() => setShowOverlay(false)}
+        />
+      )}
     </div>
   )
 }
