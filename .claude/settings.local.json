@@ -37,7 +37,8 @@
       "Bash(mv components/DemandasFilters.tsx components/TasksFilters.tsx)",
       "Bash(npx --yes tsc --noEmit --project \"c:/Users/dinam/Documents/Projetos/run-way/tsconfig.json\")",
       "Bash(npm show:*)",
-      "Bash(ls c:/Users/dinam/Documents/Projetos/run-way/node_modules/boneyard-js/react*)"
+      "Bash(ls c:/Users/dinam/Documents/Projetos/run-way/node_modules/boneyard-js/react*)",
+      "Bash(npm list *)"
     ]
   },
   "hooks": {

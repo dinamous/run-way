@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
-import { Bell, CheckCheck, User, Users } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkBreaks from 'remark-breaks'
+import { Bell, CheckCheck, UserCheck, UserX, ShieldCheck, ShieldOff, Megaphone, MessageSquare, ClipboardList } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -74,6 +76,19 @@ function groupNotificationsByDate(notifications: Notification[]): Map<string, No
   return sorted
 }
 
+function getNotificationTypeIcon(type: string): React.ReactNode {
+  switch (type) {
+    case 'step_assigned': return <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+    case 'step_unassigned': return <UserX className="w-3.5 h-3.5 text-orange-500" />
+    case 'role_changed': return <ShieldCheck className="w-3.5 h-3.5 text-violet-500" />
+    case 'client_access_granted': return <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
+    case 'client_access_revoked': return <ShieldOff className="w-3.5 h-3.5 text-destructive" />
+    case 'admin_broadcast': return <Megaphone className="w-3.5 h-3.5 text-primary" />
+    case 'manual': return <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+    default: return <ClipboardList className="w-3.5 h-3.5 text-muted-foreground" />
+  }
+}
+
 function playNotificationSound() {
   const audio = new Audio('/notification.mp3')
   audio.volume = 0.3
@@ -106,13 +121,8 @@ function NotificationItem({
         notification.read ? 'hover:bg-muted/40' : 'bg-primary/5 hover:bg-primary/10'
       }`}
     >
-      {/* Ícone de audiência */}
-      <div className={`mt-0.5 flex-shrink-0 p-1.5 rounded-full ${
-        isPersonal
-          ? 'bg-blue-200/80 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300'
-          : 'bg-muted text-muted-foreground'
-      }`}>
-        {isPersonal ? <User className="w-3 h-3" /> : <Users className="w-3 h-3" />}
+      <div className="mt-0.5 flex-shrink-0 p-1.5 rounded-full bg-muted">
+        {getNotificationTypeIcon(notification.type)}
       </div>
 
       <div className="flex flex-col gap-0.5 flex-1 min-w-0">
@@ -125,9 +135,9 @@ function NotificationItem({
           </span>
         </div>
 
-        <p className="text-xs text-muted-foreground line-clamp-2">
-          {notification.message}
-        </p>
+        <div className="text-xs text-muted-foreground prose prose-xs dark:prose-invert max-w-none [&_p]:mb-0 [&_strong]:text-foreground [&_em]:text-foreground/80">
+          <ReactMarkdown remarkPlugins={[remarkBreaks]}>{notification.message}</ReactMarkdown>
+        </div>
 
         <span className={`text-[10px] mt-0.5 font-medium ${
           isPersonal ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
@@ -246,7 +256,7 @@ export function NotificationBell({
                 e.preventDefault()
                 onMarkAllAsRead()
               }}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
             >
               <CheckCheck className="w-3.5 h-3.5" />
               Marcar como lidas
@@ -294,6 +304,7 @@ export function NotificationBell({
                     <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 sticky top-0 z-10">
                       {GROUP_LABELS[groupKey]}
                     </div>
+                    <div className="flex flex-col gap-1">
                     {items.map((notification) => (
                       <NotificationItem
                         key={notification.id}
@@ -302,6 +313,7 @@ export function NotificationBell({
                         onClick={onNotificationClick}
                       />
                     ))}
+                    </div>
                   </div>
                 )
               })}

@@ -1,20 +1,20 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from "react";
 
 // --- TIPO DAS PROPS ---
 interface ClientTransitionOverlayProps {
-  clientName: string
-  onComplete: () => void
+  clientName: string;
+  onComplete: () => void;
 }
 
 const MESSAGES = [
-  '🛂 Verificando credenciais',
-  '🎫 Confirmando embarque',
-  '🛫 Autorização de torre',
-  '✈️ Em rota de cruzeiro',
-]
+  "🛂 Verificando credenciais",
+  "🎫 Confirmando embarque",
+  "🛫 Autorização de torre",
+  "✈️ Em rota de cruzeiro",
+];
 
-const TOTAL_MS = 3200 // Transição mais rápida (reduzida de 4600ms para 3200ms)
-const MSG_INTERVAL = TOTAL_MS / MESSAGES.length
+const TOTAL_MS = 3200; // Transição mais rápida (reduzida de 4600ms para 3200ms)
+const MSG_INTERVAL = TOTAL_MS / MESSAGES.length;
 
 // Nuvens com posições e velocidades otimizadas para fluir da direita para a esquerda
 const CLOUDS = [
@@ -24,24 +24,33 @@ const CLOUDS = [
   { top: 45, size: 400, opacity: 0.3, duration: 40, delay: -15 },
   { top: 10, size: 150, opacity: 0.5, duration: 25, delay: -2 },
   { top: 60, size: 350, opacity: 0.2, duration: 60, delay: -30 },
-]
+];
 
 // --- COMPONENTES AUXILIARES ---
 
 function NoiseOverlay() {
   return (
     <div className="pointer-events-none absolute inset-0 z-0 opacity-[0.03] mix-blend-overlay">
-      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="h-full w-full opacity-50">
+      <svg
+        viewBox="0 0 200 200"
+        xmlns="http://www.w3.org/2000/svg"
+        className="h-full w-full opacity-50"
+      >
         <filter id="noiseFilter">
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" />
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.85"
+            numOctaves="3"
+            stitchTiles="stitch"
+          />
         </filter>
         <rect width="100%" height="100%" filter="url(#noiseFilter)" />
       </svg>
     </div>
-  )
+  );
 }
 
-function Cloud({ top, size, opacity, duration, delay }: typeof CLOUDS[0]) {
+function Cloud({ top, size, opacity, duration, delay }: (typeof CLOUDS)[0]) {
   return (
     <div
       className="absolute right-0 z-0 pointer-events-none text-zinc-900 dark:text-white"
@@ -49,42 +58,78 @@ function Cloud({ top, size, opacity, duration, delay }: typeof CLOUDS[0]) {
         top: `${top}%`,
         width: size,
         height: size * 0.4,
-        background: 'radial-gradient(ellipse at center, currentColor 0%, transparent 70%)',
+        background:
+          "radial-gradient(ellipse at center, currentColor 0%, transparent 70%)",
         opacity: opacity * 0.5, // Suavizado para funcionar bem tanto no claro quanto no escuro
-        filter: 'blur(8px)',
-        transform: 'translateX(100%)',
+        filter: "blur(8px)",
+        transform: "translateX(100%)",
         animation: `ct-drift ${duration}s linear ${delay}s infinite`,
       }}
     />
-  )
+  );
 }
 
 function PlaneIcon() {
   return (
-    <svg width="84" height="84" viewBox="0 0 120 120" fill="none" className="text-zinc-800 dark:text-zinc-200 drop-shadow-2xl">
-      <g style={{ transformOrigin: 'center' }}>
+    <svg
+      width="84"
+      height="84"
+      viewBox="0 0 120 120"
+      fill="none"
+      className="text-zinc-800 dark:text-zinc-200 drop-shadow-2xl"
+    >
+      <g style={{ transformOrigin: "center" }}>
         {/* Fuselagem */}
-        <path d="M100.5 60C100.5 64.1421 82.5 68 60 68C37.5 68 19.5 64.1421 19.5 60C19.5 55.8579 37.5 52 60 52C82.5 52 100.5 55.8579 100.5 60Z" fill="currentColor" opacity="0.9" />
+        <path
+          d="M100.5 60C100.5 64.1421 82.5 68 60 68C37.5 68 19.5 64.1421 19.5 60C19.5 55.8579 37.5 52 60 52C82.5 52 100.5 55.8579 100.5 60Z"
+          fill="currentColor"
+          opacity="0.9"
+        />
         {/* Asa Principal */}
-        <path d="M65 54L35 15C32 10 38 10 42 15L75 54H65Z" fill="currentColor" />
-        <path d="M65 66L35 105C32 110 38 110 42 105L75 66H65Z" fill="currentColor" />
+        <path
+          d="M65 54L35 15C32 10 38 10 42 15L75 54H65Z"
+          fill="currentColor"
+        />
+        <path
+          d="M65 66L35 105C32 110 38 110 42 105L75 66H65Z"
+          fill="currentColor"
+        />
         {/* Asa Traseira */}
-        <path d="M30 55L15 35C13 32 16 31 18 35L35 55H30Z" fill="currentColor" opacity="0.8" />
-        <path d="M30 65L15 85C13 88 16 89 18 85L35 65H30Z" fill="currentColor" opacity="0.8" />
+        <path
+          d="M30 55L15 35C13 32 16 31 18 35L35 55H30Z"
+          fill="currentColor"
+          opacity="0.8"
+        />
+        <path
+          d="M30 65L15 85C13 88 16 89 18 85L35 65H30Z"
+          fill="currentColor"
+          opacity="0.8"
+        />
         {/* Cockpit Window */}
-        <path d="M85 60C85 61.5 82 63 78 63C74 63 71 61.5 71 60C71 58.5 74 57 78 57C82 57 85 58.5 85 60Z" fill="currentColor" opacity="0.2" />
+        <path
+          d="M85 60C85 61.5 82 63 78 63C74 63 71 61.5 71 60C71 58.5 74 57 78 57C82 57 85 58.5 85 60Z"
+          fill="currentColor"
+          opacity="0.2"
+        />
       </g>
     </svg>
-  )
+  );
 }
 
+const BARCODE_BARS = Array.from({ length: 32 }).map((_, i) => {
+  // deterministic pseudo-random based on index to avoid impure render
+  const seed = Math.sin(i * 9301 + 49297) * 233280;
+  const r1 = seed - Math.floor(seed);
+  const seed2 = Math.sin(i * 4321 + 12345) * 233280;
+  const r2 = seed2 - Math.floor(seed2);
+  return {
+    width: r1 > 0.6 ? "3px" : "1.5px",
+    height: `${40 + r2 * 60}%`,
+  };
+});
+
 function Barcode() {
-  const bars = React.useMemo(() => {
-    return Array.from({ length: 32 }).map(() => ({
-      width: Math.random() > 0.6 ? '3px' : '1.5px',
-      height: `${40 + Math.random() * 60}%`,
-    }))
-  }, [])
+  const bars = BARCODE_BARS;
 
   return (
     <div className="flex items-end gap-[3px] h-8 opacity-40">
@@ -92,51 +137,56 @@ function Barcode() {
         <div key={i} className="bg-zinc-900 dark:bg-white" style={bar} />
       ))}
     </div>
-  )
+  );
 }
 
 // --- COMPONENTE PRINCIPAL ---
 
-export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransitionOverlayProps) {
-  const [messageIndex, setMessageIndex] = useState(0)
-  const [msgOut, setMsgOut] = useState(false)
-  const [visible, setVisible] = useState(false)
-  
-  const onCompleteRef = useRef(onComplete)
-  onCompleteRef.current = onComplete
+export function ClientTransitionOverlay({
+  clientName,
+  onComplete,
+}: ClientTransitionOverlayProps) {
+  const [messageIndex, setMessageIndex] = useState(0);
+  const [msgOut, setMsgOut] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  });
 
   useEffect(() => {
     // Pequeno delay para garantir que a animação de entrada seja vista
-    const showTimer = setTimeout(() => setVisible(true), 50)
+    const showTimer = setTimeout(() => setVisible(true), 50);
 
-    let current = 0
+    let current = 0;
     const msgInterval = setInterval(() => {
-      setMsgOut(true)
+      setMsgOut(true);
       setTimeout(() => {
-        current = (current + 1) % MESSAGES.length
-        setMessageIndex(current)
-        setMsgOut(false)
-      }, 300) // Fade out do texto mais rápido
-    }, MSG_INTERVAL)
+        current = (current + 1) % MESSAGES.length;
+        setMessageIndex(current);
+        setMsgOut(false);
+      }, 300); // Fade out do texto mais rápido
+    }, MSG_INTERVAL);
 
     const fadeOutTimer = setTimeout(() => {
-      setVisible(false)
-      setTimeout(() => onCompleteRef.current(), 600) // Fade global mais ágil
-    }, TOTAL_MS)
+      setVisible(false);
+      setTimeout(() => onCompleteRef.current(), 600); // Fade global mais ágil
+    }, TOTAL_MS);
 
     return () => {
-      clearTimeout(showTimer)
-      clearInterval(msgInterval)
-      clearTimeout(fadeOutTimer)
-    }
-  }, [])
+      clearTimeout(showTimer);
+      clearInterval(msgInterval);
+      clearTimeout(fadeOutTimer);
+    };
+  }, []);
 
   return (
     <div
       className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden bg-zinc-50 dark:bg-zinc-950 font-sans transition-colors duration-500"
       style={{
         opacity: visible ? 1 : 0,
-        transition: 'opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1)',
+        transition: "opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1)",
       }}
     >
       <NoiseOverlay />
@@ -145,7 +195,8 @@ export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransi
       <div
         className="absolute inset-0 z-0 pointer-events-none opacity-50 dark:opacity-100"
         style={{
-          background: 'radial-gradient(circle at 50% -20%, rgba(150,150,150,0.2) 0%, transparent 80%)',
+          background:
+            "radial-gradient(circle at 50% -20%, rgba(150,150,150,0.2) 0%, transparent 80%)",
         }}
       />
 
@@ -159,9 +210,12 @@ export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransi
         {/* Linha Central da Pista Animada */}
         <div className="w-full h-[2px] mt-6 relative opacity-30">
           <div className="absolute inset-0 w-[200%] animate-runway-lines flex gap-12">
-             {Array.from({ length: 30 }).map((_, i) => (
-                <div key={i} className="h-full w-16 bg-black/30 dark:bg-white/30" />
-             ))}
+            {Array.from({ length: 30 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-full w-16 bg-black/30 dark:bg-white/30"
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -170,10 +224,10 @@ export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransi
       <div
         className="absolute z-10 pointer-events-none"
         style={{
-          bottom: 'calc(25vh + 10px)',
-          left: '-10%',
-          transformOrigin: 'center',
-          animation: 'ct-takeoff 3s ease-in forwards',
+          bottom: "calc(25vh + 10px)",
+          left: "-10%",
+          transformOrigin: "center",
+          animation: "ct-takeoff 3s ease-in forwards",
         }}
       >
         <PlaneIcon />
@@ -184,19 +238,31 @@ export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransi
         className="ct-ticket relative z-20 w-[360px] max-w-[90vw] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] border border-zinc-200 dark:border-zinc-800 -translate-y-8 flex flex-col"
         style={{
           animation: visible
-            ? 'ct-card-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, ct-float 4s ease-in-out 0.8s infinite alternate'
-            : 'none',
+            ? "ct-card-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, ct-float 4s ease-in-out 0.8s infinite alternate"
+            : "none",
           opacity: 0,
         }}
       >
         {/* Topo do Ticket */}
         <div className="p-8 pb-6 relative">
           <div className="absolute top-0 right-0 p-4 opacity-10">
-             {/* Símbolo decorativo */}
-             <svg width="40" height="40" viewBox="0 0 100 100" fill="currentColor">
-                <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="2" fill="none" />
-                <circle cx="50" cy="50" r="15" fill="currentColor" />
-             </svg>
+            {/* Símbolo decorativo */}
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 100 100"
+              fill="currentColor"
+            >
+              <circle
+                cx="50"
+                cy="50"
+                r="40"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+              />
+              <circle cx="50" cy="50" r="15" fill="currentColor" />
+            </svg>
           </div>
 
           <div className="flex justify-between items-center mb-8">
@@ -214,16 +280,24 @@ export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransi
           <h2 className="text-3xl font-black truncate tracking-tighter text-zinc-900 dark:text-white">
             {clientName}
           </h2>
-          
+
           <div className="mt-6 flex justify-between items-end border-t border-zinc-200 dark:border-zinc-800 pt-4">
-             <div>
-                <p className="text-[8px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Flight</p>
-                <p className="text-sm font-bold font-mono tracking-wide mt-0.5">NX-012</p>
-             </div>
-             <div>
-                <p className="text-[8px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500 text-right">Gate</p>
-                <p className="text-sm font-bold font-mono tracking-wide mt-0.5 text-right">A-42</p>
-             </div>
+            <div>
+              <p className="text-[8px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                Flight
+              </p>
+              <p className="text-sm font-bold font-mono tracking-wide mt-0.5">
+                NX-012
+              </p>
+            </div>
+            <div>
+              <p className="text-[8px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500 text-right">
+                Gate
+              </p>
+              <p className="text-sm font-bold font-mono tracking-wide mt-0.5 text-right">
+                A-42
+              </p>
+            </div>
           </div>
         </div>
 
@@ -240,8 +314,9 @@ export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransi
             className="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-400 text-center uppercase"
             style={{
               opacity: msgOut ? 0 : 1,
-              transform: msgOut ? 'translateY(-4px)' : 'translateY(0)',
-              transition: 'opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0, 0.2, 1)',
+              transform: msgOut ? "translateY(-4px)" : "translateY(0)",
+              transition:
+                "opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0, 0.2, 1)",
             }}
           >
             {MESSAGES[messageIndex]}
@@ -311,31 +386,31 @@ export function ClientTransitionOverlay({ clientName, onComplete }: ClientTransi
         }
       `}</style>
     </div>
-  )
+  );
 }
 
 // === COMPONENTE APP DE DEMONSTRAÇÃO (Apenas para o Preview) ===
 export default function App() {
-  const [showOverlay, setShowOverlay] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Injeta a classe dark no HTML para o Tailwind aplicar os estilos adaptáveis
   useEffect(() => {
     if (isDarkMode) {
-      document.documentElement.classList.add('dark')
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark')
+      document.documentElement.classList.remove("dark");
     }
-  }, [isDarkMode])
+  }, [isDarkMode]);
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300">
       <div className="absolute top-4 right-4">
-        <button 
+        <button
           onClick={() => setIsDarkMode(!isDarkMode)}
           className="px-4 py-2 text-sm border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
         >
-          Tema Atual: {isDarkMode ? '🌙 Escuro' : '☀️ Claro'}
+          Tema Atual: {isDarkMode ? "🌙 Escuro" : "☀️ Claro"}
         </button>
       </div>
 
@@ -359,5 +434,5 @@ export default function App() {
         />
       )}
     </div>
-  )
+  );
 }
