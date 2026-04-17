@@ -117,9 +117,11 @@ function NotificationItem({
         e.preventDefault()
         handleClick()
       }}
-      className={`group flex items-start gap-3 px-3 py-3 cursor-pointer rounded-md mx-1 transition-colors ${
-        notification.read ? 'hover:bg-muted/40' : 'bg-primary/5 hover:bg-primary/10'
-      }`}
+     className={`group flex items-start gap-3 px-3 py-3 cursor-pointer rounded-md mx-1 border border-black/5 dark:border-white/10 transition-colors ${
+  notification.read
+    ? 'bg-background hover:bg-muted/40'
+    : 'bg-muted/30 hover:bg-muted/50'
+}`}
     >
       <div className="mt-0.5 flex-shrink-0 p-1.5 rounded-full bg-muted">
         {getNotificationTypeIcon(notification.type)}
@@ -238,7 +240,7 @@ export function NotificationBell({
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-80 p-0 overflow-hidden flex flex-col">
+      <DropdownMenuContent align="end" className="w-[95vw] max-w-[420px] sm:max-w-[480px] p-0 overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
