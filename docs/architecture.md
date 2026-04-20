@@ -4,10 +4,12 @@
 
 ```
 src/
-├── App.tsx                    # Root: montagem do layout, orquestração de hooks — ~200 linhas
+├── App.tsx                    # Root: gates de auth + composição declarativa — ~80 linhas
 ├── main.tsx                   # Entry point
 ├── components/
 │   ├── AppRouter.tsx                  # Mapeia view → componente; guards de cliente
+│   ├── AppLayout.tsx                  # Shell do layout: AppHeader + AppSidebar + main/AppRouter
+│   ├── AppModals.tsx                  # TaskModal + ConfirmModal + ClientTransitionOverlay agrupados
 │   ├── TaskModal.tsx                  # Modal criar/editar demanda
 │   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
 │   ├── AppSidebar.tsx                 # Sidebar de navegação; theme toggle no footer mobile
@@ -32,6 +34,7 @@ src/
 │   ├── useTaskStore.ts        # Cache de tasks, fetchTasks, invalidate
 │   └── useMemberStore.ts      # Cache de members por cliente, fetchMembers, invalidate
 ├── hooks/
+│   ├── useAppOrchestrator.ts  # Agrega toda a lógica de orquestração do App (cliente, views, notificações, task actions)
 │   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask)
 │   ├── useHolidays.ts         # Feriados
 │   ├── useFormState.ts        # Estado do formulário TaskModal
@@ -57,12 +60,13 @@ src/
 ```
 AuthContext (AuthProvider)
     ↓ session, member, clients (filtrado por access_role), isAdmin, refreshProfile
-App.tsx (inicialização, roteamento)
-    ├── useClientStore  → selectedClientId (persist)
-    ├── useTaskStore    → tasks, loading (lido pelas views diretamente)
-    ├── useMemberStore  → members, loading (lido pelas views diretamente)
-    ├── useUIStore      → view, isTaskModalOpen
-    ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
+App.tsx (gates de auth + composição)
+    └── useAppOrchestrator (toda a lógica de orquestração)
+          ├── useClientStore  → selectedClientId (persist)
+          ├── useTaskStore    → tasks, loading (lido pelas views diretamente)
+          ├── useMemberStore  → members, loading (lido pelas views diretamente)
+          ├── useUIStore      → view, isTaskModalOpen
+          ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
     ├── view="home"                    → HomeView
     ├── view="clients"                 → UserClientsView
     ├── view="overview"                → DashboardView (subview="overview") — métricas e resumo
@@ -75,7 +79,9 @@ App.tsx (inicialização, roteamento)
     ├── view="tools-briefing-analyzer" → ToolsView com subview (BriefingAnalyzerView)
     ├── view="tools-import/export/integrations" → ToolsView com subview (em breve)
     ├── view="profile"                 → ProfileView — perfil + preferências
-    └── TaskModal → criar/editar (useFormState → cascata de fases)
+          └── TaskModal → criar/editar (useFormState → cascata de fases)
+    ├── AppLayout    → shell do layout (AppHeader + AppSidebar + main/AppRouter)
+    └── AppModals    → TaskModal + ConfirmModal + ClientTransitionOverlay
 ```
 
 ## Stores (`src/store/`)
@@ -129,9 +135,9 @@ fetchMembers(clientId)             // idempotente; guard se loading=true ou clie
 invalidate()                       // reseta members, cachedClientId, error e loading=false
 ```
 
-## Fluxo de Autenticação — Retornos Condicionais em App.tsx
+## Fluxo de Autenticação — Gates em App.tsx
 
-Antes do layout principal (sidebar + header), `App.tsx` aplica retornos condicionais em ordem:
+`App.tsx` delega toda a lógica ao `useAppOrchestrator` e aplica retornos condicionais em ordem antes de montar o layout:
 
 | Condição | View renderizada |
 |---|---|
@@ -162,7 +168,7 @@ Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de aut
 
 ```
 1. AuthContext resolve → loading=false, clients=[...] (já filtrado por access_role)
-2. App.tsx useEffect: selectedClientId===undefined && hasClients
+2. useAppOrchestrator useEffect: selectedClientId===undefined && hasClients
    → setClient(clients[0].id) + fetchTasks/fetchMembers disparados imediatamente
    ← fetch eager: dados começam a carregar antes da view montar
 3. useClientStore persiste clientId no localStorage
