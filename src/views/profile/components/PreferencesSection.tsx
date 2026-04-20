@@ -8,7 +8,7 @@ interface PreferencesSectionProps {
   preferences: UserPreferences
   savingPrefs: boolean
   clients: Client[]
-  onUpdate: (prefs: Partial<Pick<UserPreferences, 'theme' | 'language' | 'notifications_enabled' | 'default_view' | 'client_order'>>) => Promise<boolean>
+  onUpdate: (prefs: Partial<Pick<UserPreferences, 'theme' | 'language' | 'notifications_enabled' | 'default_view' | 'client_order' | 'notification_step_overdue' | 'notification_task_stalled' | 'notification_member_overloaded' | 'stalled_days_threshold' | 'overload_threshold'>>) => Promise<boolean>
 }
 
 export function PreferencesSection({ preferences, savingPrefs, clients, onUpdate }: PreferencesSectionProps) {

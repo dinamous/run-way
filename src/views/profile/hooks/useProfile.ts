@@ -9,7 +9,12 @@ export interface UserPreferences {
   language: 'pt-BR' | 'en'
   notifications_enabled: boolean
   default_view: 'home' | 'calendar' | 'timeline' | 'list'
-  client_order: string[] // ordered array of client IDs
+  client_order: string[]
+  notification_step_overdue: boolean
+  notification_task_stalled: boolean
+  notification_member_overloaded: boolean
+  stalled_days_threshold: number
+  overload_threshold: number
   created_at: string
   updated_at: string
 }
@@ -104,7 +109,7 @@ export function useProfile() {
     return true
   }, [member, refreshProfile])
 
-  const updatePreferences = useCallback(async (prefs: Partial<Pick<UserPreferences, 'theme' | 'language' | 'notifications_enabled' | 'default_view' | 'client_order'>>) => {
+  const updatePreferences = useCallback(async (prefs: Partial<Pick<UserPreferences, 'theme' | 'language' | 'notifications_enabled' | 'default_view' | 'client_order' | 'notification_step_overdue' | 'notification_task_stalled' | 'notification_member_overloaded' | 'stalled_days_threshold' | 'overload_threshold'>>) => {
     if (!member || !preferences) return false
 
     setSavingPrefs(true)

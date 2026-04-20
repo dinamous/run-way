@@ -85,7 +85,7 @@ useProfile(): {
 
 ## Modelo de Dados — `user_preferences`
 
-Migration: `supabase/migrations/20260420000000_user_preferences.sql`
+Migrations: `20260420000000_user_preferences.sql`, `20260420000001_notification_preferences.sql`
 
 | Coluna | Tipo | Default | Descrição |
 |---|---|---|---|
@@ -93,9 +93,14 @@ Migration: `supabase/migrations/20260420000000_user_preferences.sql`
 | `user_id` | uuid FK → members | — | unique, cascade delete |
 | `theme` | text | `'system'` | `light \| dark \| system` |
 | `language` | text | `'pt-BR'` | `pt-BR \| en` |
-| `notifications_enabled` | boolean | `true` | |
+| `notifications_enabled` | boolean | `true` | Liga/desliga todas as notificações |
 | `default_view` | text | `'home'` | `home \| calendar \| timeline \| list` |
 | `client_order` | text[] | `{}` | IDs ordenados dos clientes |
+| `notification_step_overdue` | boolean | `true` | Receber alerta de etapa em atraso |
+| `notification_task_stalled` | boolean | `true` | Receber alerta de demanda parada |
+| `notification_member_overloaded` | boolean | `true` | Receber alerta de membro sobrecarregado (relevante para admins) |
+| `stalled_days_threshold` | integer 1–30 | `5` | Dias sem atividade para considerar demanda parada (configurável pelo manager) |
+| `overload_threshold` | integer 1–20 | `3` | Nº de tasks simultâneas para disparar alerta de sobrecarga (configurável pelo manager) |
 | `created_at` | timestamptz | now() | |
 | `updated_at` | timestamptz | now() | |
 

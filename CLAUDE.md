@@ -18,7 +18,7 @@ npm run lint      # ESLint
 
 **Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais), avatar_url?, email?, auth_user_id?, access_role ('admin'|'user'), is_active?, created_at?, deactivated_at?`
 
-**UserPreferences:** `id, user_id (fk → members.id), theme ('light'|'dark'|'system'), language ('pt-BR'|'en'), notifications_enabled, default_view ('home'|'calendar'|'timeline'|'list'), client_order (text[]), created_at, updated_at`
+**UserPreferences:** `id, user_id (fk → members.id), theme ('light'|'dark'|'system'), language ('pt-BR'|'en'), notifications_enabled, default_view ('home'|'calendar'|'timeline'|'list'), client_order (text[]), notification_step_overdue (bool, def true), notification_task_stalled (bool, def true), notification_member_overloaded (bool, def true), stalled_days_threshold (int 1–30, def 5), overload_threshold (int 1–20, def 3), created_at, updated_at`
 
 **Fases:** Design (5d, violeta) → Approval (3d, laranja) → Dev (7d, azul) → QA (3d, esmeralda). Cascata automática.
 

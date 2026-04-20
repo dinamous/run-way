@@ -1,15 +1,17 @@
 import { useState, type ComponentType } from 'react'
-import { User, Settings } from 'lucide-react'
+import { User, Settings, Bell } from 'lucide-react'
 import { AccountSection } from './components/AccountSection'
 import { PreferencesSection } from './components/PreferencesSection'
+import { NotificationsSection } from './components/NotificationsSection'
 import { useProfile } from './hooks/useProfile'
 import { useAdminStore } from '@/store/useAdminStore'
 
-type ProfileTab = 'account' | 'preferences'
+type ProfileTab = 'account' | 'preferences' | 'notifications'
 
 const TABS: { key: ProfileTab; label: string; icon: ComponentType<{ className?: string }> }[] = [
   { key: 'account', label: 'Conta', icon: User },
   { key: 'preferences', label: 'Preferências', icon: Settings },
+  { key: 'notifications', label: 'Notificações', icon: Bell },
 ]
 
 export function ProfileView() {
@@ -86,6 +88,15 @@ export function ProfileView() {
                 preferences={preferences}
                 savingPrefs={savingPrefs}
                 clients={clients}
+                onUpdate={updatePreferences}
+              />
+            )}
+
+            {tab === 'notifications' && preferences && (
+              <NotificationsSection
+                preferences={preferences}
+                isAdmin={member.access_role === 'admin'}
+                savingPrefs={savingPrefs}
                 onUpdate={updatePreferences}
               />
             )}
