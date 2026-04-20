@@ -4,9 +4,10 @@
 
 ```
 src/
-├── App.tsx                    # Root: providers, roteamento, inicialização do cliente
+├── App.tsx                    # Root: montagem do layout, orquestração de hooks — ~200 linhas
 ├── main.tsx                   # Entry point
 ├── components/
+│   ├── AppRouter.tsx                  # Mapeia view → componente; guards de cliente
 │   ├── TaskModal.tsx                  # Modal criar/editar demanda
 │   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
 │   ├── AppSidebar.tsx                 # Sidebar de navegação; theme toggle no footer mobile
@@ -33,7 +34,11 @@ src/
 ├── hooks/
 │   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask)
 │   ├── useHolidays.ts         # Feriados
-│   └── useFormState.ts        # Estado do formulário TaskModal
+│   ├── useFormState.ts        # Estado do formulário TaskModal
+│   ├── useAppTheme.ts         # Dark mode: estado + sync com localStorage e <html>
+│   ├── useAppSidebar.ts       # Sidebar desktop (persist) e mobile open/close
+│   ├── useTaskActions.ts      # Estado e handlers de create/update/delete de tasks
+│   └── useClientTransition.ts # Fluxo animado de troca de cliente (overlay + stores)
 ├── contexts/
 │   └── AuthContext.tsx        # Sessão, member, clients, isAdmin, refreshProfile
 ├── lib/
@@ -158,10 +163,10 @@ Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de aut
 ```
 1. AuthContext resolve → loading=false, clients=[...] (já filtrado por access_role)
 2. App.tsx useEffect: selectedClientId===undefined && hasClients
-   → setClient(clients[0].id)  ← só corre depois de auth estar pronto
+   → setClient(clients[0].id) + fetchTasks/fetchMembers disparados imediatamente
+   ← fetch eager: dados começam a carregar antes da view montar
 3. useClientStore persiste clientId no localStorage
-4. Cada view ao montar chama fetchTasks/fetchMembers com o effectiveClientId
-   ← fetch lazy: nenhum dado é buscado antes da view abrir
+4. Cada view ao montar lê tasks/members dos stores (já em loading ou com cache)
 ```
 
 **Chave:** `App.tsx` usa `AuthContext.clients` diretamente (não `useUserClients`). `useUserClients` existe apenas em `UserClientsView` para `linkToClient`/`unlinkFromClient`.
@@ -224,7 +229,7 @@ interface ClientOption {
 
 ## Views lendo da store
 
-`DashboardView`, `MembersView`, `ReportsView` e `TasksView` leem `tasks` e `members` diretamente de `useTaskStore()` e `useMemberStore()`. Não recebem essas props via `App.tsx`. Cada view dispara `fetchTasks`/`fetchMembers` no mount com o `effectiveClientId` atual.
+`DashboardView`, `MembersView`, `ReportsView` e `TasksView` leem `tasks` e `members` diretamente de `useTaskStore()` e `useMemberStore()`. Não recebem essas props via `App.tsx`. As views ainda chamam `fetchTasks`/`fetchMembers` no mount, mas o `App.tsx` já dispara esses fetchs ao resolver o `effectiveClientId` — reduzindo o delay de loading nas views.
 
 ## Papéis de Acesso
 

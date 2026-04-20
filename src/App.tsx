@@ -1,69 +1,84 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useClientStore } from "@/store/useClientStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useMemberStore } from "@/store/useMemberStore";
 import { useTaskStore } from "@/store/useTaskStore";
-import TaskModal from "./components/TaskModal";
-import { AppHeader } from "./components/AppHeader";
-import { AppSidebar } from "./components/AppSidebar";
-import { DashboardView } from "./views/dashboard";
-import MembersView from "./views/MembersView";
-import ReportsView from "./views/reports";
-import { AdminView } from "./views/admin";
-import { RequireAdmin } from "./components/RequireAdmin";
-import { LoginView } from "./views/login";
-import { OnboardingView } from "./views/onboarding";
-import { UserClientsView } from "./views/user/UserClientsView";
-import { NoClientView } from "./components/NoClientView";
-import { HomeView } from "./views/home";
-import { ToolsView } from "./views/tools";
-import TasksView from "./views/tasks";
-import { ProfileView } from "./views/profile";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { useSupabase } from "./hooks/useSupabase";
-import { useHolidays } from "./hooks/useHolidays";
-import { useNotifications } from "./hooks/useNotifications";
-import { resolveNotificationRoute } from "./lib/notifications";
-import { Toaster, toast } from "sonner";
-import type { Task } from "./lib/steps";
-import type { Notification } from "./types/notification";
-import type { ViewType } from "@/store/useUIStore";
+import { useSupabase } from "@/hooks/useSupabase";
+import { useHolidays } from "@/hooks/useHolidays";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useAppTheme } from "@/hooks/useAppTheme";
+import { useAppSidebar } from "@/hooks/useAppSidebar";
+import { useTaskActions } from "@/hooks/useTaskActions";
+import { useClientTransition } from "@/hooks/useClientTransition";
+import { resolveNotificationRoute } from "@/lib/notifications";
 import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
-import { ConfirmModal, TooltipProvider } from "@/components/ui";
+import { Toaster, toast } from "sonner";
+import { AppHeader } from "@/components/AppHeader";
+import { AppSidebar } from "@/components/AppSidebar";
+import { AppRouter } from "@/components/AppRouter";
 import { ClientTransitionOverlay } from "@/components/ClientTransitionOverlay";
+import { ConfirmModal, TooltipProvider } from "@/components/ui";
+import TaskModal from "@/components/TaskModal";
+import { LoginView } from "@/views/login";
+import { OnboardingView } from "@/views/onboarding";
+import type { Notification } from "@/types/notification";
+import type { ViewType } from "@/store/useUIStore";
 
 export default function App() {
-  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients, refreshProfile } = useAuthContext();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const accessRole = resolveAccessRole(member);
+  const {
+    session,
+    user,
+    signIn,
+    signOut,
+    authError,
+    loading: authLoading,
+    isAdmin,
+    member,
+    clients,
+    refreshProfile,
+  } = useAuthContext();
 
+  const { darkMode, toggleDark } = useAppTheme();
+  const { sidebarOpen, mobileSidebarOpen, toggleSidebar, openMobileSidebar, closeMobileSidebar } = useAppSidebar();
+
+  const accessRole = resolveAccessRole(member);
   const hasClients = clients.length > 0;
 
   const { selectedClientId, setClient } = useClientStore();
-  const { members, invalidate: invalidateMembers } = useMemberStore();
-  const { invalidate: invalidateTasks } = useTaskStore();
+  const { members, fetchMembers } = useMemberStore();
+  const { fetchTasks } = useTaskStore();
 
-  const effectiveClientId = selectedClientId === undefined
-    ? (hasClients ? clients[0].id : null)
-    : (isAdmin ? selectedClientId : (selectedClientId ?? (hasClients ? clients[0].id : null)));
+  const effectiveClientId =
+    selectedClientId === undefined
+      ? hasClients ? clients[0].id : null
+      : isAdmin
+        ? selectedClientId
+        : selectedClientId ?? (hasClients ? clients[0].id : null);
 
-  const handleSignOut = () => {
-    setIsLoggingOut(true);
-    signOut();
-  };
-
+  // Resolve the active client on auth load and keep it in sync with available clients
   useEffect(() => {
     if (authLoading || !session) return;
 
+    let resolvedClientId: string | null | undefined = selectedClientId;
+
     if (selectedClientId === undefined && hasClients) {
       setClient(clients[0].id);
+      resolvedClientId = clients[0].id;
     } else if (!hasClients) {
       setClient(undefined);
-    } else if (typeof selectedClientId === 'string' && !clients.find(c => c.id === selectedClientId)) {
+      resolvedClientId = null;
+    } else if (typeof selectedClientId === "string" && !clients.find((c) => c.id === selectedClientId)) {
       setClient(clients[0]?.id ?? undefined);
+      resolvedClientId = clients[0]?.id ?? null;
     }
-  }, [authLoading, session, hasClients, clients, selectedClientId, setClient]);
+
+    if (resolvedClientId !== undefined) {
+      fetchTasks(resolvedClientId, isAdmin);
+      fetchMembers(resolvedClientId);
+    }
+  }, [authLoading, session, hasClients, clients, selectedClientId, setClient, fetchTasks, fetchMembers, isAdmin]);
 
   const { createTask, updateTask, deleteTask } = useSupabase({
     memberId: member?.id,
@@ -73,114 +88,63 @@ export default function App() {
 
   const { holidays } = useHolidays();
 
-  const allClientIds = clients.map((c) => c.id)
-
+  const allClientIds = clients.map((c) => c.id);
   const {
     notifications,
     unreadCount,
     markAsRead: markNotificationAsRead,
     markAllAsRead: markAllNotificationsAsRead,
     reload: reloadNotifications,
-  } = useNotifications(member?.id, allClientIds)
+  } = useNotifications(member?.id, allClientIds);
 
-  const view = useUIStore((s) => s.view)
-  const setView = useUIStore((s) => s.setView)
+  const view = useUIStore((s) => s.view);
+  const setView = useUIStore((s) => s.setView);
+  const isModalOpen = useUIStore((s) => s.isTaskModalOpen);
+  const closeTaskModal = useUIStore((s) => s.closeTaskModal);
+
+  const { transitionTarget, selectClient, onTransitionComplete } = useClientTransition(
+    clients,
+    effectiveClientId
+  );
+
+  const { editingTask, pendingDeleteTaskId, openNewTask, openEditTask, requestDeleteTask, cancelDeleteTask, confirmDeleteTask, saveTask } =
+    useTaskActions({ createTask, updateTask, deleteTask, effectiveClientId });
 
   const handleNotificationClick = useCallback((notification: Notification) => {
-    // Navega dentro do cliente atual — não troca de cliente
-    const route = resolveNotificationRoute(notification)
-    if (!route) return
+    const route = resolveNotificationRoute(notification);
+    if (!route) return;
 
-    if (route.startsWith('/dashboard')) {
-      setView('calendar')
-    } else if (route === '/profile') {
-      setView('profile')
-    } else if (route === '/clients') {
-      setView('clients')
-    }
-  }, [setView])
-
-  const [darkMode, setDarkMode] = useState(() => {
-    return (
-      localStorage.getItem("theme") === "dark" ||
-      (!localStorage.getItem("theme") &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches)
-    )
-  })
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode)
-    localStorage.setItem("theme", darkMode ? "dark" : "light")
-  }, [darkMode])
-
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    return localStorage.getItem("sidebarOpen") !== "false"
-  })
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-
-  const handleToggleSidebar = () => {
-    setSidebarOpen((prev) => {
-      localStorage.setItem("sidebarOpen", String(!prev))
-      return !prev
-    })
-  }
-
-  const isModalOpen = useUIStore((s) => s.isTaskModalOpen)
-  const openTaskModal = useUIStore((s) => s.openTaskModal)
-  const closeTaskModal = useUIStore((s) => s.closeTaskModal)
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null)
-  const [closeTaskModalOnDelete, setCloseTaskModalOnDelete] = useState(false)
-
-  const [transitionClient, setTransitionClient] = useState<{ id: string | null | undefined; name: string } | null>(null)
-
-  const handleSelectClient = useCallback((clientId: string | null | undefined) => {
-    const targetClient = clients.find((c) => c.id === clientId)
-    if (!targetClient || clientId === effectiveClientId) return
-    // Exibe o overlay primeiro; após o fade-in (~650ms) dispara a troca para o fetch ocorrer em background
-    setTransitionClient({ id: clientId, name: targetClient.name })
-    setTimeout(() => {
-      setClient(clientId)
-      invalidateTasks()
-      invalidateMembers()
-      setView("home")
-    }, 650)
-  }, [clients, effectiveClientId, setClient, setView, invalidateTasks, invalidateMembers])
-
-  const handleTransitionComplete = useCallback(() => {
-    if (!transitionClient) return
-    toast('Visualização alterada', {
-      description: `Trocado para ${transitionClient.name}`,
-      style: { background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' },
-      duration: 3000,
-    })
-    setTransitionClient(null)
-  }, [transitionClient])
+    if (route.startsWith("/dashboard")) setView("calendar");
+    else if (route === "/profile") setView("profile");
+    else if (route === "/clients") setView("clients");
+  }, [setView]);
 
   const handleViewChange = useCallback((newView: ViewType) => {
-    setMobileSidebarOpen(false);
+    closeMobileSidebar();
     const hasClientSelected = effectiveClientId !== null;
     const canAccess = canAccessView(newView, accessRole, hasClientSelected);
 
     if (!canAccess) {
-      if (newView !== "clients") {
-        toast.error("Selecione um cliente para acessar esta funcionalidade.");
-      }
+      if (newView !== "clients") toast.error("Selecione um cliente para acessar esta funcionalidade.");
       setView("clients");
     } else {
       setView(newView);
     }
-  }, [effectiveClientId, accessRole, setView]);
+  }, [effectiveClientId, accessRole, setView, closeMobileSidebar]);
 
+  // Redirect to clients if current view becomes inaccessible (e.g. client deselected)
   useEffect(() => {
     if (!authLoading && session) {
-      const hasClientSelected = effectiveClientId !== null;
-      const canAccess = canAccessView(view, accessRole, hasClientSelected);
-      if (!canAccess) {
-        setView("clients");
-      }
+      const canAccess = canAccessView(view, accessRole, effectiveClientId !== null);
+      if (!canAccess) setView("clients");
     }
   }, [authLoading, session, effectiveClientId, accessRole, view, setView]);
+
+  const selectedClient = effectiveClientId
+    ? clients.find((c) => c.id === effectiveClientId) ?? null
+    : null;
+
+  // --- Early returns (auth gates) ---
 
   if (authLoading) {
     return (
@@ -198,46 +162,20 @@ export default function App() {
     return (
       <OnboardingView
         userName={member?.name ?? user?.email}
-        onSignOut={handleSignOut}
+        onSignOut={signOut}
         onClientsFound={refreshProfile}
       />
-    )
+    );
   }
 
-  const requestDeleteTask = (id: string, closeModalAfterDelete = false) => {
-    setPendingDeleteTaskId(id);
-    setCloseTaskModalOnDelete(closeModalAfterDelete);
-  };
-
-  const handleConfirmDeleteTask = async () => {
-    if (!pendingDeleteTaskId) return;
-
-    const taskId = pendingDeleteTaskId;
-    const shouldCloseModal = closeTaskModalOnDelete;
-
-    setPendingDeleteTaskId(null);
-    setCloseTaskModalOnDelete(false);
-
-    const ok = await deleteTask(taskId);
-    if (!ok) {
-      toast.error("Erro ao eliminar tarefa");
-      return;
-    }
-
-    if (shouldCloseModal) {
-      closeTaskModal();
-    }
-  };
-
-  const showNoClientView = !hasClients && view !== "clients";
-  const showSelectClient = hasClients && !effectiveClientId && view !== "clients";
-  const selectedClient = effectiveClientId ? clients.find(c => c.id === effectiveClientId) : null;
+  // --- Main layout ---
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground font-sans">
       <Toaster richColors position="bottom-right" />
+
       <AppHeader
-        onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
+        onToggleMobileSidebar={openMobileSidebar}
         notifications={notifications}
         unreadCount={unreadCount}
         onMarkNotificationAsRead={markNotificationAsRead}
@@ -246,82 +184,52 @@ export default function App() {
         reloadNotifications={reloadNotifications}
         selectedClientId={effectiveClientId ?? null}
         darkMode={darkMode}
-        onToggleDark={() => setDarkMode((d) => !d)}
+        onToggleDark={toggleDark}
       />
 
-      <div className={`flex flex-row flex-1 overflow-hidden transition-opacity duration-300 ${isLoggingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <AppSidebar
-            open={sidebarOpen}
-            onToggle={handleToggleSidebar}
-            mobileOpen={mobileSidebarOpen}
-            onCloseMobile={() => setMobileSidebarOpen(false)}
-            view={view}
-            onViewChange={handleViewChange}
-            hasClient={hasClients}
-            role={accessRole}
-            darkMode={darkMode}
-            onToggleDark={() => setDarkMode((d) => !d)}
-            userEmail={user?.email}
-            userAvatarUrl={member?.avatar_url}
-            onSignOut={handleSignOut}
-            selectedClient={selectedClient ?? null}
-            availableClients={clients}
-            onSelectClient={handleSelectClient}
-            isAdmin={isAdmin}
-          />
+      <div className="flex flex-row flex-1 overflow-hidden">
+        <AppSidebar
+          open={sidebarOpen}
+          onToggle={toggleSidebar}
+          mobileOpen={mobileSidebarOpen}
+          onCloseMobile={closeMobileSidebar}
+          view={view}
+          onViewChange={handleViewChange}
+          hasClient={hasClients}
+          role={accessRole}
+          darkMode={darkMode}
+          onToggleDark={toggleDark}
+          userEmail={user?.email}
+          userAvatarUrl={member?.avatar_url}
+          onSignOut={signOut}
+          selectedClient={selectedClient ?? null}
+          availableClients={clients}
+          onSelectClient={selectClient}
+          isAdmin={isAdmin}
+        />
 
-        <main key={view} className={cn("flex-1 overflow-auto animate-blur-fade-in", view === "home" ? "p-0" : "px-4 sm:px-6 lg:px-8 py-8")}>
-          <TooltipProvider>
-            {showNoClientView ? (
-            <NoClientView hasClients={false} onGoToClients={() => setView("clients")} />
-          ) : showSelectClient ? (
-            <NoClientView hasClients={true} onGoToClients={() => setView("clients")} />
-          ) : view === "home" ? (
-            <HomeView
-              userName={member?.name ?? user?.email ?? ""}
-              clientName={selectedClient?.name}
-              hasClient={!!effectiveClientId}
-              onViewChange={handleViewChange}
-            />
-          ) : view === "admin" ? (
-            <RequireAdmin>
-              <AdminView />
-            </RequireAdmin>
-          ) : view === "clients" ? (
-            <UserClientsView client={selectedClient ?? null} />
-          ) : view === "calendar" || view === "timeline" || view === "list" ? (
-            <DashboardView
-              subview={view}
-              onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
-              onDelete={(id: string) => requestDeleteTask(id)}
-              onUpdateTask={updateTask}
-              onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
-              onExport={() => window.print()}
-              holidays={holidays}
-            />
-          ) : view === "demandas" ? (
-            <TasksView
-              onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
-              onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
-            />
-          ) : view === "profile" ? (
-            <ProfileView />
-          ) : view === "members" ? (
-            <MembersView />
-          ) : view === "tools" || view === "tools-briefing-analyzer" || view === "tools-import" || view === "tools-export" || view === "tools-integrations" ? (
-            <ToolsView subview={view === "tools" ? undefined : view} />
-          ) : view === "reports" || view === "reports-fluxo" || view === "reports-timeline" || view === "reports-membros" || view === "reports-alertas" ? (
-            <ReportsView 
-              subview={view === "reports" ? "geral" : view === "reports-fluxo" ? "fluxo" : view === "reports-timeline" ? "timeline" : view === "reports-membros" ? "membros" : "alertas"} 
-            />
-          ) : (
-            <HomeView
-              userName={member?.name ?? user?.email ?? ""}
-              clientName={selectedClient?.name}
-              hasClient={!!effectiveClientId}
-              onViewChange={handleViewChange}
-            />
+        <main
+          key={view}
+          className={cn(
+            "flex-1 overflow-auto animate-blur-fade-in",
+            view === "home" ? "p-0" : "px-4 sm:px-6 lg:px-8 py-8"
           )}
+        >
+          <TooltipProvider>
+            <AppRouter
+              view={view}
+              hasClients={hasClients}
+              effectiveClientId={effectiveClientId}
+              selectedClient={selectedClient}
+              userName={member?.name ?? ""}
+              userEmail={user?.email}
+              holidays={holidays}
+              onViewChange={handleViewChange}
+              onEditTask={openEditTask}
+              onOpenNewTask={openNewTask}
+              onDeleteTask={requestDeleteTask}
+              onUpdateTask={updateTask}
+            />
           </TooltipProvider>
         </main>
       </div>
@@ -331,37 +239,16 @@ export default function App() {
           task={editingTask}
           members={members}
           onClose={closeTaskModal}
-          onDelete={async (id: string) => {
-            requestDeleteTask(id, true);
-          }}
-          onSave={async (taskData) => {
-            let ok: boolean;
-            if (editingTask) {
-              ok = await updateTask({
-                ...editingTask,
-                ...taskData,
-                clientId: effectiveClientId ?? editingTask.clientId,
-              });
-            } else {
-              ok = await createTask({
-                title: taskData.title,
-                clickupLink: taskData.clickupLink,
-                clientId: effectiveClientId ?? undefined,
-                status: taskData.status,
-                steps: taskData.steps,
-              });
-            }
-            if (!ok) { toast.error("Erro ao guardar tarefa"); return; }
-            closeTaskModal();
-          }}
+          onDelete={(id) => requestDeleteTask(id, true)}
+          onSave={saveTask}
           holidays={holidays}
         />
       )}
 
-      {transitionClient && (
+      {transitionTarget && (
         <ClientTransitionOverlay
-          clientName={transitionClient.name}
-          onComplete={handleTransitionComplete}
+          clientName={transitionTarget.name}
+          onComplete={onTransitionComplete}
         />
       )}
 
@@ -371,11 +258,8 @@ export default function App() {
           message="Tem a certeza que deseja eliminar esta demanda?"
           confirmLabel="Eliminar demanda"
           cancelLabel="Cancelar"
-          onConfirm={handleConfirmDeleteTask}
-          onCancel={() => {
-            setPendingDeleteTaskId(null);
-            setCloseTaskModalOnDelete(false);
-          }}
+          onConfirm={confirmDeleteTask}
+          onCancel={cancelDeleteTask}
         />
       )}
     </div>
