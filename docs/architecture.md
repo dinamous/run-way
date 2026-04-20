@@ -27,8 +27,8 @@ src/
 ├── store/
 │   ├── useUIStore.ts          # Estado de UI: view ativa, modal aberto/fechado
 │   ├── useClientStore.ts      # Cliente selecionado (persist localStorage)
-│   ├── useDataStore.ts        # Cache de tasks/members, fetchData, invalidate
-│   └── appStore.ts            # Re-export de compatibilidade: useAppStore = useDataStore
+│   ├── useTaskStore.ts        # Cache de tasks, fetchTasks, invalidate
+│   └── useMemberStore.ts      # Cache de members por cliente, fetchMembers, invalidate
 ├── hooks/
 │   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask)
 │   ├── useHolidays.ts         # Feriados
@@ -51,12 +51,12 @@ src/
 ```
 AuthContext (AuthProvider)
     ↓ session, member, clients (filtrado por access_role), isAdmin, refreshProfile
-App.tsx (inicialização, roteamento, clientMembers)
+App.tsx (inicialização, roteamento)
     ├── useClientStore  → selectedClientId (persist)
-    ├── useDataStore    → tasks, members, fetchData, invalidate
+    ├── useTaskStore    → tasks, loading (lido pelas views diretamente)
+    ├── useMemberStore  → members, loading (lido pelas views diretamente)
     ├── useUIStore      → view, isTaskModalOpen
     ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
-    ├── clientMembers (useMemo) → membros filtrados pelo cliente ativo
     ├── view="home"                    → HomeView
     ├── view="clients"                 → UserClientsView
     ├── view="overview"                → DashboardView (subview="overview") — métricas e resumo
@@ -97,19 +97,29 @@ setClient(id)
 | `null` | Admin vê todos os clientes (sem filtro no fetch) |
 | `string` | Cliente específico selecionado |
 
-### `useDataStore`
-Cache de dados. Guard: `fetchData` retorna imediatamente se `clientId === undefined`.
+### `useTaskStore`
+Cache de tasks. Fetch lazy — nenhum dado é buscado no boot. Guard: retorna imediatamente se `clientId === undefined` ou se já há dados para o mesmo `cacheKey`.
 ```ts
 tasks: Task[]
+loading: boolean
+error: string | null
+cacheKey: string | undefined       // `${clientId ?? 'all'}:${isAdmin}`
+fetchTasks(clientId, isAdmin)      // idempotente; guard se loading=true ou cacheKey inalterado
+invalidate()                       // reseta tasks, cacheKey, error e loading=false
+```
+
+> **Importante:** `invalidate()` reseta `loading: false`. Sem isso, um fetch em andamento no momento da troca de cliente deixaria `loading` preso em `true`, bloqueando todos os fetches seguintes via o guard `if (state.loading) return`.
+
+### `useMemberStore`
+Cache de members filtrados por cliente. Fetch lazy por view.
+```ts
 members: Member[]
 loading: boolean
 error: string | null
-fetchData(clientId, isAdmin)    // guard: não fetcha se clientId === undefined
-invalidate()                    // limpa cache (tasks, members, cachedClientId)
+cachedClientId: string | null | undefined
+fetchMembers(clientId)             // idempotente; guard se loading=true ou clientId inalterado
+invalidate()                       // reseta members, cachedClientId, error e loading=false
 ```
-
-### `appStore.ts`
-Re-export de compatibilidade: `useAppStore = useDataStore`. Consumers existentes (views, `useSupabase`) não precisam de alteração.
 
 ## Fluxo de Autenticação — Retornos Condicionais em App.tsx
 
@@ -147,9 +157,8 @@ Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de aut
 2. App.tsx useEffect: selectedClientId===undefined && hasClients
    → setClient(clients[0].id)  ← só corre depois de auth estar pronto
 3. useClientStore persiste clientId no localStorage
-4. useEffect separado: effectiveClientId !== undefined
-   → fetchData(clientId, isAdmin)  ← nunca dispara com clientId=undefined
-5. useDataStore popula tasks/members → views renderizam
+4. Cada view ao montar chama fetchTasks/fetchMembers com o effectiveClientId
+   ← fetch lazy: nenhum dado é buscado antes da view abrir
 ```
 
 **Chave:** `App.tsx` usa `AuthContext.clients` diretamente (não `useUserClients`). `useUserClients` existe apenas em `UserClientsView` para `linkToClient`/`unlinkFromClient`.
@@ -160,14 +169,17 @@ A troca de cliente exibe um overlay de transição animado antes de efetivar a m
 
 ```
 handleSelectClient(newId)
-  → setClient(newId)                    ← persiste no localStorage (imediato)
-  → setView("home")                     ← imediato
   → setTransitionClient({ id, name })   ← exibe ClientTransitionOverlay (~3.2s)
-  → useEffect dispara fetchData(newId)  ← inicia em background durante o overlay
+  → após 650ms: setClient(newId)        ← persiste no localStorage
+               invalidateTasks()        ← reseta tasks + loading=false
+               invalidateMembers()      ← reseta members + loading=false
+               setView("home")
       ↓ onComplete (após fade-out do overlay)
   → toast cinza "Trocado para <Cliente>" (sonner, 3s)
   → setTransitionClient(null)
 ```
+
+> `invalidate` dos dois stores é chamado com `loading: false` para evitar o bug de loading eterno: se um fetch estava em andamento no momento da troca, o guard `if (state.loading) return` bloquearia todos os fetches seguintes sem o reset.
 
 > A store e o fetch são disparados **imediatamente** ao clicar, antes do overlay fechar. Quando a animação termina, os dados já chegaram ou estão a caminho — sem espera visível após a transição.
 
@@ -207,16 +219,9 @@ interface ClientOption {
 - **admin** → todos os clientes
 - **user** → apenas os associados via `user_clients`
 
-## Membros filtrados por cliente (`clientMembers` em `App.tsx`)
-
-`clientMembers` é derivado via `useMemo` a partir de `tasks` e `members`:
-- Filtra `members` para mostrar apenas quem tem steps atribuídos nas tarefas do cliente ativo.
-- Quando `effectiveClientId === null` (admin vê todos), retorna `members` completo.
-- Passado para `MembersView` e `ReportsView`. O `TaskModal` recebe `members` completo.
-
 ## Views lendo da store
 
-`DashboardView`, `MembersView` e `ReportsView` leem `tasks` e `members` diretamente de `useAppStore()` (alias de `useDataStore`). Não recebem essas props via `App.tsx`.
+`DashboardView`, `MembersView`, `ReportsView` e `TasksView` leem `tasks` e `members` diretamente de `useTaskStore()` e `useMemberStore()`. Não recebem essas props via `App.tsx`. Cada view dispara `fetchTasks`/`fetchMembers` no mount com o `effectiveClientId` atual.
 
 ## Papéis de Acesso
 
@@ -251,5 +256,5 @@ A segunda policy é necessária para que `fetchMembersFromDb` consiga buscar tod
 ## Decisões
 
 - Sem router — navegação via `useUIStore.view` (poucas views)
-- State manager: Zustand (3 stores separadas por responsabilidade)
+- State manager: Zustand (4 stores separadas por responsabilidade: UI, Client, Tasks, Members)
 - `any` intencional em dados do DB sem schema fixo em runtime

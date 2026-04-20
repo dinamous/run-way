@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useClientStore } from "@/store/useClientStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useMemberStore } from "@/store/useMemberStore";
+import { useTaskStore } from "@/store/useTaskStore";
 import TaskModal from "./components/TaskModal";
 import { AppHeader } from "./components/AppHeader";
 import { AppSidebar } from "./components/AppSidebar";
@@ -39,7 +40,8 @@ export default function App() {
   const hasClients = clients.length > 0;
 
   const { selectedClientId, setClient } = useClientStore();
-  const { members } = useMemberStore();
+  const { members, invalidate: invalidateMembers } = useMemberStore();
+  const { invalidate: invalidateTasks } = useTaskStore();
 
   const effectiveClientId = selectedClientId === undefined
     ? (hasClients ? clients[0].id : null)
@@ -138,9 +140,11 @@ export default function App() {
     setTransitionClient({ id: clientId, name: targetClient.name })
     setTimeout(() => {
       setClient(clientId)
+      invalidateTasks()
+      invalidateMembers()
       setView("home")
     }, 650)
-  }, [clients, effectiveClientId, setClient, setView])
+  }, [clients, effectiveClientId, setClient, setView, invalidateTasks, invalidateMembers])
 
   const handleTransitionComplete = useCallback(() => {
     if (!transitionClient) return
