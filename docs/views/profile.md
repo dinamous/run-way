@@ -13,14 +13,18 @@ View de perfil do usuário autenticado. Acessível a todos os papéis (`admin` e
 
 ```
 src/views/profile/
-├── ProfileView.tsx               # View principal
+├── ProfileView.tsx               # View principal com sidebar interna
 ├── index.ts
 ├── components/
 │   ├── AccountSection.tsx        # Dados da conta (nome, avatar, campos somente leitura)
-│   └── PreferencesSection.tsx    # Preferências (tema, idioma, notificações)
+│   └── PreferencesSection.tsx    # Preferências (tema, idioma, notificações, ordem de clientes, view inicial)
 └── hooks/
     └── useProfile.ts             # Fetch/upsert de preferências, update de perfil
 ```
+
+## Layout
+
+A view usa um layout de dois painéis: sidebar de navegação à esquerda (abas Conta / Preferências) e conteúdo à direita dentro de um card com borda. Largura máxima `max-w-4xl`.
 
 ## Componentes
 
@@ -40,9 +44,11 @@ O botão "Salvar alterações" fica desabilitado enquanto não há alterações 
 
 ### `PreferencesSection`
 
-Exibe e edita as preferências do usuário. Persistência automática (sem botão salvar).
+Exibe e edita as preferências do usuário. Persistência automática (sem botão salvar). Recebe `clients: Client[]` do store de admin para montar a lista de ordem de clientes.
 
-**Campos:** `theme` (`light | dark | system`), `language` (`pt-BR | en`), `notifications_enabled`
+**Campos:** `theme` (`light | dark | system`), `language` (`pt-BR | en`), `default_view` (`home | calendar | timeline | list`), `client_order` (array de IDs arrastável), `notifications_enabled`
+
+**Ordem de clientes:** Drag-and-drop nativo (HTML5). Os IDs são salvos em `user_preferences.client_order`. Clientes não presentes no array aparecem no final na ordem de cadastro.
 
 ## Hook `useProfile`
 
@@ -79,28 +85,19 @@ useProfile(): {
 
 ## Modelo de Dados — `user_preferences`
 
-Tabela a criar no Supabase (migration necessária):
+Migration: `supabase/migrations/20260420000000_user_preferences.sql`
 
-```sql
-create table user_preferences (
-  id                   uuid primary key default gen_random_uuid(),
-  user_id              uuid not null references members(id) on delete cascade,
-  theme                text not null default 'system' check (theme in ('light', 'dark', 'system')),
-  language             text not null default 'pt-BR' check (language in ('pt-BR', 'en')),
-  notifications_enabled boolean not null default true,
-  created_at           timestamptz not null default now(),
-  updated_at           timestamptz not null default now(),
-  unique (user_id)
-);
-
--- RLS: usuário lê e escreve apenas seus próprios registros
-alter table user_preferences enable row level security;
-
-create policy "user_preferences_self"
-  on user_preferences
-  using (user_id = (select id from members where auth_user_id = auth.uid()))
-  with check (user_id = (select id from members where auth_user_id = auth.uid()));
-```
+| Coluna | Tipo | Default | Descrição |
+|---|---|---|---|
+| `id` | uuid PK | gen_random_uuid() | |
+| `user_id` | uuid FK → members | — | unique, cascade delete |
+| `theme` | text | `'system'` | `light \| dark \| system` |
+| `language` | text | `'pt-BR'` | `pt-BR \| en` |
+| `notifications_enabled` | boolean | `true` | |
+| `default_view` | text | `'home'` | `home \| calendar \| timeline \| list` |
+| `client_order` | text[] | `{}` | IDs ordenados dos clientes |
+| `created_at` | timestamptz | now() | |
+| `updated_at` | timestamptz | now() | |
 
 ## Restrições de Acesso
 

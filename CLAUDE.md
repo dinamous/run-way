@@ -18,7 +18,7 @@ npm run lint      # ESLint
 
 **Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais), avatar_url?, email?, auth_user_id?, access_role ('admin'|'user'), is_active?, created_at?, deactivated_at?`
 
-**UserPreferences:** `id, user_id (fk → members.id), theme ('light'|'dark'|'system'), language ('pt-BR'|'en'), notifications_enabled, created_at, updated_at` — tabela a criar via migration (ver [docs/views/profile.md](docs/views/profile.md))
+**UserPreferences:** `id, user_id (fk → members.id), theme ('light'|'dark'|'system'), language ('pt-BR'|'en'), notifications_enabled, default_view ('home'|'calendar'|'timeline'|'list'), client_order (text[]), created_at, updated_at`
 
 **Fases:** Design (5d, violeta) → Approval (3d, laranja) → Dev (7d, azul) → QA (3d, esmeralda). Cascata automática.
 
@@ -44,6 +44,7 @@ npm run lint      # ESLint
 - **Co-location:** componentes e hooks **privados** de uma view ficam dentro dela (`views/<nome>/components/`, `views/<nome>/hooks/`). Só sobem para `src/components/` ou `src/hooks/` quando usados por 2+ views
 - `.env` nunca commitado
 - **Testes:** toda nova feature ou bugfix deve ter testes unitários com Vitest. Rodar com `npm run test:run`. Arquivos de teste ficam em `src/**/__tests__/` co-localizados com o módulo testado
+- **Migrations:** toda alteração de schema no Supabase requer um arquivo SQL em `supabase/migrations/`. Nomenclatura: `YYYYMMDD<seq>_<descricao>.sql` — seq começa em `000000`; se houver mais de uma migration no mesmo dia, incrementar a seq (`000001`, `000002`, …). Nunca alterar migrations já aplicadas.
 
 ## CI/CD (.github/workflows/)
 

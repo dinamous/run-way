@@ -8,6 +8,8 @@ export interface UserPreferences {
   theme: 'light' | 'dark' | 'system'
   language: 'pt-BR' | 'en'
   notifications_enabled: boolean
+  default_view: 'home' | 'calendar' | 'timeline' | 'list'
+  client_order: string[] // ordered array of client IDs
   created_at: string
   updated_at: string
 }
@@ -51,6 +53,8 @@ export function useProfile() {
         theme: 'system' as const,
         language: 'pt-BR' as const,
         notifications_enabled: true,
+        default_view: 'home' as const,
+        client_order: [] as string[],
       }
       const { data: created, error: createError } = await supabase
         .from('user_preferences')
@@ -100,7 +104,7 @@ export function useProfile() {
     return true
   }, [member, refreshProfile])
 
-  const updatePreferences = useCallback(async (prefs: Partial<Pick<UserPreferences, 'theme' | 'language' | 'notifications_enabled'>>) => {
+  const updatePreferences = useCallback(async (prefs: Partial<Pick<UserPreferences, 'theme' | 'language' | 'notifications_enabled' | 'default_view' | 'client_order'>>) => {
     if (!member || !preferences) return false
 
     setSavingPrefs(true)
