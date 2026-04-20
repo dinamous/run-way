@@ -106,7 +106,7 @@ export function useAppOrchestrator() {
         setView(newView);
       }
     },
-    [effectiveClientId, accessRole, setView, sidebar.closeMobileSidebar]
+    [effectiveClientId, accessRole, setView, sidebar]
   );
 
   useEffect(() => {
