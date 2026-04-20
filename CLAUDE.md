@@ -18,6 +18,8 @@ npm run lint      # ESLint
 
 **Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais), avatar_url?, email?, auth_user_id?, access_role ('admin'|'user'), is_active?, created_at?, deactivated_at?`
 
+**UserPreferences:** `id, user_id (fk → members.id), theme ('light'|'dark'|'system'), language ('pt-BR'|'en'), notifications_enabled, created_at, updated_at` — tabela a criar via migration (ver [docs/views/profile.md](docs/views/profile.md))
+
 **Fases:** Design (5d, violeta) → Approval (3d, laranja) → Dev (7d, azul) → QA (3d, esmeralda). Cascata automática.
 
 ## Branding
@@ -63,6 +65,7 @@ npm run lint      # ESLint
 | TasksView, filtros, badge de prazo, ActionMenu | [docs/views/tasks.md](docs/views/tasks.md) |
 | MembersView, capacidade | [docs/views/members.md](docs/views/members.md) |
 | AdminView, UsersPanel, useAdminData, useAdminStore | [docs/views/admin.md](docs/views/admin.md) |
+| ProfileView, useProfile, user_preferences | [docs/views/profile.md](docs/views/profile.md) |
 | TaskModal, cascata de fases | [docs/components/task-modal.md](docs/components/task-modal.md) |
 | Design system (Button, Input, Label, Badge) | [docs/components/ui.md](docs/components/ui.md) |
 | useSupabase, CRUD, steps | [docs/hooks/supabase.md](docs/hooks/supabase.md) |

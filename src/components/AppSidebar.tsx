@@ -13,6 +13,7 @@ import {
   LogOut,
   Wrench,
   ListChecks,
+  UserCircle,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -352,6 +353,11 @@ export function AppSidebar({
             <DropdownMenuContent side="right" align="end">
               <DropdownMenuLabel className="truncate max-w-48">{userEmail}</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onViewChange("profile")}>
+                <UserCircle className="w-4 h-4 mr-2" />
+                Meu Perfil
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onSignOut}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Sair
@@ -384,6 +390,11 @@ export function AppSidebar({
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="end">
               <DropdownMenuLabel className="truncate max-w-48">{userEmail}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onViewChange("profile")}>
+                <UserCircle className="w-4 h-4 mr-2" />
+                Meu Perfil
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onSignOut}>
                 <LogOut className="w-4 h-4 mr-2" />

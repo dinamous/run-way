@@ -23,7 +23,8 @@ src/
 │   ├── admin/                 # AdminView (apenas admins)
 │   ├── login/                 # LoginView
 │   ├── onboarding/            # OnboardingView — usuário autenticado sem cliente associado
-│   └── user/                  # UserClientsView + useUserClients
+│   ├── user/                  # UserClientsView + useUserClients
+│   └── profile/               # ProfileView — perfil do usuário + preferências
 ├── store/
 │   ├── useUIStore.ts          # Estado de UI: view ativa, modal aberto/fechado
 │   ├── useClientStore.ts      # Cliente selecionado (persist localStorage)
@@ -68,6 +69,7 @@ App.tsx (inicialização, roteamento)
     ├── view="tools"                   → ToolsView (grid de ferramentas)
     ├── view="tools-briefing-analyzer" → ToolsView com subview (BriefingAnalyzerView)
     ├── view="tools-import/export/integrations" → ToolsView com subview (em breve)
+    ├── view="profile"                 → ProfileView — perfil + preferências
     └── TaskModal → criar/editar (useFormState → cascata de fases)
 ```
 
@@ -80,6 +82,7 @@ view: ViewType
 // 'home' | 'overview' | 'calendar' | 'timeline' | 'list'
 // | 'members' | 'reports' | 'admin' | 'clients'
 // | 'tools' | 'tools-briefing-analyzer' | 'tools-import' | 'tools-export' | 'tools-integrations'
+// | 'profile'
 setView(view)
 isTaskModalOpen: boolean
 openTaskModal() / closeTaskModal()
@@ -227,6 +230,19 @@ interface ClientOption {
 
 - **admin** (`access_role = 'admin'`): vê todos os clientes; pode selecionar cliente específico ou `null` (todos)
 - **user**: vê apenas os clientes associados via `user_clients`
+
+### Permissões disponíveis (`AppPermission` em `src/lib/accessControl.ts`)
+
+| Permissão | admin | user |
+|---|---|---|
+| `view:home` | ✓ | ✓ |
+| `view:clients` | ✓ | ✓ |
+| `view:dashboard` | ✓ | ✓ |
+| `view:members` | ✓ | ✓ |
+| `view:reports` | ✓ | ✓ |
+| `view:tools` | ✓ | ✓ |
+| `view:profile` | ✓ | ✓ |
+| `view:admin` | ✓ | — |
 
 ### RLS — Visibilidade de Members
 

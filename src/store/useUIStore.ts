@@ -20,6 +20,7 @@ export type ViewType =
   | 'tools-export'
   | 'tools-integrations'
   | 'demandas'
+  | 'profile'
 export type DashboardMode = 'calendar' | 'timeline'
 
 interface DashboardRedirect {

@@ -19,6 +19,7 @@ import { NoClientView } from "./components/NoClientView";
 import { HomeView } from "./views/home";
 import { ToolsView } from "./views/tools";
 import TasksView from "./views/tasks";
+import { ProfileView } from "./views/profile";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "./hooks/useSupabase";
 import { useHolidays } from "./hooks/useHolidays";
@@ -93,7 +94,7 @@ export default function App() {
     if (route.startsWith('/dashboard')) {
       setView('calendar')
     } else if (route === '/profile') {
-      // TODO: open profile
+      setView('profile')
     } else if (route === '/clients') {
       setView('clients')
     }
@@ -303,6 +304,8 @@ export default function App() {
               onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
               onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
             />
+          ) : view === "profile" ? (
+            <ProfileView />
           ) : view === "members" ? (
             <MembersView />
           ) : view === "tools" || view === "tools-briefing-analyzer" || view === "tools-import" || view === "tools-export" || view === "tools-integrations" ? (
