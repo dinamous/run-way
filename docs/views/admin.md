@@ -15,7 +15,15 @@ src/views/admin/
 └── components/
     ├── ClientsPanel.tsx       # Gestão de clientes
     ├── UsersPanel.tsx         # Gestão de membros e vínculos
-    └── AuditLogsPanel.tsx     # Log de auditoria com filtros
+    ├── AuditLogsPanel.tsx     # Log de auditoria com filtros
+    └── NotificationsPanel/    # Envio e histórico de notificações manuais
+        ├── index.ts
+        ├── NotificationsPanel.tsx      # Orquestrador
+        ├── NotificationForm.tsx        # Formulário de envio (destino, título, mensagem)
+        ├── NotificationHistory.tsx     # Histórico agrupado por período
+        ├── NotificationList.tsx        # Lista de itens individuais
+        ├── useNotificationsPanel.ts    # Estado, handlers e fetch do histórico
+        └── utils.ts                    # formatDate, groupNotifications, getIcon/Label
 
 src/store/
 └── useAdminStore.ts           # Estado e fetches admin (Zustand)
@@ -106,6 +114,28 @@ No tab **Membros**, os filtros disponíveis são: **Todos / Ativos / Sem acesso 
 - **Ativos** filtra members com `is_active !== false`
 - **Sem acesso** filtra members ativos sem `auth_user_id`
 - **Desativados** filtra members com `is_active === false`
+
+## NotificationsPanel
+
+Aba de envio e histórico de notificações manuais. Estrutura modular em `components/NotificationsPanel/` — o componente raiz `NotificationsPanel.tsx` consome `useNotificationsPanel` e renderiza `NotificationForm` + `NotificationHistory`.
+
+### Destinos
+
+| Opção | Comportamento |
+|---|---|
+| **Usuário** | Notificação direta a um membro ativo (`user_id` preenchido, `manual`) |
+| **Cliente** | Broadcast para todos os membros de um cliente (`user_id = null`, `client_id`) |
+| **Todos** | Broadcast para todos os clientes cadastrados — chama `createNotificationForAll` |
+
+### Editor de mensagem
+
+O campo **Mensagem** tem tabs **Editar / Preview**:
+- **Editar** — textarea mono; suporta Markdown (`**negrito**`, `_itálico_`, quebras de linha)
+- **Preview** — renderiza via `react-markdown` antes do envio
+
+### Histórico
+
+Scroll independente, contido em `100vh`. Mensagens renderizadas como Markdown via `react-markdown`.
 
 ## Impersonation
 

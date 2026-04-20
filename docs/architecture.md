@@ -4,13 +4,17 @@
 
 ```
 src/
-├── App.tsx                    # Root: providers, roteamento, inicialização do cliente
+├── App.tsx                    # Root: gates de auth + composição declarativa — ~80 linhas
 ├── main.tsx                   # Entry point
 ├── components/
-│   ├── TaskModal.tsx          # Modal criar/editar demanda
-│   ├── AppHeader.tsx          # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
-│   ├── AppSidebar.tsx         # Sidebar de navegação; theme toggle no footer mobile
-│   └── ui/                    # Design system (Button, Input, Label, Badge)
+│   ├── AppRouter.tsx                  # Mapeia view → componente; guards de cliente
+│   ├── AppLayout.tsx                  # Shell do layout: AppHeader + AppSidebar + main/AppRouter
+│   ├── AppModals.tsx                  # TaskModal + ConfirmModal + ClientTransitionOverlay agrupados
+│   ├── TaskModal.tsx                  # Modal criar/editar demanda
+│   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
+│   ├── AppSidebar.tsx                 # Sidebar de navegação; theme toggle no footer mobile
+│   ├── ClientTransitionOverlay.tsx    # Overlay animado exibido ao trocar de cliente
+│   └── ui/                            # Design system (Button, Input, Label, Badge)
 ├── views/
 │   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess
 │   ├── dashboard/             # DashboardView → Calendar/Timeline
@@ -22,16 +26,22 @@ src/
 │   ├── admin/                 # AdminView (apenas admins)
 │   ├── login/                 # LoginView
 │   ├── onboarding/            # OnboardingView — usuário autenticado sem cliente associado
-│   └── user/                  # UserClientsView + useUserClients
+│   ├── user/                  # UserClientsView + useUserClients
+│   └── profile/               # ProfileView — perfil do usuário + preferências
 ├── store/
 │   ├── useUIStore.ts          # Estado de UI: view ativa, modal aberto/fechado
 │   ├── useClientStore.ts      # Cliente selecionado (persist localStorage)
-│   ├── useDataStore.ts        # Cache de tasks/members, fetchData, invalidate
-│   └── appStore.ts            # Re-export de compatibilidade: useAppStore = useDataStore
+│   ├── useTaskStore.ts        # Cache de tasks, fetchTasks, invalidate
+│   └── useMemberStore.ts      # Cache de members por cliente, fetchMembers, invalidate
 ├── hooks/
+│   ├── useAppOrchestrator.ts  # Agrega toda a lógica de orquestração do App (cliente, views, notificações, task actions)
 │   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask)
 │   ├── useHolidays.ts         # Feriados
-│   └── useFormState.ts        # Estado do formulário TaskModal
+│   ├── useFormState.ts        # Estado do formulário TaskModal
+│   ├── useAppTheme.ts         # Dark mode: estado + sync com localStorage e <html>
+│   ├── useAppSidebar.ts       # Sidebar desktop (persist) e mobile open/close
+│   ├── useTaskActions.ts      # Estado e handlers de create/update/delete de tasks
+│   └── useClientTransition.ts # Fluxo animado de troca de cliente (overlay + stores)
 ├── contexts/
 │   └── AuthContext.tsx        # Sessão, member, clients, isAdmin, refreshProfile
 ├── lib/
@@ -50,12 +60,13 @@ src/
 ```
 AuthContext (AuthProvider)
     ↓ session, member, clients (filtrado por access_role), isAdmin, refreshProfile
-App.tsx (inicialização, roteamento, clientMembers)
-    ├── useClientStore  → selectedClientId (persist)
-    ├── useDataStore    → tasks, members, fetchData, invalidate
-    ├── useUIStore      → view, isTaskModalOpen
-    ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
-    ├── clientMembers (useMemo) → membros filtrados pelo cliente ativo
+App.tsx (gates de auth + composição)
+    └── useAppOrchestrator (toda a lógica de orquestração)
+          ├── useClientStore  → selectedClientId (persist)
+          ├── useTaskStore    → tasks, loading (lido pelas views diretamente)
+          ├── useMemberStore  → members, loading (lido pelas views diretamente)
+          ├── useUIStore      → view, isTaskModalOpen
+          ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
     ├── view="home"                    → HomeView
     ├── view="clients"                 → UserClientsView
     ├── view="overview"                → DashboardView (subview="overview") — métricas e resumo
@@ -67,7 +78,10 @@ App.tsx (inicialização, roteamento, clientMembers)
     ├── view="tools"                   → ToolsView (grid de ferramentas)
     ├── view="tools-briefing-analyzer" → ToolsView com subview (BriefingAnalyzerView)
     ├── view="tools-import/export/integrations" → ToolsView com subview (em breve)
-    └── TaskModal → criar/editar (useFormState → cascata de fases)
+    ├── view="profile"                 → ProfileView — perfil + preferências
+          └── TaskModal → criar/editar (useFormState → cascata de fases)
+    ├── AppLayout    → shell do layout (AppHeader + AppSidebar + main/AppRouter)
+    └── AppModals    → TaskModal + ConfirmModal + ClientTransitionOverlay
 ```
 
 ## Stores (`src/store/`)
@@ -79,6 +93,7 @@ view: ViewType
 // 'home' | 'overview' | 'calendar' | 'timeline' | 'list'
 // | 'members' | 'reports' | 'admin' | 'clients'
 // | 'tools' | 'tools-briefing-analyzer' | 'tools-import' | 'tools-export' | 'tools-integrations'
+// | 'profile'
 setView(view)
 isTaskModalOpen: boolean
 openTaskModal() / closeTaskModal()
@@ -96,23 +111,33 @@ setClient(id)
 | `null` | Admin vê todos os clientes (sem filtro no fetch) |
 | `string` | Cliente específico selecionado |
 
-### `useDataStore`
-Cache de dados. Guard: `fetchData` retorna imediatamente se `clientId === undefined`.
+### `useTaskStore`
+Cache de tasks. Fetch lazy — nenhum dado é buscado no boot. Guard: retorna imediatamente se `clientId === undefined` ou se já há dados para o mesmo `cacheKey`.
 ```ts
 tasks: Task[]
+loading: boolean
+error: string | null
+cacheKey: string | undefined       // `${clientId ?? 'all'}:${isAdmin}`
+fetchTasks(clientId, isAdmin)      // idempotente; guard se loading=true ou cacheKey inalterado
+invalidate()                       // reseta tasks, cacheKey, error e loading=false
+```
+
+> **Importante:** `invalidate()` reseta `loading: false`. Sem isso, um fetch em andamento no momento da troca de cliente deixaria `loading` preso em `true`, bloqueando todos os fetches seguintes via o guard `if (state.loading) return`.
+
+### `useMemberStore`
+Cache de members filtrados por cliente. Fetch lazy por view.
+```ts
 members: Member[]
 loading: boolean
 error: string | null
-fetchData(clientId, isAdmin)    // guard: não fetcha se clientId === undefined
-invalidate()                    // limpa cache (tasks, members, cachedClientId)
+cachedClientId: string | null | undefined
+fetchMembers(clientId)             // idempotente; guard se loading=true ou clientId inalterado
+invalidate()                       // reseta members, cachedClientId, error e loading=false
 ```
 
-### `appStore.ts`
-Re-export de compatibilidade: `useAppStore = useDataStore`. Consumers existentes (views, `useSupabase`) não precisam de alteração.
+## Fluxo de Autenticação — Gates em App.tsx
 
-## Fluxo de Autenticação — Retornos Condicionais em App.tsx
-
-Antes do layout principal (sidebar + header), `App.tsx` aplica retornos condicionais em ordem:
+`App.tsx` delega toda a lógica ao `useAppOrchestrator` e aplica retornos condicionais em ordem antes de montar o layout:
 
 | Condição | View renderizada |
 |---|---|
@@ -143,25 +168,56 @@ Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de aut
 
 ```
 1. AuthContext resolve → loading=false, clients=[...] (já filtrado por access_role)
-2. App.tsx useEffect: selectedClientId===undefined && hasClients
-   → setClient(clients[0].id)  ← só corre depois de auth estar pronto
+2. useAppOrchestrator useEffect: selectedClientId===undefined && hasClients
+   → setClient(clients[0].id) + fetchTasks/fetchMembers disparados imediatamente
+   ← fetch eager: dados começam a carregar antes da view montar
 3. useClientStore persiste clientId no localStorage
-4. useEffect separado: effectiveClientId !== undefined
-   → fetchData(clientId, isAdmin)  ← nunca dispara com clientId=undefined
-5. useDataStore popula tasks/members → views renderizam
+4. Cada view ao montar lê tasks/members dos stores (já em loading ou com cache)
 ```
 
 **Chave:** `App.tsx` usa `AuthContext.clients` diretamente (não `useUserClients`). `useUserClients` existe apenas em `UserClientsView` para `linkToClient`/`unlinkFromClient`.
 
 ## Troca de Cliente
 
+A troca de cliente exibe um overlay de transição animado antes de efetivar a mudança:
+
 ```
 handleSelectClient(newId)
-  → invalidate()          ← limpa tasks/members imediatamente (sem vazamento)
-  → setClient(newId)      ← persiste no localStorage
-  → setView("home")
-  → useEffect dispara fetchData(newId)
+  → setTransitionClient({ id, name })   ← exibe ClientTransitionOverlay (~3.2s)
+  → após 650ms: setClient(newId)        ← persiste no localStorage
+               invalidateTasks()        ← reseta tasks + loading=false
+               invalidateMembers()      ← reseta members + loading=false
+               setView("home")
+      ↓ onComplete (após fade-out do overlay)
+  → toast cinza "Trocado para <Cliente>" (sonner, 3s)
+  → setTransitionClient(null)
 ```
+
+> `invalidate` dos dois stores é chamado com `loading: false` para evitar o bug de loading eterno: se um fetch estava em andamento no momento da troca, o guard `if (state.loading) return` bloquearia todos os fetches seguintes sem o reset.
+
+> A store e o fetch são disparados **imediatamente** ao clicar, antes do overlay fechar. Quando a animação termina, os dados já chegaram ou estão a caminho — sem espera visível após a transição.
+
+### `ClientTransitionOverlay` (`src/components/ClientTransitionOverlay.tsx`)
+
+Overlay fullscreen (`z-[9999]`) exibido ao trocar de cliente. Duração total ~3.8s.
+
+**Camadas visuais (profundidade):**
+- Gradiente radial fixo no fundo (`--muted`) simulando luminosidade de céu — não anima
+- 8 nuvens SVG com posição, escala e opacidade fixas no `style`; cada nuvem anima **apenas `translateX`** via keyframe único gerado dinamicamente por valor de `dx` (`ct-cloud-8`, `ct-cloud-10`, etc.) — isso evita que o `scale` do style seja sobrescrito e mantém o drift orgânico e independente
+- Linha de horizonte + pista SVG posicionadas em `bottom: 24-26%`, criando perspectiva de chão
+
+**Avião lateral (`PlaneSide`) + rastro:**
+- SVG de vista lateral: fuselagem em perspectiva, asa principal, cauda vertical e horizontal, janelas
+- Percorre da esquerda para a direita em arco de decolagem (`ct-takeoff`): táxi → inclinação suave → saída diagonal em ~25°
+- Rastro de condensação duplo com gradiente linear atrás do avião
+
+**Conteúdo central (sem card):**
+- Label "DESTINO" em uppercase + tracking largo
+- Nome do cliente em `text-5xl` bold, fonte Syne
+- Separador decorativo `✦`
+- Mensagens rotativas com fade + `translateY(3px)` suave (350ms): `🛂 Verificando passaporte` → `🎫 Confirmando embarque` → `🛫 Decolando agora` → `✈️ Em rota de cruzeiro`
+
+Ao fechar, dispara `onComplete` → efetiva a troca no store e exibe toast de confirmação.
 
 ## `ClientOption` (tipo em `src/contexts/AuthContext.ts`)
 
@@ -177,21 +233,27 @@ interface ClientOption {
 - **admin** → todos os clientes
 - **user** → apenas os associados via `user_clients`
 
-## Membros filtrados por cliente (`clientMembers` em `App.tsx`)
-
-`clientMembers` é derivado via `useMemo` a partir de `tasks` e `members`:
-- Filtra `members` para mostrar apenas quem tem steps atribuídos nas tarefas do cliente ativo.
-- Quando `effectiveClientId === null` (admin vê todos), retorna `members` completo.
-- Passado para `MembersView` e `ReportsView`. O `TaskModal` recebe `members` completo.
-
 ## Views lendo da store
 
-`DashboardView`, `MembersView` e `ReportsView` leem `tasks` e `members` diretamente de `useAppStore()` (alias de `useDataStore`). Não recebem essas props via `App.tsx`.
+`DashboardView`, `MembersView`, `ReportsView` e `TasksView` leem `tasks` e `members` diretamente de `useTaskStore()` e `useMemberStore()`. Não recebem essas props via `App.tsx`. As views ainda chamam `fetchTasks`/`fetchMembers` no mount, mas o `App.tsx` já dispara esses fetchs ao resolver o `effectiveClientId` — reduzindo o delay de loading nas views.
 
 ## Papéis de Acesso
 
 - **admin** (`access_role = 'admin'`): vê todos os clientes; pode selecionar cliente específico ou `null` (todos)
 - **user**: vê apenas os clientes associados via `user_clients`
+
+### Permissões disponíveis (`AppPermission` em `src/lib/accessControl.ts`)
+
+| Permissão | admin | user |
+|---|---|---|
+| `view:home` | ✓ | ✓ |
+| `view:clients` | ✓ | ✓ |
+| `view:dashboard` | ✓ | ✓ |
+| `view:members` | ✓ | ✓ |
+| `view:reports` | ✓ | ✓ |
+| `view:tools` | ✓ | ✓ |
+| `view:profile` | ✓ | ✓ |
+| `view:admin` | ✓ | — |
 
 ### RLS — Visibilidade de Members
 
@@ -221,5 +283,5 @@ A segunda policy é necessária para que `fetchMembersFromDb` consiga buscar tod
 ## Decisões
 
 - Sem router — navegação via `useUIStore.view` (poucas views)
-- State manager: Zustand (3 stores separadas por responsabilidade)
+- State manager: Zustand (4 stores separadas por responsabilidade: UI, Client, Tasks, Members)
 - `any` intencional em dados do DB sem schema fixo em runtime

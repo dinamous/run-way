@@ -118,6 +118,26 @@ export async function createNotificationForClient(
   if (error) throw error
 }
 
+export async function createNotificationForAll(
+  clientIds: string[],
+  title: string,
+  message: string,
+  type: string = 'admin_broadcast'
+) {
+  if (!supabaseAdmin) throw new Error('Admin não configurado')
+
+  const rows = clientIds.map((clientId) => ({
+    client_id: clientId,
+    user_id: null,
+    title,
+    message,
+    type,
+  }))
+
+  const { error } = await supabaseAdmin.from('notifications').insert(rows)
+  if (error) throw error
+}
+
 export function resolveNotificationRoute(notification: Notification): string | null {
   if (!notification.metadata) return null
 

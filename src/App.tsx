@@ -1,164 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
-import { cn } from "@/lib/utils";
-import { useClientStore } from "@/store/useClientStore";
-import { useUIStore } from "@/store/useUIStore";
-import { useMemberStore } from "@/store/useMemberStore";
-import TaskModal from "./components/TaskModal";
-import { AppHeader } from "./components/AppHeader";
-import { AppSidebar } from "./components/AppSidebar";
-import { DashboardView } from "./views/dashboard";
-import MembersView from "./views/MembersView";
-import ReportsView from "./views/reports";
-import { AdminView } from "./views/admin";
-import { RequireAdmin } from "./components/RequireAdmin";
-import { LoginView } from "./views/login";
-import { OnboardingView } from "./views/onboarding";
-import { UserClientsView } from "./views/user/UserClientsView";
-import { NoClientView } from "./components/NoClientView";
-import { HomeView } from "./views/home";
-import { ToolsView } from "./views/tools";
-import TasksView from "./views/tasks";
-import { useAuthContext } from "@/contexts/AuthContext";
-import { useSupabase } from "./hooks/useSupabase";
-import { useHolidays } from "./hooks/useHolidays";
-import { useNotifications } from "./hooks/useNotifications";
-import { resolveNotificationRoute } from "./lib/notifications";
-import { Toaster, toast } from "sonner";
-import type { Task } from "./lib/steps";
-import type { Notification } from "./types/notification";
-import type { ViewType } from "@/store/useUIStore";
-import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
-import { ConfirmModal, TooltipProvider } from "@/components/ui";
+import { Toaster } from "sonner";
+import { useAppOrchestrator } from "@/hooks/useAppOrchestrator";
+import { AppLayout } from "@/components/AppLayout";
+import { AppModals } from "@/components/AppModals";
+import { LoginView } from "@/views/login";
+import { OnboardingView } from "@/views/onboarding";
 
 export default function App() {
-  const { session, user, signIn, signOut, authError, loading: authLoading, isAdmin, member, clients, refreshProfile } = useAuthContext();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const accessRole = resolveAccessRole(member);
+  const app = useAppOrchestrator();
 
-  const hasClients = clients.length > 0;
-
-  const { selectedClientId, setClient } = useClientStore();
-  const { members } = useMemberStore();
-
-  const effectiveClientId = selectedClientId === undefined
-    ? (hasClients ? clients[0].id : null)
-    : (isAdmin ? selectedClientId : (selectedClientId ?? (hasClients ? clients[0].id : null)));
-
-  const handleSignOut = () => {
-    setIsLoggingOut(true);
-    signOut();
-  };
-
-  useEffect(() => {
-    if (authLoading || !session) return;
-
-    if (selectedClientId === undefined && hasClients) {
-      setClient(clients[0].id);
-    } else if (!hasClients) {
-      setClient(undefined);
-    } else if (typeof selectedClientId === 'string' && !clients.find(c => c.id === selectedClientId)) {
-      setClient(clients[0]?.id ?? undefined);
-    }
-  }, [authLoading, session, hasClients, clients, selectedClientId, setClient]);
-
-  const { createTask, updateTask, deleteTask } = useSupabase({
-    memberId: member?.id,
-    clientId: effectiveClientId,
-    isAdmin,
-  });
-
-  const { holidays } = useHolidays();
-
-  const allClientIds = clients.map((c) => c.id)
-
-  const {
-    notifications,
-    unreadCount,
-    markAsRead: markNotificationAsRead,
-    markAllAsRead: markAllNotificationsAsRead,
-    reload: reloadNotifications,
-  } = useNotifications(member?.id, allClientIds)
-
-  const view = useUIStore((s) => s.view)
-  const setView = useUIStore((s) => s.setView)
-
-  const handleNotificationClick = useCallback((notification: Notification) => {
-    // Navega dentro do cliente atual — não troca de cliente
-    const route = resolveNotificationRoute(notification)
-    if (!route) return
-
-    if (route.startsWith('/dashboard')) {
-      setView('calendar')
-    } else if (route === '/profile') {
-      // TODO: open profile
-    } else if (route === '/clients') {
-      setView('clients')
-    }
-  }, [setView])
-
-  const [darkMode, setDarkMode] = useState(() => {
-    return (
-      localStorage.getItem("theme") === "dark" ||
-      (!localStorage.getItem("theme") &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches)
-    )
-  })
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode)
-    localStorage.setItem("theme", darkMode ? "dark" : "light")
-  }, [darkMode])
-
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    return localStorage.getItem("sidebarOpen") !== "false"
-  })
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-
-  const handleToggleSidebar = () => {
-    setSidebarOpen((prev) => {
-      localStorage.setItem("sidebarOpen", String(!prev))
-      return !prev
-    })
-  }
-
-  const isModalOpen = useUIStore((s) => s.isTaskModalOpen)
-  const openTaskModal = useUIStore((s) => s.openTaskModal)
-  const closeTaskModal = useUIStore((s) => s.closeTaskModal)
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null)
-  const [closeTaskModalOnDelete, setCloseTaskModalOnDelete] = useState(false)
-
-  const handleSelectClient = useCallback((clientId: string | null | undefined) => {
-    setClient(clientId);
-    setView("home");
-  }, [setClient, setView]);
-
-  const handleViewChange = useCallback((newView: ViewType) => {
-    setMobileSidebarOpen(false);
-    const hasClientSelected = effectiveClientId !== null;
-    const canAccess = canAccessView(newView, accessRole, hasClientSelected);
-
-    if (!canAccess) {
-      if (newView !== "clients") {
-        toast.error("Selecione um cliente para acessar esta funcionalidade.");
-      }
-      setView("clients");
-    } else {
-      setView(newView);
-    }
-  }, [effectiveClientId, accessRole, setView]);
-
-  useEffect(() => {
-    if (!authLoading && session) {
-      const hasClientSelected = effectiveClientId !== null;
-      const canAccess = canAccessView(view, accessRole, hasClientSelected);
-      if (!canAccess) {
-        setView("clients");
-      }
-    }
-  }, [authLoading, session, effectiveClientId, accessRole, view, setView]);
-
-  if (authLoading) {
+  if (app.auth.loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -166,185 +16,83 @@ export default function App() {
     );
   }
 
-  if (!session) {
-    return <LoginView onSignIn={signIn} error={authError} />;
+  if (!app.auth.session) {
+    return <LoginView onSignIn={app.auth.signIn} error={app.auth.authError} />;
   }
 
-  if (!hasClients) {
+  if (!app.hasClients) {
     return (
       <OnboardingView
-        userName={member?.name ?? user?.email}
-        onSignOut={handleSignOut}
-        onClientsFound={refreshProfile}
+        userName={app.auth.member?.name ?? app.auth.user?.email}
+        onSignOut={app.auth.signOut}
+        onClientsFound={app.auth.refreshProfile}
       />
-    )
+    );
   }
 
-  const requestDeleteTask = (id: string, closeModalAfterDelete = false) => {
-    setPendingDeleteTaskId(id);
-    setCloseTaskModalOnDelete(closeModalAfterDelete);
-  };
-
-  const handleConfirmDeleteTask = async () => {
-    if (!pendingDeleteTaskId) return;
-
-    const taskId = pendingDeleteTaskId;
-    const shouldCloseModal = closeTaskModalOnDelete;
-
-    setPendingDeleteTaskId(null);
-    setCloseTaskModalOnDelete(false);
-
-    const ok = await deleteTask(taskId);
-    if (!ok) {
-      toast.error("Erro ao eliminar tarefa");
-      return;
-    }
-
-    if (shouldCloseModal) {
-      closeTaskModal();
-    }
-  };
-
-  const showNoClientView = !hasClients && view !== "clients";
-  const showSelectClient = hasClients && !effectiveClientId && view !== "clients";
-  const selectedClient = effectiveClientId ? clients.find(c => c.id === effectiveClientId) : null;
-
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground font-sans">
+    <>
       <Toaster richColors position="bottom-right" />
-      <AppHeader
-        onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
-        notifications={notifications}
-        unreadCount={unreadCount}
-        onMarkNotificationAsRead={markNotificationAsRead}
-        onMarkAllNotificationsAsRead={markAllNotificationsAsRead}
-        onNotificationClick={handleNotificationClick}
-        reloadNotifications={reloadNotifications}
-        selectedClientId={effectiveClientId ?? null}
-        darkMode={darkMode}
-        onToggleDark={() => setDarkMode((d) => !d)}
+
+      <AppLayout
+        // theme
+        darkMode={app.darkMode}
+        onToggleDark={app.toggleDark}
+        // header
+        notifications={app.notifications.notifications}
+        unreadCount={app.notifications.unreadCount}
+        selectedClientId={app.effectiveClientId ?? null}
+        onToggleMobileSidebar={app.sidebar.openMobileSidebar}
+        onMarkNotificationAsRead={app.notifications.markAsRead}
+        onMarkAllNotificationsAsRead={app.notifications.markAllAsRead}
+        onNotificationClick={app.handleNotificationClick}
+        onReloadNotifications={app.notifications.reload}
+        // sidebar
+        sidebarOpen={app.sidebar.sidebarOpen}
+        mobileSidebarOpen={app.sidebar.mobileSidebarOpen}
+        onToggleSidebar={app.sidebar.toggleSidebar}
+        onCloseMobileSidebar={app.sidebar.closeMobileSidebar}
+        view={app.view}
+        onViewChange={app.handleViewChange}
+        hasClients={app.hasClients}
+        role={app.accessRole}
+        userEmail={app.auth.user?.email}
+        userAvatarUrl={app.auth.member?.avatar_url}
+        onSignOut={app.auth.signOut}
+        selectedClient={app.selectedClient}
+        availableClients={app.auth.clients}
+        onSelectClient={app.selectClient}
+        isAdmin={app.auth.isAdmin}
+        // router
+        effectiveClientId={app.effectiveClientId}
+        userName={app.auth.member?.name ?? ""}
+        holidays={app.holidays}
+        onEditTask={app.taskActions.openEditTask}
+        onOpenNewTask={app.taskActions.openNewTask}
+        onDeleteTask={app.taskActions.requestDeleteTask}
+        onUpdateTask={app.updateTask}
       />
 
-      <div className={`flex flex-row flex-1 overflow-hidden transition-opacity duration-300 ${isLoggingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <AppSidebar
-            open={sidebarOpen}
-            onToggle={handleToggleSidebar}
-            mobileOpen={mobileSidebarOpen}
-            onCloseMobile={() => setMobileSidebarOpen(false)}
-            view={view}
-            onViewChange={handleViewChange}
-            hasClient={hasClients}
-            role={accessRole}
-            darkMode={darkMode}
-            onToggleDark={() => setDarkMode((d) => !d)}
-            userEmail={user?.email}
-            userAvatarUrl={member?.avatar_url}
-            onSignOut={handleSignOut}
-            selectedClient={selectedClient ?? null}
-            availableClients={clients}
-            onSelectClient={handleSelectClient}
-            isAdmin={isAdmin}
-          />
-
-        <main key={view} className={cn("flex-1 overflow-auto animate-blur-fade-in", view === "home" ? "p-0" : "px-4 sm:px-6 lg:px-8 py-8")}>
-          <TooltipProvider>
-            {showNoClientView ? (
-            <NoClientView hasClients={false} onGoToClients={() => setView("clients")} />
-          ) : showSelectClient ? (
-            <NoClientView hasClients={true} onGoToClients={() => setView("clients")} />
-          ) : view === "home" ? (
-            <HomeView
-              userName={member?.name ?? user?.email ?? ""}
-              clientName={selectedClient?.name}
-              hasClient={!!effectiveClientId}
-              onViewChange={handleViewChange}
-            />
-          ) : view === "admin" ? (
-            <RequireAdmin>
-              <AdminView />
-            </RequireAdmin>
-          ) : view === "clients" ? (
-            <UserClientsView client={selectedClient ?? null} />
-          ) : view === "calendar" || view === "timeline" || view === "list" ? (
-            <DashboardView
-              subview={view}
-              onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
-              onDelete={(id: string) => requestDeleteTask(id)}
-              onUpdateTask={updateTask}
-              onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
-              onExport={() => window.print()}
-              holidays={holidays}
-            />
-          ) : view === "demandas" ? (
-            <TasksView
-              onEdit={(task: Task) => { setEditingTask(task); openTaskModal(); }}
-              onOpenNew={() => { setEditingTask(null); openTaskModal(); }}
-            />
-          ) : view === "members" ? (
-            <MembersView />
-          ) : view === "tools" || view === "tools-briefing-analyzer" || view === "tools-import" || view === "tools-export" || view === "tools-integrations" ? (
-            <ToolsView subview={view === "tools" ? undefined : view} />
-          ) : view === "reports" || view === "reports-fluxo" || view === "reports-timeline" || view === "reports-membros" || view === "reports-alertas" ? (
-            <ReportsView 
-              subview={view === "reports" ? "geral" : view === "reports-fluxo" ? "fluxo" : view === "reports-timeline" ? "timeline" : view === "reports-membros" ? "membros" : "alertas"} 
-            />
-          ) : (
-            <HomeView
-              userName={member?.name ?? user?.email ?? ""}
-              clientName={selectedClient?.name}
-              hasClient={!!effectiveClientId}
-              onViewChange={handleViewChange}
-            />
-          )}
-          </TooltipProvider>
-        </main>
-      </div>
-
-      {isModalOpen && (
-        <TaskModal
-          task={editingTask}
-          members={members}
-          onClose={closeTaskModal}
-          onDelete={async (id: string) => {
-            requestDeleteTask(id, true);
-          }}
-          onSave={async (taskData) => {
-            let ok: boolean;
-            if (editingTask) {
-              ok = await updateTask({
-                ...editingTask,
-                ...taskData,
-                clientId: effectiveClientId ?? editingTask.clientId,
-              });
-            } else {
-              ok = await createTask({
-                title: taskData.title,
-                clickupLink: taskData.clickupLink,
-                clientId: effectiveClientId ?? undefined,
-                status: taskData.status,
-                steps: taskData.steps,
-              });
-            }
-            if (!ok) { toast.error("Erro ao guardar tarefa"); return; }
-            closeTaskModal();
-          }}
-          holidays={holidays}
-        />
-      )}
-
-      {pendingDeleteTaskId && (
-        <ConfirmModal
-          title="Eliminar demanda"
-          message="Tem a certeza que deseja eliminar esta demanda?"
-          confirmLabel="Eliminar demanda"
-          cancelLabel="Cancelar"
-          onConfirm={handleConfirmDeleteTask}
-          onCancel={() => {
-            setPendingDeleteTaskId(null);
-            setCloseTaskModalOnDelete(false);
-          }}
-        />
-      )}
-    </div>
-  );
+      <AppModals
+        taskModal={{
+          isOpen: app.isModalOpen,
+          editingTask: app.taskActions.editingTask,
+          onClose: app.closeTaskModal,
+          onSave: app.taskActions.saveTask,
+          onDelete: (id) => app.taskActions.requestDeleteTask(id, true),
+        }}
+        deleteModal={{
+          pendingId: app.taskActions.pendingDeleteTaskId,
+          onConfirm: app.taskActions.confirmDeleteTask,
+          onCancel: app.taskActions.cancelDeleteTask,
+        }}
+        transition={{
+          target: app.transitionTarget,
+          onComplete: app.onTransitionComplete,
+        }}
+        members={app.members}
+        holidays={app.holidays}
+      />
+    </>
+   );
 }

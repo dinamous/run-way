@@ -84,7 +84,7 @@ export const useMemberStore = create<MemberStore>()(
       },
 
       invalidate: () => {
-        set({ members: [], cachedClientId: undefined, error: null })
+        set({ members: [], cachedClientId: undefined, error: null, loading: false })
       },
     }),
     { name: 'app/members', enabled: true }

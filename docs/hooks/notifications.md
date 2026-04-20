@@ -100,6 +100,22 @@ Componente de sino com dropdown. Recebe notificações já carregadas via props 
 - **Todas** — todas as notificações do usuário
 - **Cliente atual** — filtra por `client_id === selectedClientId`
 
+---
+
+# createNotificationForAll
+
+```ts
+createNotificationForAll(clientIds: string[], title: string, message: string, type?: string): Promise<void>
+```
+
+Insere um broadcast (`user_id = null`) para cada `clientId` em uma única operação `insert` em lote. Usado pelo `NotificationsPanel` na opção de destino **Todos**.
+
+---
+
+## Formatação da mensagem
+
+O campo `message` suporta **Markdown** — negrito, itálico, quebras de linha etc. Renderizado via `react-markdown` com classes `prose-xs` do Tailwind.
+
 ## Audiência
 
 Cada item exibe ícone e label indicando o destinatário:
@@ -109,3 +125,27 @@ Cada item exibe ícone e label indicando o destinatário:
 ## Comportamento de clique
 
 `onNotificationClick` deve navegar dentro do **cliente atual** sem trocar de cliente. A rota é resolvida por `resolveNotificationRoute` em `src/lib/notifications.ts`.
+
+---
+
+# Triggers automáticos (pg_cron)
+
+Migration: `supabase/migrations/20260420000002_notification_triggers.sql`
+
+Jobs agendados às **9h, 12h e 15h UTC**. Só executam se houve mudança de `status` em `audit_logs` nas últimas 3 horas (`has_recent_audit_activity`).
+
+## Tipos gerados automaticamente
+
+| `type` | Destinatário | Condição |
+|---|---|---|
+| `step_overdue` | assignee do step | `task_steps.end_date < hoje` e step não concluído |
+| `task_stalled` | assignee da task | sem entrada em `audit_logs` há mais de `stalled_days_threshold` dias |
+| `member_overloaded` | admins do cliente | membro com tasks `em andamento` ≥ `overload_threshold` |
+
+## Deduplicação
+
+Cada função verifica `NOT EXISTS` antes de inserir — nunca gera a mesma notificação duas vezes no mesmo dia para o mesmo par `(user_id, entity_id)`.
+
+## Preferências respeitadas
+
+As funções consultam `user_preferences` antes de inserir. Se o switch correspondente for `false`, o usuário não recebe aquele tipo.

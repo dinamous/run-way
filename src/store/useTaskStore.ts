@@ -113,7 +113,7 @@ export const useTaskStore = create<TaskStore>()(
       },
 
       invalidate: () => {
-        set({ tasks: [], cacheKey: undefined, error: null })
+        set({ tasks: [], cacheKey: undefined, error: null, loading: false })
       },
     }),
     { name: 'app/tasks', enabled: true }
