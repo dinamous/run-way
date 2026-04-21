@@ -1,10 +1,12 @@
 import { useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { Task, Step } from '@/lib/steps'
 import { toast } from 'sonner'
 import { logAudit } from '@/lib/audit'
 import { useTaskStore } from '@/store/useTaskStore'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
+import { queryKeys } from '@/lib/queries'
 
 const devLog = import.meta.env.DEV
   ? (...args: unknown[]) => console.warn(...args)
@@ -83,11 +85,11 @@ function didTaskFieldsChange(prevTask: Task | undefined, nextTask: Task, resolve
 
 export function useSupabase(options: UseSupabaseOptions = {}) {
   const { memberId, clientId, isAdmin } = options
+  const queryClient = useQueryClient()
 
-  const refresh = useCallback(async () => {
-    useTaskStore.getState().invalidate()
-    await useTaskStore.getState().fetchTasks(clientId, isAdmin ?? false)
-  }, [clientId, isAdmin])
+  const invalidateTasks = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.tasks(clientId ?? null, isAdmin ?? false) })
+  }, [queryClient, clientId, isAdmin])
 
   const createTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt'>): Promise<boolean> => {
     const resolvedClientId = taskData.clientId ?? clientId ?? null
@@ -112,7 +114,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     const ok = await createAllSteps(taskRow.id, taskData.steps)
     if (!ok) {
       toast.error('Tarefa criada mas erro ao guardar etapas')
-      await refresh()
+      invalidateTasks()
       return false
     }
 
@@ -128,24 +130,35 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       })
     }
 
-    await refresh()
+    invalidateTasks()
     return true
-  }, [clientId, memberId, refresh])
+  }, [clientId, memberId, invalidateTasks])
 
   const updateTask = useCallback(async (taskData: Task): Promise<boolean> => {
     const resolvedClientId = taskData.clientId ?? clientId ?? null
-    const previousTasks = useTaskStore.getState().tasks
-    const prevTask = previousTasks.find(t => t.id === taskData.id)
+
+    const cachedTasks = queryClient.getQueryData<Task[]>(
+      queryKeys.tasks(clientId ?? null, isAdmin ?? false)
+    ) ?? []
+
+    const prevTask = cachedTasks.find(t => t.id === taskData.id)
 
     if (!prevTask) {
       toast.error('Não foi possível comparar alterações da demanda')
-      await refresh()
+      invalidateTasks()
       return false
     }
 
-    useTaskStore.setState(s => ({
-      tasks: s.tasks.map(t => t.id === taskData.id ? { ...taskData, clientId: resolvedClientId ?? undefined } : t)
-    }))
+    const updatedTasks = cachedTasks.map(t =>
+      t.id === taskData.id ? { ...taskData, clientId: resolvedClientId ?? undefined } : t
+    )
+    queryClient.setQueryData(queryKeys.tasks(clientId ?? null, isAdmin ?? false), updatedTasks)
+    useTaskStore.getState().applyOptimisticUpdate(updatedTasks)
+
+    const rollback = () => {
+      queryClient.setQueryData(queryKeys.tasks(clientId ?? null, isAdmin ?? false), cachedTasks)
+      useTaskStore.getState().clearOptimistic()
+    }
 
     if (didTaskFieldsChange(prevTask, taskData, resolvedClientId)) {
       const { error: taskErr } = await supabase
@@ -162,7 +175,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         .eq('id', taskData.id)
 
       if (taskErr) {
-        useTaskStore.setState({ tasks: previousTasks })
+        rollback()
         toast.error(toSafeUiErrorMessage(taskErr.message))
         return false
       }
@@ -206,7 +219,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         .eq('id', update.id)
 
       if (error) {
-        useTaskStore.setState({ tasks: previousTasks })
+        rollback()
         toast.error(toSafeUiErrorMessage(error.message))
         return false
       }
@@ -223,13 +236,12 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       const prevAssignees = new Set(prevStep.assignees)
       const nextAssignees = new Set(step.assignees)
 
-      const toAdd = step.assignees.filter(memberId => !prevAssignees.has(memberId))
-      const toRemove = prevStep.assignees.filter(memberId => !nextAssignees.has(memberId))
+      const toAdd = step.assignees.filter(id => !prevAssignees.has(id))
+      const toRemove = prevStep.assignees.filter(id => !nextAssignees.has(id))
 
       if (toAdd.length > 0) {
-        assigneesToAdd.push(...toAdd.map(memberId => ({ step_id: stepId, member_id: memberId })))
+        assigneesToAdd.push(...toAdd.map(id => ({ step_id: stepId, member_id: id })))
       }
-
       if (toRemove.length > 0) {
         assigneesToRemoveByStep.set(stepId, toRemove)
       }
@@ -243,7 +255,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         .in('member_id', memberIds)
 
       if (error) {
-        useTaskStore.setState({ tasks: previousTasks })
+        rollback()
         toast.error(toSafeUiErrorMessage(error.message))
         return false
       }
@@ -255,13 +267,15 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         .insert(assigneesToAdd)
 
       if (error) {
-        useTaskStore.setState({ tasks: previousTasks })
+        rollback()
         toast.error(toSafeUiErrorMessage(error.message))
         return false
       }
     }
 
+    useTaskStore.getState().clearOptimistic()
     toast.success(`Demanda "${taskData.title}" atualizada`)
+
     if (memberId && prevTask) {
       if (prevTask.status?.blocked !== taskData.status?.blocked) {
         await logAudit({
@@ -292,10 +306,14 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     }
 
     return true
-  }, [clientId, memberId, refresh])
+  }, [clientId, isAdmin, memberId, queryClient, invalidateTasks])
 
   const deleteTask = useCallback(async (id: string): Promise<boolean> => {
-    const deletedTask = useTaskStore.getState().tasks.find(t => t.id === id)
+    const cachedTasks = queryClient.getQueryData<Task[]>(
+      queryKeys.tasks(clientId ?? null, isAdmin ?? false)
+    ) ?? []
+
+    const deletedTask = cachedTasks.find(t => t.id === id)
 
     const { error } = await supabase.from('tasks').delete().eq('id', id)
     if (error) {
@@ -303,7 +321,11 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       return false
     }
 
-    useTaskStore.setState(s => ({ tasks: s.tasks.filter(t => t.id !== id) }))
+    queryClient.setQueryData(
+      queryKeys.tasks(clientId ?? null, isAdmin ?? false),
+      cachedTasks.filter(t => t.id !== id)
+    )
+
     toast.success(`Demanda "${deletedTask?.title ?? id}" eliminada`)
 
     if (memberId && deletedTask) {
@@ -318,7 +340,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     }
 
     return true
-  }, [memberId])
+  }, [clientId, isAdmin, memberId, queryClient])
 
   return { createTask, updateTask, deleteTask }
 }

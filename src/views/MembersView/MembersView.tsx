@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
-import { useTaskStore } from '@/store/useTaskStore';
-import { useMemberStore } from '@/store/useMemberStore';
+import React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTasksQuery } from '@/hooks/useTasksQuery';
+import { useMembersQuery } from '@/hooks/useMembersQuery';
 import { useUIStore } from '@/store/useUIStore';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useClients } from '@/hooks/useClients';
@@ -32,38 +33,20 @@ function todayStr() {
 const MembersView: React.FC = () => {
   const { isAdmin } = useAuthContext();
   const { effectiveClientId } = useClients();
+  const queryClient = useQueryClient();
   const setView = useUIStore((s) => s.setView);
   const setDashboardRedirect = useUIStore((s) => s.setDashboardRedirect);
-  const {
-    tasks,
-    loading: tasksLoading,
-    error: tasksError,
-    fetchTasks,
-    invalidate: invalidateTasks,
-  } = useTaskStore();
-  const {
-    members,
-    loading: membersLoading,
-    error: membersError,
-    fetchMembers,
-    invalidate: invalidateMembers,
-  } = useMemberStore();
+  const { data: tasks = [], isLoading: tasksLoading, error: tasksErr } = useTasksQuery(effectiveClientId, isAdmin);
+  const { data: members = [], isLoading: membersLoading, error: membersErr } = useMembersQuery(effectiveClientId);
   const today = todayStr();
-
-  useEffect(() => {
-    fetchTasks(effectiveClientId, isAdmin);
-    fetchMembers(effectiveClientId);
-  }, [effectiveClientId, isAdmin, fetchTasks, fetchMembers]);
 
   const hasData = tasks.length > 0 || members.length > 0;
   const isLoading = tasksLoading || membersLoading;
-  const errorMessage = tasksError || membersError;
+  const errorMessage = tasksErr?.message ?? membersErr?.message ?? null;
 
   const handleRetry = () => {
-    invalidateTasks();
-    invalidateMembers();
-    fetchTasks(effectiveClientId, isAdmin);
-    fetchMembers(effectiveClientId);
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['members'] });
   };
 
   if (errorMessage && !hasData) {

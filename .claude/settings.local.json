@@ -38,7 +38,10 @@
       "Bash(npx --yes tsc --noEmit --project \"c:/Users/dinam/Documents/Projetos/run-way/tsconfig.json\")",
       "Bash(npm show:*)",
       "Bash(ls c:/Users/dinam/Documents/Projetos/run-way/node_modules/boneyard-js/react*)",
-      "Bash(npm list *)"
+      "Bash(npm list *)",
+      "Bash(xargs wc:*)",
+      "Bash(wc -l /c/Users/dinam/Documents/Projetos/run-way/src/lib/*.ts /c/Users/dinam/Documents/Projetos/run-way/src/store/*.ts /c/Users/dinam/Documents/Projetos/run-way/src/hooks/*.ts)",
+      "Bash(node -e \"const p = require\\('./node_modules/@tanstack/react-query/package.json'\\); console.log\\(p.version\\)\")"
     ]
   },
   "hooks": {

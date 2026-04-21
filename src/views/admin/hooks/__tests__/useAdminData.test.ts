@@ -14,15 +14,16 @@ vi.mock('@/lib/supabase', () => ({
   },
 }))
 
-// Mock das stores para evitar erros de contexto
-vi.mock('@/store/useTaskStore', () => ({
-  useTaskStore: (selector: (s: { invalidate: () => void; fetchTasks: () => Promise<void> }) => unknown) =>
-    selector({ invalidate: vi.fn(), fetchTasks: vi.fn() }),
-}))
-vi.mock('@/store/useMemberStore', () => ({
-  useMemberStore: (selector: (s: { invalidate: () => void; fetchMembers: () => Promise<void> }) => unknown) =>
-    selector({ invalidate: vi.fn(), fetchMembers: vi.fn() }),
-}))
+// Mock do queryClient (TanStack Query)
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
+  return {
+    ...actual,
+    useQueryClient: () => ({
+      invalidateQueries: vi.fn(),
+    }),
+  }
+})
 vi.mock('@/store/useClientStore', () => ({
   useClientStore: (selector: (s: { selectedClientId: string | null }) => unknown) =>
     selector({ selectedClientId: null }),

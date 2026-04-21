@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Skeleton } from 'boneyard-js/react';
 
 const TASKS_BONES = {
@@ -35,8 +35,9 @@ const TASKS_BONES = {
   ],
 };
 import { useAuthContext } from '@/contexts/AuthContext';
-import { useTaskStore } from '@/store/useTaskStore';
-import { useMemberStore } from '@/store/useMemberStore';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTasksQuery } from '@/hooks/useTasksQuery';
+import { useMembersQuery } from '@/hooks/useMembersQuery';
 import { useClients } from '@/hooks/useClients';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -61,16 +62,12 @@ interface TasksViewProps {
 
 export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
   const { member } = useAuthContext();
-  const { tasks, fetchTasks, invalidate, loading } = useTaskStore();
-  const { members, fetchMembers } = useMemberStore();
+  const queryClient = useQueryClient();
   const { effectiveClientId, isAdmin } = useClients();
+  const { data: tasks = [], isLoading: loading } = useTasksQuery(effectiveClientId, isAdmin);
+  const { data: members = [] } = useMembersQuery(effectiveClientId);
 
   const [filters, setFilters] = useState<FiltersState>(EMPTY_FILTERS);
-
-  useEffect(() => {
-    fetchTasks(effectiveClientId, isAdmin);
-    fetchMembers(effectiveClientId);
-  }, [effectiveClientId, isAdmin, fetchTasks, fetchMembers]);
 
   const handleToggleBlock = async (task: Task) => {
     const newBlocked = !task.status.blocked;
@@ -82,8 +79,7 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
 
     if (error) { toast.error('Erro ao alterar bloqueio'); return; }
     toast.success(newBlocked ? `"${task.title}" bloqueada` : `"${task.title}" desbloqueada`);
-    invalidate();
-    await fetchTasks(effectiveClientId, isAdmin);
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
   const handleConclude = async (task: Task) => {
@@ -95,8 +91,7 @@ export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
 
     if (error) { toast.error('Erro ao concluir demanda'); return; }
     toast.success(`"${task.title}" concluída`);
-    invalidate();
-    await fetchTasks(effectiveClientId, isAdmin);
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
   const filteredTasks = useMemo(() => {

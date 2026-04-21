@@ -1,6 +1,7 @@
 import { useAuthContext } from '@/contexts/AuthContext';
-import { useTaskStore } from '@/store/useTaskStore';
-import { useMemberStore } from '@/store/useMemberStore';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTasksQuery } from '@/hooks/useTasksQuery';
+import { useMembersQuery } from '@/hooks/useMembersQuery';
 import { useClients } from '@/hooks/useClients';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -19,9 +20,10 @@ interface ListViewProps {
 
 export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProps) {
   const { member } = useAuthContext();
-  const { tasks, fetchTasks, invalidate } = useTaskStore();
-  const { members } = useMemberStore();
+  const queryClient = useQueryClient();
   const { effectiveClientId, isAdmin } = useClients();
+  const { data: tasks = [] } = useTasksQuery(effectiveClientId, isAdmin);
+  const { data: members = [] } = useMembersQuery(effectiveClientId);
 
   const {
     filterAssignee, setFilterAssignee,
@@ -31,12 +33,12 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
     hasActiveFilters,
     clearFilters,
     filteredTasks,
-  } = useTaskFilters(tasks ?? [], false, '');
+  } = useTaskFilters(tasks, false, '');
 
   const {
     filterPeriodMonths, setFilterPeriodMonths,
     groupedTasks,
-  } = useListFilters(filteredTasks, members ?? []);
+  } = useListFilters(filteredTasks, members);
 
   const today = new Date().toISOString().slice(0, 7);
 
@@ -50,14 +52,9 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
       })
       .eq('id', task.id);
 
-    if (error) {
-      toast.error('Erro ao concluir demanda');
-      return;
-    }
-
+    if (error) { toast.error('Erro ao concluir demanda'); return; }
     toast.success(`"${task.title}" concluída`);
-    invalidate();
-    await fetchTasks(effectiveClientId, isAdmin);
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
   const handleToggleBlock = async (task: Task) => {
@@ -71,14 +68,9 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
       })
       .eq('id', task.id);
 
-    if (error) {
-      toast.error('Erro ao alterar bloqueio');
-      return;
-    }
-
+    if (error) { toast.error('Erro ao alterar bloqueio'); return; }
     toast.success(newBlocked ? `"${task.title}" bloqueada` : `"${task.title}" desbloqueada`);
-    invalidate();
-    await fetchTasks(effectiveClientId, isAdmin);
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
   const togglePeriod = (months: number) => {
@@ -89,7 +81,7 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
   return (
     <div className="space-y-4">
       <FilterBar
-        members={members ?? []}
+        members={members}
         filterAssignee={filterAssignee}
         onChangeAssignee={setFilterAssignee}
         filterStatus={filterStatus}
@@ -107,7 +99,7 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         filteredCount={groupedTasks.size}
-        totalCount={(tasks ?? []).length}
+        totalCount={tasks.length}
       />
 
       {groupedTasks.size === 0 ? (
@@ -122,7 +114,7 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
               monthKey={monthKey}
               items={items}
               isCurrentMonth={monthKey === today}
-              members={members ?? []}
+              members={members}
               onEdit={onEdit}
               onDelete={onDelete}
               onConclude={handleConclude}

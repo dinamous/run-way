@@ -1,9 +1,9 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { useClientStore } from "@/store/useClientStore";
-import { useTaskStore } from "@/store/useTaskStore";
-import { useMemberStore } from "@/store/useMemberStore";
 import { useUIStore } from "@/store/useUIStore";
+import { queryKeys } from "@/lib/queries";
 import type { ClientOption } from "@/contexts/AuthContext";
 
 interface TransitionTarget {
@@ -19,9 +19,8 @@ export function useClientTransition(
   clients: ClientOption[],
   effectiveClientId: string | null | undefined
 ) {
+  const queryClient = useQueryClient();
   const setClient = useClientStore((s) => s.setClient);
-  const invalidateTasks = useTaskStore((s) => s.invalidate);
-  const invalidateMembers = useMemberStore((s) => s.invalidate);
   const setView = useUIStore((s) => s.setView);
 
   const [transitionTarget, setTransitionTarget] = useState<TransitionTarget | null>(null);
@@ -34,11 +33,12 @@ export function useClientTransition(
     setTransitionTarget({ id: clientId, name: target.name });
     setTimeout(() => {
       setClient(clientId);
-      invalidateTasks();
-      invalidateMembers();
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks(clientId ?? null, false) });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
       setView("home");
     }, 650);
-  }, [clients, effectiveClientId, setClient, invalidateTasks, invalidateMembers, setView]);
+  }, [clients, effectiveClientId, setClient, queryClient, setView]);
 
   const onTransitionComplete = useCallback(() => {
     if (!transitionTarget) return;

@@ -1,9 +1,7 @@
 import { useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabaseAdmin } from '@/lib/supabase'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
-import { useTaskStore } from '@/store/useTaskStore'
-import { useMemberStore } from '@/store/useMemberStore'
-import { useClientStore } from '@/store/useClientStore'
 import { useAdminStore } from '@/store/useAdminStore'
 import type { PendingAuthUser, AuditFilters } from '@/store/useAdminStore'
 
@@ -16,11 +14,7 @@ interface UseAdminDataOptions {
 export function useAdminData(options: UseAdminDataOptions = {}) {
   const { actorUserId } = options
 
-  const selectedClientId = useClientStore((state) => state.selectedClientId)
-  const invalidateTasks = useTaskStore((state) => state.invalidate)
-  const fetchTasks = useTaskStore((state) => state.fetchTasks)
-  const invalidateMembers = useMemberStore((state) => state.invalidate)
-  const fetchMembers = useMemberStore((state) => state.fetchMembers)
+  const queryClient = useQueryClient()
 
   const {
     clients, users, auditLogs, loading, loadingInitial, error,
@@ -36,14 +30,10 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     }
   }, [initialized, loadingInitial, refreshAll])
 
-  const reloadAppStores = useCallback(async () => {
-    invalidateTasks()
-    invalidateMembers()
-    await Promise.all([
-      fetchTasks(selectedClientId, true),
-      fetchMembers(selectedClientId),
-    ])
-  }, [fetchMembers, fetchTasks, invalidateMembers, invalidateTasks, selectedClientId])
+  const reloadAppStores = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['tasks'] })
+    queryClient.invalidateQueries({ queryKey: ['members'] })
+  }, [queryClient])
 
   // ── CRUD clients ────────────────────────────────────────────────────────────
 

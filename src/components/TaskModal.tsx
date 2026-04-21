@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useMemberStore } from '@/store/useMemberStore';
+import React, { useState } from 'react';
+import { useMembersQuery } from '@/hooks/useMembersQuery';
 import { useClients } from '@/hooks/useClients';
 import { Input, Label, Button, ConfirmModal } from './ui';
 import { Save, ExternalLink, Trash2, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -17,11 +17,7 @@ import { isWeekendOrHoliday, getHolidayName, nextNonHolidayBusinessDay } from '.
 
 const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClose, onSave, onDelete, holidays }) => {
   const { effectiveClientId } = useClients();
-  const { fetchMembers, members: storeMembers } = useMemberStore();
-
-  useEffect(() => {
-    fetchMembers(effectiveClientId);
-  }, [effectiveClientId, fetchMembers]);
+  const { data: storeMembers = [] } = useMembersQuery(effectiveClientId);
 
   const resolvedMembers = storeMembers.length > 0 ? storeMembers : propMembers;
 
