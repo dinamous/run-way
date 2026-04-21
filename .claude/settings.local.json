@@ -41,7 +41,11 @@
       "Bash(npm list *)",
       "Bash(xargs wc:*)",
       "Bash(wc -l /c/Users/dinam/Documents/Projetos/run-way/src/lib/*.ts /c/Users/dinam/Documents/Projetos/run-way/src/store/*.ts /c/Users/dinam/Documents/Projetos/run-way/src/hooks/*.ts)",
-      "Bash(node -e \"const p = require\\('./node_modules/@tanstack/react-query/package.json'\\); console.log\\(p.version\\)\")"
+      "Bash(node -e \"const p = require\\('./node_modules/@tanstack/react-query/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(grep -E '^supabase/migrations/.*\\\\.sql$')",
+      "Bash(where jq *)",
+      "Bash(powershell -NonInteractive -Command ' *)",
+      "Bash(powershell -NonInteractive -Command \"Get-Content '.claude/settings.json' | ConvertFrom-Json | ConvertTo-Json -Depth 10\")"
     ]
   },
   "hooks": {
