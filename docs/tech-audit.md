@@ -94,29 +94,11 @@ export const supabase = createClient<Database>(url, key)
 
 ---
 
-### Problema: Props gigantes em AppLayout
+### ~~Problema: Props gigantes em AppLayout~~ ✅ Resolvido
 
-`AppLayoutProps` tem 28 propriedades. Difícil rastrear origem, refatoração arriscada.
+`AppLayoutProps` tinha 28 propriedades. **Corrigido:** criado `LayoutContext` (`src/contexts/LayoutContext.tsx`) com três namespaces (`header`, `sidebar`, `router`). `AppLayout` fornece o Provider; `AppHeader`, `AppSidebar` e `AppRouter` são agora zero-props e consomem via `useLayoutContext()`.
 
-**Solução — agrupar em objetos e usar Context para evitar prop drilling:**
-
-```typescript
-interface HeaderCtx { darkMode: boolean; onToggleDark: () => void; notifications: Notification[]; ... }
-interface SidebarCtx { sidebarOpen: boolean; onToggleSidebar: () => void; view: ViewType; ... }
-
-const LayoutCtx = createContext<{ header: HeaderCtx; sidebar: SidebarCtx } | null>(null)
-
-function AppLayout(props: AppLayoutProps) {
-  return (
-    <LayoutCtx.Provider value={{ header: { ... }, sidebar: { ... } }}>
-      <AppHeader />
-      <AppSidebar />
-    </LayoutCtx.Provider>
-  )
-}
-```
-
-**Prioridade:** Alta
+**Prioridade:** ~~Alta~~ Concluído
 
 ---
 
@@ -461,7 +443,7 @@ Não há registro de por que Zustand, por que roteamento manual, por que sem Nex
 | **Alta** | TanStack Query (caching + invalidação seletiva) | 16h |
 | **Alta** | Code splitting com React.lazy | 6h |
 | **Alta** | Codegen de tipos Supabase (zero `any`) | 4h |
-| **Alta** | Agrupar props AppLayout em Context | 4h |
+| ~~**Alta**~~ ✅ | ~~Agrupar props AppLayout em Context~~ | ~~4h~~ |
 | **Alta** | Testes unitários de stores e hooks críticos | 8h |
 | **Média** | Rate limiting em mutations | 2h |
 | **Média** | Cleanup robusto de Realtime subscriptions | 2h |

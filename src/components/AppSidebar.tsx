@@ -30,13 +30,9 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui"
 
-import { canAccessView, type AccessRole } from "@/lib/accessControl"
+import { canAccessView } from "@/lib/accessControl"
 import type { ViewType } from "@/store/useUIStore"
-
-interface ClientOption {
-  id: string
-  name: string
-}
+import { useLayoutContext } from "@/contexts/LayoutContext"
 
 interface NavItem {
   label: string
@@ -47,25 +43,6 @@ interface NavItem {
   isAdminOnly?: boolean
 }
 
-interface AppSidebarProps {
-  open: boolean
-  onToggle: () => void
-  mobileOpen?: boolean
-  onCloseMobile?: () => void
-  view: ViewType
-  onViewChange: (view: ViewType) => void
-  hasClient?: boolean
-  role: AccessRole | null
-  darkMode?: boolean
-  onToggleDark?: () => void
-  userEmail?: string
-  userAvatarUrl?: string | null
-  onSignOut?: () => void
-  selectedClient?: ClientOption | null
-  availableClients?: ClientOption[]
-  onSelectClient?: (clientId: string | null | undefined) => void
-  isAdmin?: boolean
-}
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Início", Icon: Home, view: "home" },
@@ -129,25 +106,26 @@ function getInitials(email?: string) {
   return name.slice(0, 2).toUpperCase()
 }
 
-export function AppSidebar({
-  open,
-  onToggle,
-  mobileOpen = false,
-  onCloseMobile,
-  view,
-  onViewChange,
-  hasClient = true,
-  role,
-  darkMode,
-  onToggleDark,
-  userEmail,
-  userAvatarUrl,
-  onSignOut,
-  selectedClient,
-  availableClients = [],
-  onSelectClient,
-  isAdmin,
-}: AppSidebarProps) {
+export function AppSidebar() {
+  const { sidebar: {
+    sidebarOpen: open,
+    mobileSidebarOpen: mobileOpen = false,
+    onToggleSidebar: onToggle,
+    onCloseMobileSidebar: onCloseMobile,
+    view,
+    onViewChange,
+    hasClients: hasClient = true,
+    role,
+    darkMode,
+    onToggleDark,
+    userEmail,
+    userAvatarUrl,
+    onSignOut,
+    selectedClient,
+    availableClients = [],
+    onSelectClient,
+    isAdmin,
+  } } = useLayoutContext()
   const [openGroups, setOpenGroups] = useState<string[]>(() => {
     const initial: string[] = []
     if (CALENDAR_VIEWS.includes(view)) initial.push("Calendário")

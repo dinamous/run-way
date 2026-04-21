@@ -45,7 +45,8 @@ src/
 │   ├── useTaskActions.ts      # Estado e handlers de create/update/delete de tasks
 │   └── useClientTransition.ts # Fluxo animado de troca de cliente (overlay + TanStack Query invalidate)
 ├── contexts/
-│   └── AuthContext.tsx        # Sessão, member, clients, isAdmin, refreshProfile
+│   ├── AuthContext.tsx        # Sessão, member, clients, isAdmin, refreshProfile
+│   └── LayoutContext.tsx      # Contexto do shell de layout (header, sidebar, router) — elimina prop drilling em AppLayout
 ├── lib/
 │   ├── supabase.ts            # Cliente Supabase
 │   ├── queries.ts             # fetchTasksFromDb, fetchMembersFromDb, queryKeys
@@ -83,7 +84,7 @@ App.tsx (gates de auth + composição)
     ├── view="tools-import/export/integrations" → ToolsView com subview (em breve)
     ├── view="profile"                 → ProfileView — perfil + preferências
           └── TaskModal → criar/editar (useFormState → cascata de fases)
-    ├── AppLayout    → shell do layout (AppHeader + AppSidebar + main/AppRouter)
+    ├── AppLayout    → shell do layout; fornece LayoutContext (AppHeader + AppSidebar + main/AppRouter sem prop drilling)
     └── AppModals    → TaskModal + ConfirmModal + ClientTransitionOverlay
 ```
 
@@ -286,9 +287,27 @@ A segunda policy é necessária para que `fetchMembersFromDb` consiga buscar tod
 - **Auth:** Supabase Auth — sessão gerida pelo SDK
 - **Cliente selecionado:** localStorage via `zustand/persist` (`client-store`)
 
+## LayoutContext (`src/contexts/LayoutContext.tsx`)
+
+Agrupa as props do shell de layout em três namespaces para eliminar prop drilling:
+
+```ts
+interface LayoutCtx {
+  view: ViewType
+  header: HeaderCtx   // darkMode, notifications, onToggleDark, …
+  sidebar: SidebarCtx // sidebarOpen, view, role, selectedClient, …
+  router: RouterCtx   // effectiveClientId, holidays, onEditTask, …
+}
+```
+
+- **`AppLayout`** cria o `LayoutContext.Provider` com os valores agrupados; não passa props para filhos diretos
+- **`AppHeader`**, **`AppSidebar`** e **`AppRouter`** são zero-props — consomem o contexto via `useLayoutContext()`
+- `useLayoutContext()` lança erro se usado fora do `AppLayout`
+
 ## Decisões
 
 - Sem router — navegação via `useUIStore.view` (poucas views)
 - State manager: Zustand (UI + Client) + TanStack Query v5 (fetch/cache de tasks e members)
 - Query keys centralizadas em `src/lib/queries.ts`; template para novos hooks em `src/hooks/__templates__/`
 - `any` intencional em dados do DB sem schema fixo em runtime
+- `AppLayout` usa Context API em vez de prop drilling para isolar concerns do shell — `AppHeader`, `AppSidebar` e `AppRouter` não recebem props

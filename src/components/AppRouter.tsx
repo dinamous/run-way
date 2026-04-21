@@ -10,10 +10,8 @@ import { ToolsView } from "@/views/tools";
 import TasksView from "@/views/tasks";
 import { ProfileView } from "@/views/profile";
 import type { ViewType } from "@/store/useUIStore";
-import type { Task } from "@/lib/steps";
-import type { Holiday } from "@/utils/holidayUtils";
-import type { ClientOption } from "@/contexts/AuthContext";
 import type { ReportsSubview } from "@/views/reports/ReportsView";
+import { useLayoutContext } from "@/contexts/LayoutContext";
 
 type DashboardSubview = "calendar" | "timeline" | "list";
 type ToolsSubview = Extract<ViewType, "tools-briefing-analyzer" | "tools-import" | "tools-export" | "tools-integrations">;
@@ -30,39 +28,20 @@ const REPORTS_SUBVIEW_MAP: Partial<Record<ViewType, ReportsSubview>> = {
   "reports-alertas": "alertas",
 };
 
-interface AppRouterProps {
-  view: ViewType;
-  hasClients: boolean;
-  effectiveClientId: string | null | undefined;
-  selectedClient: ClientOption | null;
-  userName: string;
-  userEmail: string | undefined;
-  holidays: Holiday[];
-  onViewChange: (view: ViewType) => void;
-  onEditTask: (task: Task) => void;
-  onOpenNewTask: () => void;
-  onDeleteTask: (id: string) => void;
-  onUpdateTask: (task: Task) => Promise<boolean>;
-}
-
-/**
- * Maps the active `view` to the corresponding view component.
- * Handles guard conditions (no client selected) before delegating to the view.
- */
-export function AppRouter({
-  view,
-  hasClients,
-  effectiveClientId,
-  selectedClient,
-  userName,
-  userEmail,
-  holidays,
-  onViewChange,
-  onEditTask,
-  onOpenNewTask,
-  onDeleteTask,
-  onUpdateTask,
-}: AppRouterProps) {
+export function AppRouter() {
+  const { view, router: {
+    hasClients,
+    effectiveClientId,
+    selectedClient,
+    userName,
+    userEmail,
+    holidays,
+    onViewChange,
+    onEditTask,
+    onOpenNewTask,
+    onDeleteTask,
+    onUpdateTask,
+  } } = useLayoutContext()
   const goToClients = () => onViewChange("clients");
   const displayName = userName || userEmail || "";
 
