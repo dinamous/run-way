@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import { Bell, CheckCheck, UserCheck, UserX, ShieldCheck, ShieldOff, Megaphone, MessageSquare, ClipboardList } from 'lucide-react'
@@ -163,15 +163,16 @@ const GROUP_LABELS: Record<string, string> = {
 }
 const GROUP_ORDER = ['today', 'yesterday', 'week', 'older']
 
-export function NotificationBell({
-  notifications,
-  unreadCount,
-  onMarkAsRead,
-  onMarkAllAsRead,
-  onNotificationClick,
-  reload,
-  selectedClientId,
-}: NotificationBellProps) {
+export const NotificationBell = memo(
+  function NotificationBell({
+    notifications,
+    unreadCount,
+    onMarkAsRead,
+    onMarkAllAsRead,
+    onNotificationClick,
+    reload,
+    selectedClientId,
+  }: NotificationBellProps) {
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'all' | 'current'>('all')
   const prevIdsRef = useRef<Set<string>>(new Set())
@@ -325,4 +326,9 @@ export function NotificationBell({
       </DropdownMenuContent>
     </DropdownMenu>
   )
-}
+},
+  (prev, next) =>
+    prev.unreadCount === next.unreadCount &&
+    prev.notifications.length === next.notifications.length &&
+    prev.selectedClientId === next.selectedClientId
+)

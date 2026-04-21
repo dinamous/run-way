@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link2, AlertCircle, Clock } from 'lucide-react';
 import { STEP_META, type Task, type StepType } from '@/lib/steps';
 import type { Member } from '@/hooks/useSupabase';
@@ -13,7 +14,7 @@ interface TaskRowProps {
   onEdit: (task: Task) => void;
 }
 
-export function TaskRow({ task, stepType, members, onToggleBlock, onConclude, onEdit }: TaskRowProps) {
+export const TaskRow = memo(function TaskRow({ task, stepType, members, onToggleBlock, onConclude, onEdit }: TaskRowProps) {
   const isBlocked = task.status.blocked;
   const isConcluded = !!task.concludedAt;
   const meta = STEP_META[stepType];
@@ -134,4 +135,10 @@ export function TaskRow({ task, stepType, members, onToggleBlock, onConclude, on
       </div>
     </div>
   );
-}
+}, (prev, next) =>
+  prev.task.id === next.task.id &&
+  prev.task.status?.blocked === next.task.status?.blocked &&
+  prev.task.concludedAt === next.task.concludedAt &&
+  prev.stepType === next.stepType &&
+  prev.members.length === next.members.length
+);

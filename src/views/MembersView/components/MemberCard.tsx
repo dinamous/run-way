@@ -28,7 +28,7 @@ function formatDateLabel(date: string): string {
     : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-const MemberCard: React.FC<MemberCardProps> = ({ member, tasks, today, onOpenCalendar }) => {
+const MemberCard: React.FC<MemberCardProps> = React.memo(({ member, tasks, today, onOpenCalendar }) => {
   const memberSteps: { task: Task; step: Step }[] = [];
   for (const task of tasks) {
     const norm = normalizeTask(task);
@@ -148,6 +148,11 @@ const MemberCard: React.FC<MemberCardProps> = ({ member, tasks, today, onOpenCal
       </div>
     </div>
   );
-};
+}, (prev, next) =>
+  prev.member.id === next.member.id &&
+  prev.tasks.length === next.tasks.length &&
+  prev.tasks === next.tasks &&
+  prev.today === next.today
+);
 
 export default MemberCard;
