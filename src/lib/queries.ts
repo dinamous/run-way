@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import type { Task, Step, StepType } from '@/lib/steps'
 import type { Member } from '@/hooks/useSupabase'
 import type { DbTaskRow } from '@/types/db'
+import { DbTaskRowSchema } from '@/lib/validators'
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
@@ -15,7 +16,8 @@ export const queryKeys = {
 // ─── Task Queries ──────────────────────────────────────────────────────────────
 
 function dbRowToTask(row: DbTaskRow): Task {
-  const steps: Step[] = (row.task_steps ?? [])
+  const parsed = DbTaskRowSchema.parse(row)
+  const steps: Step[] = parsed.task_steps
     .sort((a, b) => a.step_order - b.step_order)
     .map(s => ({
       id: s.id,
@@ -24,21 +26,21 @@ function dbRowToTask(row: DbTaskRow): Task {
       active: s.active,
       start: s.start_date ?? '',
       end: s.end_date ?? '',
-      assignees: (s.step_assignees ?? []).map((a: { member_id: string }) => a.member_id),
+      assignees: s.step_assignees.map(a => a.member_id),
     }))
 
   return {
-    id: row.id,
-    title: row.title,
-    clickupLink: row.clickup_link ?? undefined,
-    clientId: row.client_id ?? undefined,
+    id: parsed.id,
+    title: parsed.title,
+    clickupLink: parsed.clickup_link ?? undefined,
+    clientId: parsed.client_id ?? undefined,
     status: {
-      blocked: row.blocked,
-      blockedAt: row.blocked_at ?? undefined,
+      blocked: parsed.blocked,
+      blockedAt: parsed.blocked_at ?? undefined,
     },
-    createdAt: row.created_at,
-    concludedAt: row.concluded_at ?? undefined,
-    concludedBy: row.concluded_by ?? undefined,
+    createdAt: parsed.created_at,
+    concludedAt: parsed.concluded_at ?? undefined,
+    concludedBy: parsed.concluded_by ?? undefined,
     steps,
   }
 }

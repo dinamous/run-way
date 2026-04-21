@@ -115,7 +115,7 @@ npm install zod
 ```typescript
 // src/lib/validators.ts
 const TaskStepSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1), // .uuid() evitado: Zod v4 rejeita UUIDs fora do strict RFC 4122
   type: z.enum(['design', 'approval', 'dev', 'qa']),
   start_date: z.string().date().nullable(),
   end_date: z.string().date().nullable(),
@@ -123,7 +123,7 @@ const TaskStepSchema = z.object({
 })
 
 const DbTaskRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   title: z.string().min(1),
   task_steps: z.array(TaskStepSchema).default([]),
 })
@@ -132,7 +132,9 @@ const DbTaskRowSchema = z.object({
 const parsed = DbTaskRowSchema.parse(row) // lança erro com mensagem clara se inválido
 ```
 
-**Prioridade:** Média
+> **Nota:** campos `id` usam `z.string().min(1)` em vez de `z.string().uuid()`. O Zod v4 endureceu a validação UUID para exigir bits de variante RFC 4122 (`[89abAB]`), rejeitando UUIDs válidos gerados pelo Supabase que não seguem esse padrão estrito.
+
+**Prioridade:** ~~Média~~ Concluído
 
 ---
 

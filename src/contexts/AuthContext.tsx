@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { Member } from '@/hooks/useSupabase'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
+import { DbMemberRowSchema, DbClientRowSchema, DbUserClientRowSchema } from '@/lib/validators'
 import { getSafeRedirectUrl } from '@/lib/securityRedirect'
 
 export interface ClientOption {
@@ -57,13 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loadProfile(authUid: string, userEmail?: string) {
     try {
-      let { data: memberData } = await supabase
+      let { data: rawMemberData } = await supabase
         .from('members')
         .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
         .eq('auth_user_id', authUid)
         .single()
 
-      if (!memberData && userEmail) {
+      if (!rawMemberData && userEmail) {
         const { data: pendingMember } = await supabase
           .from('members')
           .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
@@ -81,27 +82,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             })
             .eq('id', pendingMember.id)
 
-          memberData = { ...pendingMember, auth_user_id: authUid, avatar_url: avatarFromSession ?? pendingMember.avatar_url }
+          rawMemberData = { ...pendingMember, auth_user_id: authUid, avatar_url: avatarFromSession ?? pendingMember.avatar_url }
         }
       }
 
-      if (!memberData) { setMember(null); setClients([]); return }
+      if (!rawMemberData) { setMember(null); setClients([]); return }
 
       const avatarFromSession = user?.user_metadata?.avatar_url
-      if (avatarFromSession && !memberData.avatar_url) {
+      if (avatarFromSession && !rawMemberData.avatar_url) {
         await supabase
           .from('members')
           .update({ avatar_url: avatarFromSession })
-          .eq('id', memberData.id)
-        memberData.avatar_url = avatarFromSession
+          .eq('id', rawMemberData.id)
+        rawMemberData.avatar_url = avatarFromSession
       }
 
+      const memberData = DbMemberRowSchema.parse(rawMemberData)
       setMember(memberData as Member)
 
-      const { data: allClients } = await supabase
+      const { data: rawClients } = await supabase
         .from('clients')
         .select('id, name, slug')
         .order('name')
+
+      const allClients = (rawClients ?? []).map(c => DbClientRowSchema.parse(c))
 
       if (memberData.access_role !== 'admin') {
         const { data: uc } = await supabase
@@ -109,15 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .select('client_id')
           .eq('user_id', memberData.id)
 
-        const clientIds = (uc ?? []).map((r: { client_id: string }) => r.client_id)
+        const clientIds = (uc ?? []).map((r) => DbUserClientRowSchema.parse(r).client_id)
 
         if (clientIds.length > 0) {
-          setClients((allClients ?? []).filter(c => clientIds.includes(c.id)))
+          setClients(allClients.filter(c => clientIds.includes(c.id)))
         } else {
           setClients([])
         }
       } else {
-        setClients(allClients ?? [])
+        setClients(allClients)
       }
     } catch (err) {
       console.warn('[AuthContext] Erro ao carregar perfil:', err)

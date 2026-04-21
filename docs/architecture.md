@@ -49,7 +49,8 @@ src/
 │   └── LayoutContext.tsx      # Contexto do shell de layout (header, sidebar, router) — elimina prop drilling em AppLayout
 ├── lib/
 │   ├── supabase.ts            # Cliente Supabase
-│   ├── queries.ts             # fetchTasksFromDb, fetchMembersFromDb, queryKeys
+│   ├── queries.ts             # fetchTasksFromDb, fetchMembersFromDb, queryKeys — valida rows com Zod antes do mapeamento
+│   ├── validators.ts          # Schemas Zod para rows do banco (DbTaskRowSchema, DbStepRowSchema, DbStepAssigneeSchema)
 │   ├── steps.ts               # Definição e lógica de steps
 │   └── utils.ts               # Utilitários gerais
 ├── types/
@@ -309,5 +310,5 @@ interface LayoutCtx {
 - Sem router — navegação via `useUIStore.view` (poucas views)
 - State manager: Zustand (UI + Client) + TanStack Query v5 (fetch/cache de tasks e members)
 - Query keys centralizadas em `src/lib/queries.ts`; template para novos hooks em `src/hooks/__templates__/`
-- `any` intencional em dados do DB sem schema fixo em runtime
+- Validação runtime de rows do banco via Zod (`src/lib/validators.ts`): schemas para tasks, members, clients, user_preferences e user_clients — aplicados em `queries.ts` (dbRowToTask), `AuthContext` (loadProfile), `useAdminStore` (fetchClients/fetchUsers/fetchUserClientsMap) e `useProfile` (fetchPreferences). Erros de schema lançam exceção com mensagem clara.
 - `AppLayout` usa Context API em vez de prop drilling para isolar concerns do shell — `AppHeader`, `AppSidebar` e `AppRouter` não recebem props

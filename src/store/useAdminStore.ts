@@ -20,6 +20,7 @@ export interface AuditFilters {
   to?: string     // YYYY-MM-DD
 }
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
+import { DbClientRowSchema, DbMemberRowSchema, DbUserClientMapRowSchema } from '@/lib/validators'
 
 const ALLOWED_DOMAIN = import.meta.env.VITE_ALLOWED_DOMAIN as string | undefined
 
@@ -86,7 +87,7 @@ export const useAdminStore = create<AdminStore>()(
           .select('*')
           .order('name')
         if (error) throw new Error(error.message)
-        set({ clients: data ?? [] })
+        set({ clients: (data ?? []).map(r => DbClientRowSchema.parse(r)) })
       },
 
       fetchUsers: async () => {
@@ -96,7 +97,7 @@ export const useAdminStore = create<AdminStore>()(
           .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role, is_active, created_at, deactivated_at')
           .order('name')
         if (error) throw new Error(error.message)
-        set({ users: data ?? [] })
+        set({ users: (data ?? []).map(r => DbMemberRowSchema.parse(r)) as Member[] })
       },
 
       fetchUserClientsMap: async () => {
@@ -106,7 +107,7 @@ export const useAdminStore = create<AdminStore>()(
           .select('user_id, client_id')
         if (error) throw new Error(error.message)
         const map: Record<string, string[]> = {}
-        ;(data ?? []).forEach(({ user_id, client_id }) => {
+        ;(data ?? []).map(r => DbUserClientMapRowSchema.parse(r)).forEach(({ user_id, client_id }) => {
           if (!map[user_id]) map[user_id] = []
           map[user_id].push(client_id)
         })

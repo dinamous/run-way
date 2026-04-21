@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { DbUserPreferencesSchema } from '@/lib/validators'
 
 export interface UserPreferences {
   id: string
@@ -68,10 +69,10 @@ export function useProfile() {
         .single()
 
       if (!createError && created) {
-        setPreferences(created as UserPreferences)
+        setPreferences(DbUserPreferencesSchema.parse(created) as UserPreferences)
       }
     } else {
-      setPreferences(data as UserPreferences)
+      setPreferences(DbUserPreferencesSchema.parse(data) as UserPreferences)
     }
     setLoading(false)
   }, [member])
