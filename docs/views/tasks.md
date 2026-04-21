@@ -32,6 +32,8 @@ Recebe `hasActiveFilters?: boolean`. Comportamento por estado:
 - **Vazio + filtros ativos:** cabeçalho apagado (contador `0`), mensagem de filtro em itálico, botão de expansão oculto
 - **Vazio sem filtros:** renderizado normalmente com contador `0` — todas as 8 categorias são sempre exibidas
 
+**Virtualização (`react-window`):** quando um grupo tem mais de 50 tasks, a lista interna usa `FixedSizeList` (altura de item `52px`, altura máxima do container `600px`) — renderiza apenas ~10–15 itens visíveis por vez. Abaixo do threshold usa `div.space-y-2` + `.map()` normal.
+
 ### `TaskRow`
 Linha de uma demanda. A div inteira é clicável (chama `onEdit`) — o `ActionMenu` tem `stopPropagation` para não conflitar.
 

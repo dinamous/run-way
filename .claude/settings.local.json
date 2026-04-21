@@ -45,7 +45,8 @@
       "Bash(grep -E '^supabase/migrations/.*\\\\.sql$')",
       "Bash(where jq *)",
       "Bash(powershell -NonInteractive -Command ' *)",
-      "Bash(powershell -NonInteractive -Command \"Get-Content '.claude/settings.json' | ConvertFrom-Json | ConvertTo-Json -Depth 10\")"
+      "Bash(powershell -NonInteractive -Command \"Get-Content '.claude/settings.json' | ConvertFrom-Json | ConvertTo-Json -Depth 10\")",
+      "Bash(node -e \"const rw = require\\('react-window'\\); console.log\\(Object.keys\\(rw\\)\\)\")"
     ]
   },
   "hooks": {

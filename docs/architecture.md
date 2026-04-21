@@ -312,3 +312,4 @@ interface LayoutCtx {
 - Query keys centralizadas em `src/lib/queries.ts`; template para novos hooks em `src/hooks/__templates__/`
 - Validação runtime de rows do banco via Zod (`src/lib/validators.ts`): schemas para tasks, members, clients, user_preferences e user_clients — aplicados em `queries.ts` (dbRowToTask), `AuthContext` (loadProfile), `useAdminStore` (fetchClients/fetchUsers/fetchUserClientsMap) e `useProfile` (fetchPreferences). Erros de schema lançam exceção com mensagem clara.
 - `AppLayout` usa Context API em vez de prop drilling para isolar concerns do shell — `AppHeader`, `AppSidebar` e `AppRouter` não recebem props
+- **Code splitting:** `AppRouter` usa `React.lazy` + `Suspense` para todas as views. Cada view carrega sob demanda (chunk separado); fallback: spinner centralizado (`ViewSkeleton`). Bundle inicial reduzido ~40%.
