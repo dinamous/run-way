@@ -1,105 +1,190 @@
-import React from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useTasksQuery } from '@/hooks/useTasksQuery';
+import React, { useMemo, useRef, useLayoutEffect, useState, useCallback } from 'react';
+import { Mail, UserCircle2, CalendarDays } from 'lucide-react';
 import { useMembersQuery } from '@/hooks/useMembersQuery';
-import { useUIStore } from '@/store/useUIStore';
-import { useAuthContext } from '@/contexts/AuthContext';
 import { useClients } from '@/hooks/useClients';
-import MemberCard from './components/MemberCard';
-import { ViewState } from '@/components/ViewState';
-import { DatabaseZap, Users2 } from 'lucide-react';
-import { Skeleton } from 'boneyard-js/react';
+import { Badge } from '@/components/ui';
+import type { Member } from '@/types/member';
 
-const MEMBERS_BONES = {
-  name: 'members-view',
-  viewportWidth: 1280,
-  width: 960,
-  height: 520,
-  bones: [
-    { x: 0, y: 0, w: 45, h: 30, r: 8 },
-    { x: 0, y: 40, w: 32, h: 18, r: 8 },
-    { x: 0, y: 82, w: 48, h: 196, r: 12 },
-    { x: 52, y: 82, w: 48, h: 196, r: 12 },
-    { x: 0, y: 294, w: 48, h: 196, r: 12 },
-    { x: 52, y: 294, w: 48, h: 196, r: 12 },
-  ],
-};
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function Avatar({ src, initials }: { src?: string | null; initials: string }) {
+  return (
+    <div className="relative flex h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-border bg-muted">
+      {src ? (
+        <img src={src} alt={initials} className="aspect-square h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center font-medium text-muted-foreground">
+          {initials}
+        </div>
+      )}
+    </div>
+  );
 }
 
-const MembersView: React.FC = () => {
-  const { isAdmin } = useAuthContext();
-  const { effectiveClientId } = useClients();
-  const queryClient = useQueryClient();
-  const setView = useUIStore((s) => s.setView);
-  const setDashboardRedirect = useUIStore((s) => s.setDashboardRedirect);
-  const { data: tasks = [], isLoading: tasksLoading, error: tasksErr } = useTasksQuery(effectiveClientId, isAdmin);
-  const { data: members = [], isLoading: membersLoading, error: membersErr } = useMembersQuery(effectiveClientId);
-  const today = todayStr();
+function MemberCard({ member }: { member: Member }) {
+  const joinedAt = member.created_at
+    ? new Date(member.created_at).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+    : null;
 
-  const hasData = tasks.length > 0 || members.length > 0;
-  const isLoading = tasksLoading || membersLoading;
-  const errorMessage = tasksErr?.message ?? membersErr?.message ?? null;
-
-  const handleRetry = () => {
-    queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    queryClient.invalidateQueries({ queryKey: ['members'] });
-  };
-
-  if (errorMessage && !hasData) {
-    return (
-      <ViewState
-        icon={DatabaseZap}
-        title="Erro ao carregar membros"
-        description={`Não foi possível consultar o banco agora. Detalhe: ${errorMessage}`}
-        actionLabel="Tentar novamente"
-        onAction={handleRetry}
-      />
-    );
-  }
-
-  if (members.length === 0 && !isLoading) {
-    return (
-      <ViewState
-        icon={Users2}
-        title="Sem membros neste cliente"
-        description="Associe membros ao cliente para visualizar a capacidade por etapa."
-        actionLabel="Atualizar"
-        onAction={handleRetry}
-      />
-    );
-  }
-
-  const content = (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Capacity da Equipe</h2>
-        <p className="text-muted-foreground">Visão informativa por membro com atalhos para abrir o calendário filtrado.</p>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        {members.map(member => (
-          <MemberCard
-            key={member.id}
-            member={member}
-            tasks={tasks}
-            today={today}
-            onOpenCalendar={(memberId: string) => {
-              setDashboardRedirect({ assigneeId: memberId, mode: 'calendar' });
-              setView('calendar');
-            }}
-          />
-        ))}
+  return (
+    <div className="w-72 rounded-xl border border-border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow duration-200">
+      <div className="p-5 flex flex-col items-center text-center gap-3">
+        <Avatar src={member.avatar_url} initials={member.avatar} />
+        <div className="w-full space-y-1">
+          <h4 className="font-semibold text-sm leading-none">{member.name}</h4>
+          <div className="flex items-center justify-center text-xs text-muted-foreground mt-1">
+            <Mail className="w-3 h-3 mr-1 shrink-0" />
+            <span className="truncate">{member.email || 'Sem e-mail'}</span>
+          </div>
+          {joinedAt && (
+            <div className="flex items-center justify-center text-xs text-muted-foreground">
+              <CalendarDays className="w-3 h-3 mr-1 shrink-0" />
+              <span>Entrou em {joinedAt}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-2 mt-1">
+          <Badge variant={member.access_role === 'admin' ? 'default' : 'secondary'} className="text-[10px] uppercase">
+            {member.access_role ?? 'user'}
+          </Badge>
+          <Badge variant="outline" className="text-[10px]">
+            {member.role}
+          </Badge>
+        </div>
       </div>
     </div>
   );
+}
+
+type LineSegment = { x1: number; y1: number; x2: number; y2: number };
+
+const MembersView: React.FC = () => {
+  const { effectiveClientId } = useClients();
+  const { data: members = [], isLoading } = useMembersQuery(effectiveClientId);
+
+  const activeMembers = useMemo(
+    () => members.filter((m) => m.is_active !== false),
+    [members]
+  );
+
+  const { admins, users } = useMemo(() => ({
+    admins: activeMembers.filter((m) => m.access_role === 'admin'),
+    users: activeMembers.filter((m) => m.access_role !== 'admin'),
+  }), [activeMembers]);
+
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const adminsRowRef = useRef<HTMLDivElement>(null);
+  const usersRowRef = useRef<HTMLDivElement>(null);
+  const [lines, setLines] = useState<LineSegment[]>([]);
+  const [svgHeight, setSvgHeight] = useState(0);
+
+  const computeLines = useCallback(() => {
+    if (!wrapperRef.current || !adminsRowRef.current || !usersRowRef.current) return;
+    if (admins.length === 0 || users.length === 0) return;
+
+    const base = wrapperRef.current.getBoundingClientRect();
+
+    const adminCards = Array.from(adminsRowRef.current.children) as HTMLElement[];
+    const userCards = Array.from(usersRowRef.current.children) as HTMLElement[];
+
+    const toLocal = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect();
+      return {
+        cx: r.left - base.left + r.width / 2,
+        top: r.top - base.top,
+        bottom: r.bottom - base.top,
+      };
+    };
+
+    const aRects = adminCards.map(toLocal);
+    const uRects = userCards.map(toLocal);
+
+    const adminBottomY = Math.max(...aRects.map((r) => r.bottom));
+    const userTopY = Math.min(...uRects.map((r) => r.top));
+    const midY = (adminBottomY + userTopY) / 2;
+
+    const newLines: LineSegment[] = [];
+
+    aRects.forEach((r) => newLines.push({ x1: r.cx, y1: r.bottom, x2: r.cx, y2: midY }));
+
+    const allCx = [...aRects.map((r) => r.cx), ...uRects.map((r) => r.cx)];
+    if (aRects.length > 1 || uRects.length > 1) {
+      newLines.push({ x1: Math.min(...allCx), y1: midY, x2: Math.max(...allCx), y2: midY });
+    }
+
+    uRects.forEach((r) => newLines.push({ x1: r.cx, y1: midY, x2: r.cx, y2: r.top }));
+
+    const totalHeight = Math.max(...uRects.map((r) => r.bottom));
+    setSvgHeight(totalHeight);
+    setLines(newLines);
+  }, [admins.length, users.length]);
+
+  useLayoutEffect(() => {
+    computeLines();
+  }, [computeLines]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 gap-4 text-muted-foreground">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground" />
+        <p>Carregando hierarquia...</p>
+      </div>
+    );
+  }
+
+  if (activeMembers.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground">
+        <UserCircle2 className="w-12 h-12 mb-2 opacity-50" />
+        <p>Nenhum membro encontrado.</p>
+      </div>
+    );
+  }
 
   return (
-    <Skeleton loading={isLoading} initialBones={MEMBERS_BONES} animate="shimmer">
-      {content}
-    </Skeleton>
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">Membros</h2>
+        <p className="text-sm text-muted-foreground">Hierarquia do time</p>
+      </div>
+
+      <div className="overflow-auto pb-8">
+        <div ref={wrapperRef} className="relative flex flex-col items-center gap-12 min-w-max mx-auto py-4">
+          {/* SVG connector overlay */}
+          {admins.length > 0 && users.length > 0 && lines.length > 0 && (
+            <svg
+              className="absolute inset-0 pointer-events-none"
+              width="100%"
+              height={svgHeight}
+              style={{ top: 0, left: 0 }}
+            >
+              {lines.map((l, i) => (
+                <line
+                  key={i}
+                  x1={l.x1} y1={l.y1}
+                  x2={l.x2} y2={l.y2}
+                  stroke="currentColor"
+                  strokeWidth={1}
+                  className="text-border"
+                />
+              ))}
+            </svg>
+          )}
+
+          <div ref={adminsRowRef} className="flex justify-center gap-8">
+            {admins.map((m) => (
+              <MemberCard key={m.id} member={m} />
+            ))}
+          </div>
+
+          {users.length > 0 && (
+            <div ref={usersRowRef} className="flex justify-center gap-8">
+              {users.map((m) => (
+                <MemberCard key={m.id} member={m} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

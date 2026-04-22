@@ -1,100 +1,53 @@
 # MembersView
 
-**Ficheiros:**
-- `src/views/MembersView/MembersView.tsx`
-- `src/views/MembersView/components/MemberCard.tsx`
-
-## Props
-
-```ts
-interface MembersViewProps {}
-```
+**Ficheiro:** `src/views/MembersView/MembersView.tsx`
 
 ## Responsabilidade
 
-Exibe um card por membro com resumo informativo de alocação e atalho para abrir o Dashboard em modo calendário filtrado por responsável.
+Exibe a equipa ativa em dois níveis hierárquicos fixos (admins acima, users abaixo), com um card por membro mostrando avatar, nome, e-mail, role e access_role. As linhas conectoras entre os níveis são desenhadas com SVG medido via `useLayoutEffect`.
 
-## Normalização de Tasks
+## Fonte de dados
 
-Todas as tasks passam por `normalizeTask()` antes do processamento:
+- `useMembersQuery(effectiveClientId)` — TanStack Query, dados do Supabase
+- `useClients()` — resolve o `effectiveClientId` do cliente selecionado
 
-```ts
-function normalizeTask(task: Task | LegacyTask): Task
-```
+## Lógica de hierarquia
 
-Usa `migrateLegacyTask` para converter tasks no formato antigo (fases `design/approval/dev/qa`) para o modelo de steps. Garante que `task.steps` e `task.status` estejam no formato correto independente da origem dos dados.
+A view exibe dois níveis fixos:
 
-## Lógica de Capacidade
+1. **Admins** (`access_role === 'admin'`) — linha superior, todos com igual importância
+2. **Users** (`access_role !== 'admin'`) — linha inferior, todos com igual importância
 
-Para cada membro, coleta todos os steps onde:
-- `step.active === true`
-- `step.start` e `step.end` existem
-- `step.assignees.includes(member.id)`
+Membros com `is_active === false` são filtrados antes da renderização.
 
-A **carga atual** (`activeCount`) é o subconjunto desses steps cujo intervalo inclui hoje (`step.start <= today && step.end >= today`).
+## Conector SVG
 
-Também calcula métricas leves por membro:
-- `taskEntries.length`: total de demandas atribuídas
-- `dueSoonCount`: steps com fim entre hoje e +7 dias
-- `blockedCount`: demandas bloqueadas entre as atribuídas
-- `nextDeadline`: próximo step por `step.end` para mostrar "Próxima entrega"
+As linhas entre os dois níveis são calculadas com `useLayoutEffect` após o render, medindo as posições reais dos cards via `getBoundingClientRect()`. Lógica:
 
-| `activeCount` | Status | Cor do badge |
-|---|---|---|
-| 0 | Capacidade Livre | Verde (`bg-green-500`) |
-| 1–3 | Alocado | Azul (`bg-blue-500`) |
-| >3 | Sobrecarregado | Vermelho (`bg-red-500`) |
+- Linha vertical descendo do bottom de cada admin até o ponto médio (`midY`)
+- Barra horizontal em `midY` abrangendo do admin mais à esquerda ao user mais à direita (só desenhada se há mais de 1 nó no total)
+- Linha vertical subindo de `midY` até o top de cada user
 
-## Agrupamento por Task
+O SVG fica posicionado `absolute` sobre o wrapper `relative`, com `pointer-events-none`.
 
-Após coletar os steps do membro, agrupa por `task.id` usando um `Map<string, { task, steps[] }>`. Cada entry representa uma demanda com todos os seus steps atribuídos ao membro.
+## Componentes internos
 
-## Layout do Card
-
-```
-┌──────────────────────────────────────────────────────┐
-│  [Avatar]  Nome                         [Badge status]│
-│            Role                                       │
-│                                                       │
-│  Resumo rápido: Demandas | Ativos hoje | +7 dias | Bloq│
-│  Próxima entrega: DD/MM · Nome da etapa               │
-│                                                       │
-│  Demandas com steps (N) — X steps ativos hoje         │
-│  ┌────────────────────────────────────────────────┐   │
-│  │ ● Título da task                   [Bloqueado] │   │
-│  │   [TAG] [TAG] [TAG]                            │   │
-│  └────────────────────────────────────────────────┘   │
-│  [Abrir calendário do membro]                         │
-└──────────────────────────────────────────────────────┘
-```
-
-- **Avatar:** iniciais do membro (`member.avatar`) em círculo cinza
-- **Indicador de step:** bolinha colorida via `STEP_META[currentStep.type].dot`; vermelha se bloqueado
-- **Tags de step:** `STEP_META[step.type].tag` com cor condicional:
-  - Step bloqueado (`step.start >= status.blockedAt`): vermelho
-  - Step ativo hoje: cor do tipo (`meta.color`) com borda
-  - Step fora do intervalo atual: muted
-- **Tooltip de cada tag:** `"YYYY-MM-DD → YYYY-MM-DD"` via `title`
-- **CTA do card:** botão "Abrir calendário do membro" configura redirecionamento no `useUIStore` (`dashboardRedirect`) e navega para `view='dashboard'`
-
-## Dependências Internas
-
-| Import | Uso |
+| Componente | Responsabilidade |
 |---|---|
-| `STEP_META` | Metadados de cor, tag e dot por tipo de step |
-| `migrateLegacyTask` | Converte tasks antigas para o modelo de steps |
-| `getCurrentStep` | Retorna o step ativo no dia fornecido |
-| `Badge` (`@/components/ui`) | Badge de status do membro |
-| `Button` (`@/components/ui`) | CTA para abrir calendário filtrado |
-| `useUIStore` | Passagem de `dashboardRedirect` (assignee + modo `calendar`) |
-| `MembersViewProps` (`@/types/props`) | Tipagem das props |
+| `MemberCard` | Renderiza o card de um membro (`w-56`, `bg-card`, badges de role e access_role) |
+| `Avatar` | Avatar com `avatar_url` quando disponível; fallback para iniciais (`bg-muted`, `text-muted-foreground`) |
 
-## Filtragem por cliente
+## Layout
 
-`members` recebido pela view já é `clientMembers` (derivado em `App.tsx`): contém apenas membros com steps atribuídos nas tarefas do cliente ativo. Quando admin visualiza "Todos os clientes", recebe todos os membros.
+Header padrão (`space-y-5`, igual a `TasksView`) com `h2 "Membros"` e subtítulo. Cards de 288 px (`w-72`) com `gap-8` entre eles. Container `overflow-auto` para scroll horizontal.
 
-## Notas
+Cada card exibe: avatar, nome, e-mail (sem truncamento), data de entrada no cliente (`created_at` formatada como "mês abrev. ano" em pt-BR, com ícone `CalendarDays`), e badges de `access_role` e `role`.
 
-- `todayStr()` gera a data atual em `YYYY-MM-DD` sem depender de timezone (usa `getFullYear/getMonth/getDate`)
-- O grid é `md:grid-cols-2` — dois cards por linha em telas médias
-- A lista visual de demandas no card mostra até 4 itens; restante aparece como `+N demandas`
+### Token `--card` vs `--background`
+
+Os tokens foram ajustados em `src/index.css` para criar contraste visível entre o card e o fundo da página:
+
+| Modo | `--background` | `--card` |
+|---|---|---|
+| Light | `oklch(1 0 0)` | `oklch(0.98 0 0)` |
+| Dark | `oklch(0.145 0 0)` | `oklch(0.205 0 0)` |
