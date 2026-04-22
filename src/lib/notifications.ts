@@ -1,4 +1,9 @@
-import { supabase, supabaseAdmin } from './supabase'
+import { supabase } from './supabase'
+import {
+  adminFetchAllNotifications as apiFetchAll,
+  adminCreateNotification as apiCreateNotification,
+  adminCreateNotificationForAll as apiCreateForAll,
+} from './adminApi'
 import type { DbNotificationRow, Notification } from '@/types/notification'
 
 export async function fetchNotifications(userId: string, clientIds?: string[]) {
@@ -55,18 +60,8 @@ export async function markAllAsRead(userId: string, clientIds?: string[]) {
 }
 
 export async function fetchAllNotifications() {
-  if (!supabaseAdmin) {
-    throw new Error('Admin não configurado')
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from('notifications')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(100)
-
-  if (error) throw error
-  return data ? data.map(mapDbToNotification) : []
+  const data = await apiFetchAll()
+  return (data as DbNotificationRow[]).map(mapDbToNotification)
 }
 
 export async function createNotification(
@@ -75,67 +70,27 @@ export async function createNotification(
   userId?: string,
   clientId?: string,
   type: string = 'admin_broadcast',
-  metadata?: Record<string, string> | null
+  metadata?: Record<string, string> | null,
 ) {
-  if (!supabaseAdmin) {
-    throw new Error('Admin não configurado')
-  }
-
-  const { error } = await supabaseAdmin
-    .from('notifications')
-    .insert({
-      user_id: userId ?? null,
-      client_id: clientId ?? null,
-      title,
-      message,
-      type,
-      metadata: metadata ?? null,
-    })
-
-  if (error) throw error
+  await apiCreateNotification(title, message, userId, clientId, type, metadata ?? undefined)
 }
 
 export async function createNotificationForClient(
   clientId: string,
   title: string,
   message: string,
-  type: string = 'admin_broadcast'
+  type: string = 'admin_broadcast',
 ) {
-  if (!supabaseAdmin) {
-    throw new Error('Admin não configurado')
-  }
-
-  const { error } = await supabaseAdmin
-    .from('notifications')
-    .insert({
-      client_id: clientId,
-      user_id: null,
-      title,
-      message,
-      type,
-    })
-
-  if (error) throw error
+  await apiCreateNotification(title, message, undefined, clientId, type)
 }
 
 export async function createNotificationForAll(
   clientIds: string[],
   title: string,
   message: string,
-  type: string = 'admin_broadcast'
+  type: string = 'admin_broadcast',
 ) {
-  if (!supabaseAdmin) throw new Error('Admin não configurado')
-
-  const rows = clientIds.map((clientId) => ({
-    client_id: clientId,
-    user_id: null,
-    title,
-    message,
-    type,
-  }))
-
-  const { error } = await supabaseAdmin.from('notifications').insert(rows)
-  if (error) throw error
+  await apiCreateForAll(clientIds, title, message, type)
 }
 
 export function resolveNotificationRoute(notification: Notification): string | null {

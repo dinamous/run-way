@@ -1,8 +1,7 @@
 # AdminView
 
 **Ficheiro:** `src/views/admin/AdminView.tsx`  
-**Acesso:** exclusivo para `member.access_role === 'admin'`  
-**Requer:** `VITE_SUPABASE_SERVICE_ROLE_KEY` configurada (usa `supabaseAdmin`)
+**Acesso:** exclusivo para `member.access_role === 'admin'` — verificado no componente via `useAuthContext`
 
 ## Estrutura
 
@@ -26,7 +25,18 @@ src/views/admin/
         └── utils.ts                    # formatDate, groupNotifications, getIcon/Label
 
 src/store/
-└── useAdminStore.ts           # Estado e fetches admin (Zustand)
+└── useAdminStore.ts           # Estado e fetches admin (Zustand) — usa adminApi
+
+src/lib/
+└── adminApi.ts                # Camada client-side para Edge Functions admin (ver abaixo)
+
+supabase/functions/
+├── _shared/auth.ts            # Helper: requireAdmin (valida JWT + access_role), getServiceClient, cors/json
+├── admin-clients/index.ts     # GET/POST/PUT/DELETE clients + audit log de delete
+├── admin-members/index.ts     # GET/POST/PUT + actions: deactivate, reactivate, setAuthId
+├── admin-notifications/index.ts # GET (histórico) / POST (criar notificação individual ou em batch)
+└── admin-users/index.ts       # GET actions: listAuthUsers, listPending, userClientsMap, auditLogs
+                               # POST actions: linkUser, unlinkUser, setRole
 ```
 
 ## Abas
@@ -37,9 +47,49 @@ src/store/
 | Usuários | `UsersPanel` | CRUD de membros; vínculo com conta Google |
 | Audit Log | `AuditLogsPanel` | Histórico de ações com filtros |
 
+## adminApi (`src/lib/adminApi.ts`)
+
+Camada client-side que expõe funções tipadas para todas as operações admin, chamando as Supabase Edge Functions via `fetch` direto (não `supabase.functions.invoke`). O token JWT do usuário e a `apikey` (anon key) são enviados explicitamente nos headers.
+
+**Query strings:** o `invoke` interno constrói a URL manualmente via `URLSearchParams` a partir de um objeto `query` opcional, garantindo que parâmetros como `action` e `id` cheguem corretamente à Edge Function.
+
+**Grupos de funções:**
+- `adminFetchClients / adminCreateClient / adminUpdateClient / adminDeleteClient`
+- `adminFetchMembers / adminCreateMember / adminUpdateMember / adminDeactivateMember / adminReactivateMember / adminSetMemberAuthId`
+- `adminListPendingUsers / adminListAuthUsers / adminFetchUserClientsMap / adminFetchAuditLogs`
+- `adminLinkUserToClient / adminUnlinkUserFromClient / adminSetUserRole`
+- `adminFetchAllNotifications / adminCreateNotification / adminCreateNotificationForAll`
+
+> **Segurança:** a `SUPABASE_SERVICE_ROLE_KEY` nunca é enviada ao browser — fica exclusivamente nas variáveis de ambiente das Edge Functions (configuradas via `supabase secrets set`). O `.env` do frontend **não deve** conter essa chave.
+
+## Edge Functions (`supabase/functions/`)
+
+Cada função valida o JWT via `requireAdmin` (`_shared/auth.ts`) antes de qualquer acesso ao banco com o service client. Retornam 401/403 se o token for inválido ou o usuário não for admin.
+
+**Validação do token:** usa `fetch` direto para `/auth/v1/user` com o token do usuário no header `Authorization` e a `SUPABASE_SERVICE_ROLE_KEY` como `apikey`. A validação é feita manualmente dentro de `requireAdmin` — a opção "Verify JWT" nas Edge Functions deve estar **desativada** no dashboard (Settings → Edge Functions → [função] → Verify JWT).
+
+**Deploy:**
+
+Use o script `supabase/deploy-functions.sh` para fazer o deploy de todas as funções de uma vez:
+
+```bash
+bash supabase/deploy-functions.sh
+```
+
+Ou individualmente:
+
+```bash
+npx supabase functions deploy admin-clients
+npx supabase functions deploy admin-members
+npx supabase functions deploy admin-notifications
+npx supabase functions deploy admin-users
+```
+
+> **Nota:** `SUPABASE_SERVICE_ROLE_KEY` é injetada automaticamente pelo runtime das Edge Functions — não é necessário (nem possível) setar via `supabase secrets set`. A variável opcional `ALLOWED_DOMAIN` pode ser configurada se quiser restringir domínio de login.
+
 ## useAdminStore
 
-Store Zustand (`src/store/useAdminStore.ts`) que centraliza o estado e as ações de fetch da AdminView. Persiste os dados entre montagens — navegar para outra view e voltar não re-faz os fetches.
+Store Zustand (`src/store/useAdminStore.ts`) que centraliza o estado e as ações de fetch da AdminView. Persiste os dados entre montagens — navegar para outra view e voltar não re-faz os fetches. Todos os fetches delegam para `adminApi` (Edge Functions) em vez de chamar o Supabase diretamente com service role.
 
 **Estado:**
 ```ts
@@ -69,6 +119,7 @@ Hook fino (`src/views/admin/hooks/useAdminData.ts`) que consome `useAdminStore` 
 - Lê estado da store e repassa para os componentes
 - Dispara `refreshAll()` apenas se `!initialized` (evita re-fetch ao remontar)
 - Contém todas as mutations (CRUD clients/users, vínculos, deactivate/reactivate) que dependem de `actorUserId` e chamam `reloadAppStores` após concluir
+- Todas as mutations delegam para `adminApi` (sem acesso direto ao Supabase com service role)
 
 **Mutations:**
 - `createClient / updateClient / deleteClient`

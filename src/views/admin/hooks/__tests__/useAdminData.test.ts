@@ -1,29 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-// Mock do supabaseAdmin antes de importar o hook
-vi.mock('@/lib/supabase', () => ({
-  supabaseAdmin: {
-    from: vi.fn(),
-    auth: {
-      admin: {
-        deleteUser: vi.fn(),
-        listUsers: vi.fn(),
-      },
-    },
-  },
-}))
-
-// Mock do queryClient (TanStack Query)
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   return {
     ...actual,
-    useQueryClient: () => ({
-      invalidateQueries: vi.fn(),
-    }),
+    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
   }
 })
+
 vi.mock('@/store/useClientStore', () => ({
   useClientStore: (selector: (s: { selectedClientId: string | null }) => unknown) =>
     selector({ selectedClientId: null }),
@@ -60,111 +45,89 @@ vi.mock('@/store/useAdminStore', () => ({
   }),
 }))
 
+vi.mock('@/lib/adminApi', () => ({
+  adminCreateClient: vi.fn(),
+  adminUpdateClient: vi.fn(),
+  adminDeleteClient: vi.fn(),
+  adminCreateMember: vi.fn(),
+  adminUpdateMember: vi.fn(),
+  adminDeactivateMember: vi.fn(),
+  adminReactivateMember: vi.fn(),
+  adminSetMemberAuthId: vi.fn(),
+  adminLinkUserToClient: vi.fn(),
+  adminUnlinkUserFromClient: vi.fn(),
+  adminSetUserRole: vi.fn(),
+  adminListAuthUsers: vi.fn().mockResolvedValue([]),
+}))
+
 import { useAdminData } from '../useAdminData'
-import { supabaseAdmin } from '@/lib/supabase'
-
-// Helper para criar mock de query chain do Supabase.
-// Todos os métodos retornam `this` para permitir encadeamento, EXCETO `.single()` que resolve.
-// O objeto mock em si é uma Promise resolvida (via Promise.resolve) para que `await chain` funcione
-// sem expor `.then` diretamente no objeto (o que causaria loop infinito).
-function makeQueryMock(returnValue: { data?: unknown; error?: unknown }): Promise<typeof returnValue> & Record<string, unknown> {
-  const base = Promise.resolve(returnValue) as Promise<typeof returnValue> & Record<string, unknown>
-  const chainMethods = ['select', 'order', 'limit', 'gte', 'lte', 'ilike', 'eq', 'match', 'delete', 'update', 'upsert', 'insert']
-  for (const method of chainMethods) {
-    base[method] = vi.fn().mockReturnValue(base)
-  }
-  base['single'] = vi.fn().mockResolvedValue(returnValue)
-  return base
-}
-
- 
-const admin = supabaseAdmin!
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyQuery = any
+import * as adminApi from '@/lib/adminApi'
 
 describe('useAdminData', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-
-    // Setup padrão: fetches iniciais retornam listas vazias
-    const emptyQuery = makeQueryMock({ data: [], error: null })
-    vi.mocked(admin.from).mockReturnValue(emptyQuery as AnyQuery)
-    vi.mocked(admin.auth.admin.listUsers).mockResolvedValue({
-      data: { users: [], aud: '', nextPage: 0, lastPage: 0, total: 0 },
-      error: null,
-    } as unknown as Awaited<ReturnType<typeof admin.auth.admin.listUsers>>)
   })
 
-describe('deactivateUser', () => {
-  it('desativa o member e retorna true', async () => {
-    const updateQuery = makeQueryMock({ data: null, error: null })
-    vi.mocked(admin.from).mockReturnValue(updateQuery as AnyQuery)
+  describe('deactivateUser', () => {
+    it('desativa o member e retorna true', async () => {
+      vi.mocked(adminApi.adminDeactivateMember).mockResolvedValue({ deactivated_at: '2024-01-01T00:00:00Z' })
+      const { result } = renderHook(() => useAdminData())
 
-    const { result } = renderHook(() => useAdminData())
+      let ok: boolean | undefined
+      await act(async () => {
+        ok = await result.current.deactivateUser('member-1')
+      })
 
-    let ok: boolean | undefined
-    await act(async () => {
-      ok = await result.current.deactivateUser('member-1')
+      expect(ok).toBe(true)
+      expect(mockPatchUser).toHaveBeenCalledWith('member-1', { is_active: false, deactivated_at: '2024-01-01T00:00:00Z' })
     })
 
-    expect(ok).toBe(true)
+    it('retorna false quando a desativação falha', async () => {
+      vi.mocked(adminApi.adminDeactivateMember).mockRejectedValue(new Error('update failed'))
+      const { result } = renderHook(() => useAdminData())
+
+      let ok: boolean | undefined
+      await act(async () => {
+        ok = await result.current.deactivateUser('member-1')
+      })
+
+      expect(ok).toBe(false)
+    })
   })
 
-  it('retorna false quando a desativação falha', async () => {
-    const errorQuery = makeQueryMock({ data: null, error: { message: 'update failed' } })
-    vi.mocked(admin.from).mockReturnValue(errorQuery as AnyQuery)
+  describe('reactivateUser', () => {
+    it('reativa o member e retorna true', async () => {
+      vi.mocked(adminApi.adminReactivateMember).mockResolvedValue(undefined)
+      const { result } = renderHook(() => useAdminData())
 
-    const { result } = renderHook(() => useAdminData())
+      let ok: boolean | undefined
+      await act(async () => {
+        ok = await result.current.reactivateUser('member-1')
+      })
 
-    let ok: boolean | undefined
-    await act(async () => {
-      ok = await result.current.deactivateUser('member-1')
+      expect(ok).toBe(true)
+      expect(mockPatchUser).toHaveBeenCalledWith('member-1', { is_active: true, deactivated_at: null })
     })
 
-    expect(ok).toBe(false)
-  })
-})
+    it('retorna false quando a reativação falha', async () => {
+      vi.mocked(adminApi.adminReactivateMember).mockRejectedValue(new Error('update failed'))
+      const { result } = renderHook(() => useAdminData())
 
-describe('reactivateUser', () => {
-  it('reativa o member e retorna true', async () => {
-    const updateQuery = makeQueryMock({ data: null, error: null })
-    vi.mocked(admin.from).mockReturnValue(updateQuery as AnyQuery)
+      let ok: boolean | undefined
+      await act(async () => {
+        ok = await result.current.reactivateUser('member-1')
+      })
 
-    const { result } = renderHook(() => useAdminData())
-
-    let ok: boolean | undefined
-    await act(async () => {
-      ok = await result.current.reactivateUser('member-1')
+      expect(ok).toBe(false)
     })
-
-    expect(ok).toBe(true)
   })
 
-  it('retorna false quando a reativação falha', async () => {
-    const errorQuery = makeQueryMock({ data: null, error: { message: 'update failed' } })
-    vi.mocked(admin.from).mockReturnValue(errorQuery as AnyQuery)
-
-    const { result } = renderHook(() => useAdminData())
-
-    let ok: boolean | undefined
-    await act(async () => {
-      ok = await result.current.reactivateUser('member-1')
-    })
-
-    expect(ok).toBe(false)
-  })
-})
-
-describe('setUserAuthId — atualiza pendingUsers após vincular', () => {
+  describe('setUserAuthId — atualiza pendingUsers após vincular', () => {
     it('chama fetchPendingUsers após um setUserAuthId bem-sucedido', async () => {
-      const updateQuery = makeQueryMock({ data: null, error: null })
-      vi.mocked(admin.from).mockReturnValue(updateQuery as AnyQuery)
-
+      vi.mocked(adminApi.adminSetMemberAuthId).mockResolvedValue(undefined)
       const { result } = renderHook(() => useAdminData())
 
       mockFetchPendingUsers.mockClear()
-
       await act(async () => {
         await result.current.setUserAuthId('member-1', 'auth-uuid-new', null)
       })

@@ -1,11 +1,27 @@
 import { useEffect, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { supabaseAdmin } from '@/lib/supabase'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
 import { useAdminStore } from '@/store/useAdminStore'
-import type { PendingAuthUser, AuditFilters } from '@/store/useAdminStore'
+import {
+  adminCreateClient,
+  adminUpdateClient,
+  adminDeleteClient,
+  adminCreateMember,
+  adminUpdateMember,
+  adminDeactivateMember,
+  adminReactivateMember,
+  adminSetMemberAuthId,
+  adminLinkUserToClient,
+  adminUnlinkUserFromClient,
+  adminSetUserRole,
+  adminListAuthUsers,
+  type CreateMemberPayload,
+  type GoogleUser,
+} from '@/lib/adminApi'
+import type { AuditFilters } from '@/store/useAdminStore'
 
-export type { PendingAuthUser, AuditFilters }
+export type { AuditFilters }
+export type PendingAuthUser = import('@/lib/adminApi').PendingAuthUser
 
 interface UseAdminDataOptions {
   actorUserId?: string | null
@@ -13,7 +29,6 @@ interface UseAdminDataOptions {
 
 export function useAdminData(options: UseAdminDataOptions = {}) {
   const { actorUserId } = options
-
   const queryClient = useQueryClient()
 
   const {
@@ -23,12 +38,11 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     fetchAuditLogs, refreshAll, patchUser, setError,
   } = useAdminStore()
 
-  // Carrega os dados apenas na primeira vez que o AdminView montar
   useEffect(() => {
-    if (!initialized && !loadingInitial) {
+    if (!initialized && !loadingInitial && !error) {
       refreshAll()
     }
-  }, [initialized, loadingInitial, refreshAll])
+  }, [initialized, loadingInitial, error, refreshAll])
 
   const reloadAppStores = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['tasks'] })
@@ -38,10 +52,8 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
   // ── CRUD clients ────────────────────────────────────────────────────────────
 
   const createClient = useCallback(async (name: string, slug: string) => {
-    if (!supabaseAdmin) return false
-    const { error } = await supabaseAdmin.from('clients').insert({ name, slug })
-    if (error) return false
     try {
+      await adminCreateClient(name, slug)
       setError(null)
       await fetchClients()
       await reloadAppStores()
@@ -53,10 +65,8 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
   }, [fetchClients, reloadAppStores, setError])
 
   const updateClient = useCallback(async (id: string, name: string, slug: string) => {
-    if (!supabaseAdmin) return false
-    const { error } = await supabaseAdmin.from('clients').update({ name, slug }).eq('id', id)
-    if (error) return false
     try {
+      await adminUpdateClient(id, name, slug)
       setError(null)
       await fetchClients()
       await reloadAppStores()
@@ -68,26 +78,8 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
   }, [fetchClients, reloadAppStores, setError])
 
   const deleteClient = useCallback(async (id: string, name: string) => {
-    if (!supabaseAdmin) return false
-    const deletedClient = clients.find(client => client.id === id)
-    const { error } = await supabaseAdmin.from('clients').delete().eq('id', id)
-    if (error) return false
-
-    if (actorUserId) {
-      await supabaseAdmin.from('audit_logs').insert({
-        user_id: actorUserId,
-        client_id: deletedClient?.id ?? id,
-        entity: 'client',
-        entity_id: id,
-        entity_name: deletedClient?.name ?? name,
-        action: 'delete',
-        field: null,
-        from_value: null,
-        to_value: null,
-      })
-    }
-
     try {
+      await adminDeleteClient(id, name, actorUserId ?? undefined)
       setError(null)
       await fetchClients()
       await reloadAppStores()
@@ -96,17 +88,13 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [actorUserId, clients, fetchClients, reloadAppStores, setError])
+  }, [actorUserId, fetchClients, reloadAppStores, setError])
 
   // ── Vínculo user ↔ client ────────────────────────────────────────────────────
 
   const linkUserToClient = useCallback(async (userId: string, clientId: string) => {
-    if (!supabaseAdmin) return false
-    const { error } = await supabaseAdmin
-      .from('user_clients')
-      .upsert({ user_id: userId, client_id: clientId })
-    if (error) return false
     try {
+      await adminLinkUserToClient(userId, clientId)
       setError(null)
       await fetchUsers()
       await fetchUserClientsMap()
@@ -119,13 +107,8 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
   }, [fetchUsers, fetchUserClientsMap, reloadAppStores, setError])
 
   const unlinkUserFromClient = useCallback(async (userId: string, clientId: string) => {
-    if (!supabaseAdmin) return false
-    const { error } = await supabaseAdmin
-      .from('user_clients')
-      .delete()
-      .match({ user_id: userId, client_id: clientId })
-    if (error) return false
     try {
+      await adminUnlinkUserFromClient(userId, clientId)
       setError(null)
       await fetchUsers()
       await fetchUserClientsMap()
@@ -140,13 +123,8 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
   // ── CRUD users ───────────────────────────────────────────────────────────────
 
   const setUserRole = useCallback(async (userId: string, role: 'admin' | 'user') => {
-    if (!supabaseAdmin) return false
-    const { error } = await supabaseAdmin
-      .from('members')
-      .update({ access_role: role })
-      .eq('id', userId)
-    if (error) return false
     try {
+      await adminSetUserRole(userId, role)
       setError(null)
       await fetchUsers()
       await reloadAppStores()
@@ -164,28 +142,11 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     accessRole?: 'admin' | 'user',
     clientIds?: string[],
     email?: string | null,
-    avatarUrl?: string | null
+    avatarUrl?: string | null,
   ) => {
-    if (!supabaseAdmin) return false
-    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    const { data: member, error: memberErr } = await supabaseAdmin.from('members').insert({
-      name,
-      role,
-      avatar: initials,
-      auth_user_id: authUserId ?? null,
-      access_role: accessRole ?? 'user',
-      email: email ?? null,
-      avatar_url: avatarUrl ?? null,
-    }).select().single()
-
-    if (memberErr || !member) return false
-
-    if (clientIds && clientIds.length > 0) {
-      const userClientRows = clientIds.map(cid => ({ user_id: member.id, client_id: cid }))
-      await supabaseAdmin.from('user_clients').insert(userClientRows)
-    }
-
+    const payload: CreateMemberPayload = { name, role, authUserId, accessRole, clientIds, email, avatarUrl }
     try {
+      await adminCreateMember(payload)
       await fetchUsers()
       await fetchUserClientsMap()
       if (authUserId) await fetchPendingUsers()
@@ -199,13 +160,8 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
   }, [fetchUsers, fetchUserClientsMap, fetchPendingUsers, reloadAppStores, setError])
 
   const setUserAuthId = useCallback(async (userId: string, authUserId: string | null, avatarUrl?: string | null) => {
-    if (!supabaseAdmin) return false
-    const { error } = await supabaseAdmin
-      .from('members')
-      .update({ auth_user_id: authUserId, avatar_url: avatarUrl ?? null })
-      .eq('id', userId)
-    if (error) return false
     try {
+      await adminSetMemberAuthId(userId, authUserId, avatarUrl)
       setError(null)
       await fetchUsers()
       await fetchPendingUsers()
@@ -217,20 +173,9 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     }
   }, [fetchUsers, fetchPendingUsers, reloadAppStores, setError])
 
-  const updateUser = useCallback(async (
-    userId: string,
-    name: string,
-    role: string,
-    email?: string | null
-  ) => {
-    if (!supabaseAdmin) return false
-    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    const { error } = await supabaseAdmin
-      .from('members')
-      .update({ name, role, email: email ?? null, avatar: initials })
-      .eq('id', userId)
-    if (error) return false
+  const updateUser = useCallback(async (userId: string, name: string, role: string, email?: string | null) => {
     try {
+      await adminUpdateMember(userId, name, role, email)
       setError(null)
       await fetchUsers()
       await reloadAppStores()
@@ -242,52 +187,33 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
   }, [fetchUsers, reloadAppStores, setError])
 
   const deactivateUser = useCallback(async (userId: string) => {
-    if (!supabaseAdmin) return false
-    const deactivated_at = new Date().toISOString()
-    const { error } = await supabaseAdmin
-      .from('members')
-      .update({ is_active: false, deactivated_at })
-      .eq('id', userId)
-    if (error) {
-      console.error('[deactivateUser] error:', error)
+    try {
+      const { deactivated_at } = await adminDeactivateMember(userId)
+      patchUser(userId, { is_active: false, deactivated_at })
+      return true
+    } catch (err) {
+      console.error('[deactivateUser] error:', err)
       return false
     }
-    patchUser(userId, { is_active: false, deactivated_at })
-    return true
   }, [patchUser])
 
   const reactivateUser = useCallback(async (userId: string) => {
-    if (!supabaseAdmin) return false
-    const { error } = await supabaseAdmin
-      .from('members')
-      .update({ is_active: true, deactivated_at: null })
-      .eq('id', userId)
-    if (error) {
-      console.error('[reactivateUser] error:', error)
+    try {
+      await adminReactivateMember(userId)
+      patchUser(userId, { is_active: true, deactivated_at: null })
+      return true
+    } catch (err) {
+      console.error('[reactivateUser] error:', err)
       return false
     }
-    patchUser(userId, { is_active: true, deactivated_at: null })
-    return true
   }, [patchUser])
 
-  const listGoogleUsers = useCallback(async (search?: string) => {
-    if (!supabaseAdmin) return []
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers()
-    if (error || !data) return []
-    let users = data.users.filter(u => u.email)
-    if (search) {
-      const lower = search.toLowerCase()
-      users = users.filter(u =>
-        u.email?.toLowerCase().includes(lower) ||
-        u.user_metadata?.full_name?.toLowerCase().includes(lower)
-      )
+  const listGoogleUsers = useCallback(async (search?: string): Promise<GoogleUser[]> => {
+    try {
+      return await adminListAuthUsers(search)
+    } catch {
+      return []
     }
-    return users.slice(0, 20).map(u => ({
-      id: u.id,
-      email: u.email!,
-      avatarUrl: u.user_metadata?.avatar_url ?? null,
-      name: u.user_metadata?.full_name ?? u.email!.split('@')[0],
-    }))
   }, [])
 
   return {
@@ -299,4 +225,3 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     createUser, setUserAuthId, updateUser, deactivateUser, reactivateUser, listGoogleUsers,
   }
 }
-

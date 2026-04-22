@@ -48,7 +48,8 @@ src/
 │   ├── AuthContext.tsx        # Sessão, member, clients, isAdmin, refreshProfile
 │   └── LayoutContext.tsx      # Contexto do shell de layout (header, sidebar, router) — elimina prop drilling em AppLayout
 ├── lib/
-│   ├── supabase.ts            # Cliente Supabase
+│   ├── supabase.ts            # Cliente Supabase (apenas anon key — sem service role key)
+│   ├── adminApi.ts            # Funções tipadas que chamam as Supabase Edge Functions admin
 │   ├── queries.ts             # fetchTasksFromDb, fetchMembersFromDb, queryKeys — valida rows com Zod antes do mapeamento
 │   ├── validators.ts          # Schemas Zod para rows do banco (DbTaskRowSchema, DbStepRowSchema, DbStepAssigneeSchema)
 │   ├── steps.ts               # Definição e lógica de steps
@@ -287,6 +288,21 @@ A segunda policy é necessária para que `fetchMembersFromDb` consiga buscar tod
 - **Primária:** Supabase (PostgreSQL) — fonte de verdade
 - **Auth:** Supabase Auth — sessão gerida pelo SDK
 - **Cliente selecionado:** localStorage via `zustand/persist` (`client-store`)
+
+## Edge Functions (`supabase/functions/`)
+
+Operações admin (que requerem service role key para bypas the RLS) rodam exclusivamente em Edge Functions server-side. O cliente nunca recebe nem envia a service role key.
+
+```
+supabase/functions/
+├── _shared/auth.ts              # requireAdmin (valida JWT + access_role = admin), getServiceClient, cors/json
+├── admin-clients/index.ts       # CRUD de clientes
+├── admin-members/index.ts       # CRUD de membros (incluindo deactivate/reactivate/setAuthId)
+├── admin-notifications/index.ts # Leitura e criação de notificações admin
+└── admin-users/index.ts         # listAuthUsers, listPending, userClientsMap, auditLogs, linkUser, setRole
+```
+
+O cliente chama estas funções através de `src/lib/adminApi.ts` via `supabase.functions.invoke` — o token JWT é enviado automaticamente e validado pela função antes de qualquer acesso privilegiado.
 
 ## LayoutContext (`src/contexts/LayoutContext.tsx`)
 

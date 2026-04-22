@@ -12,7 +12,7 @@ type MockContext = ReturnType<typeof import('@/contexts/AuthContext').useAuthCon
 const mockContextValue: MockContext = {
   session: null,
   user: null,
-  member: { id: 'admin-1', name: 'Admin User' } as never,
+  member: { id: 'admin-1', name: 'Admin User', access_role: 'admin' } as never,
   clients: [],
   isAdmin: true,
   impersonatedClientId: null,
@@ -23,15 +23,6 @@ const mockContextValue: MockContext = {
   loading: false,
   refreshProfile: vi.fn(),
 }
-
-vi.mock('@/lib/supabase', () => ({
-  supabaseAdmin: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => Promise.resolve({ data: [], error: null })),
-    })),
-    auth: { admin: { listUsers: vi.fn(() => Promise.resolve({ data: { users: [] }, error: null })) } },
-  },
-}))
 
 vi.mock('../hooks/useAdminData', () => ({
   useAdminData: () => ({
