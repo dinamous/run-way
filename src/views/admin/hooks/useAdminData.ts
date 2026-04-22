@@ -2,7 +2,7 @@ import { useEffect, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
 import { useAdminStore } from '@/store/useAdminStore'
-import { createNotificationForClient } from '@/lib/notifications'
+import { createNotificationForClient, createNotification } from '@/lib/notifications'
 import {
   adminCreateClient,
   adminUpdateClient,
@@ -100,13 +100,24 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(null)
       await fetchUserClientsMap()
       await reloadAppStores()
+      const client = clients.find((c) => c.id === clientId)
+      if (client) {
+        const clientName = client.name
+        await createNotification(
+          '🏢 Novo cliente disponível!',
+          `Você agora tem acesso ao cliente **${clientName}**. Clique para ver seus clientes.`,
+          userId,
+          clientId,
+          'client_access_granted',
+        )
+      }
       return true
     } catch (err) {
       patchUserClientsMap(userId, clientId, 'remove')
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [patchUserClientsMap, fetchUserClientsMap, reloadAppStores, setError])
+  }, [clients, patchUserClientsMap, fetchUserClientsMap, reloadAppStores, setError])
 
   const unlinkUserFromClient = useCallback(async (userId: string, clientId: string) => {
     patchUserClientsMap(userId, clientId, 'remove')
@@ -156,9 +167,8 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       setError(null)
       await reloadAppStores()
       if (clientIds && clientIds.length > 0) {
-        const roleLabel = role === 'Designer' ? '🎨 Designer' : '💻 Developer'
         const title = `👋 Novo integrante na equipe!`
-        const message = `**${name}** acabou de entrar para a equipe como **${roleLabel}**.\n\nClique para conhecer quem faz parte do time! 🚀`
+        const message = `**${name}** acabou de entrar para a equipe como **${role}**.\n\nClique para conhecer quem faz parte do time! 🚀`
         await Promise.all(
           clientIds.map((cid) => createNotificationForClient(cid, title, message, 'new_member')),
         )

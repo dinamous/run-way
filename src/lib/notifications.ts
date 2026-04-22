@@ -29,7 +29,7 @@ export async function fetchNotifications(userId: string, clientIds?: string[]) {
     console.error('fetchNotifications error:', error)
     throw error
   }
-  return data ? data.map(mapDbToNotification) : []
+  return data ? (data as DbNotificationRow[]).map(mapDbToNotification) : []
 }
 
 async function _markAsRead(id: string) {
@@ -98,20 +98,17 @@ export async function createNotificationForAll(
 }
 
 export function resolveNotificationRoute(notification: Notification): string | null {
-  if (notification.type === 'new_member') return '/members'
-  if (!notification.metadata) return null
-
   switch (notification.type) {
+    case 'new_member':
+      return '/members'
+
     case 'step_assigned':
     case 'step_unassigned': {
-      const stepId = notification.metadata?.step_id
-      const taskTitle = notification.metadata?.task_title
-      if (stepId) {
-        return `/dashboard?step=${stepId}`
-      }
-      if (taskTitle) {
-        return `/dashboard?task=${encodeURIComponent(taskTitle)}`
-      }
+      if (!notification.metadata) return '/dashboard'
+      const stepId = notification.metadata.step_id
+      const taskTitle = notification.metadata.task_title
+      if (stepId) return `/dashboard?step=${stepId}`
+      if (taskTitle) return `/dashboard?task=${encodeURIComponent(taskTitle)}`
       return '/dashboard'
     }
 
@@ -122,11 +119,10 @@ export function resolveNotificationRoute(notification: Notification): string | n
       return '/dashboard'
 
     case 'client_access_granted':
+      return notification.client_id ? `/clients/${notification.client_id}` : '/clients'
+
     case 'client_access_revoked':
       return '/clients'
-
-    case 'new_member':
-      return '/members'
 
     case 'admin_broadcast':
     default:

@@ -77,12 +77,24 @@ export function useAppOrchestrator() {
     (notification: Notification) => {
       const route = resolveNotificationRoute(notification);
       if (!route) return;
+
+      if (notification.type === 'client_access_granted' && notification.client_id) {
+        const isAlreadyOnClient = effectiveClientId === notification.client_id;
+        const clientExists = auth.clients.some((c) => c.id === notification.client_id);
+        if (clientExists && !isAlreadyOnClient) {
+          selectClient(notification.client_id);
+          return;
+        }
+        setView('clients');
+        return;
+      }
+
       if (route.startsWith("/dashboard")) setView("calendar");
       else if (route === "/profile") setView("profile");
       else if (route === "/clients") setView("clients");
       else if (route === "/members") setView("members");
     },
-    [setView]
+    [setView, selectClient, effectiveClientId, auth.clients]
   );
 
   const handleViewChange = useCallback(

@@ -163,8 +163,10 @@ Jobs agendados às **9h, 12h e 15h UTC**. Só executam se houve mudança de `sta
 | `type` | Gatilho | Destinatário | Mensagem |
 |---|---|---|---|
 | `new_member` | `createUser` em `useAdminData` após `adminCreateMember` | broadcast para todos os `clientIds` do novo membro | "👋 Novo integrante na equipe! **Nome** acabou de entrar como **🎨 Designer** / **💻 Developer**. Clique para conhecer quem faz parte do time! 🚀" |
+| `client_access_granted` | `linkUserToClient` em `useAdminData` após `adminLinkUserToClient` | notificação pessoal (`user_id` preenchido) para o membro vinculado | "🏢 Novo cliente disponível! Você agora tem acesso ao cliente **NomeDoCliente**. Clique para ver seus clientes." |
 
-> O disparo usa `createNotificationForClient` (broadcast, `user_id = null`) para cada cliente ao qual o novo membro foi vinculado.
+> `new_member` usa `createNotificationForClient` (broadcast, `user_id = null`) — todos do cliente recebem, exceto o próprio novo membro.
+> `client_access_granted` usa `createNotification` com `user_id` preenchido — apenas o membro vinculado recebe.
 
 ## Deduplicação
 
