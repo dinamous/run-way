@@ -36,7 +36,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     clients, users, auditLogs, loading, loadingInitial, error,
     userClientsMap, pendingUsers, initialized,
     fetchClients, fetchUsers, fetchUserClientsMap, fetchPendingUsers,
-    fetchAuditLogs, refreshAll, patchUser, setError,
+    fetchAuditLogs, refreshAll, patchUser, patchUserClientsMap, setError,
   } = useAdminStore()
 
   useEffect(() => {
@@ -94,32 +94,34 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
   // ── Vínculo user ↔ client ────────────────────────────────────────────────────
 
   const linkUserToClient = useCallback(async (userId: string, clientId: string) => {
+    patchUserClientsMap(userId, clientId, 'add')
     try {
       await adminLinkUserToClient(userId, clientId)
       setError(null)
-      await fetchUsers()
       await fetchUserClientsMap()
       await reloadAppStores()
       return true
     } catch (err) {
+      patchUserClientsMap(userId, clientId, 'remove')
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, fetchUserClientsMap, reloadAppStores, setError])
+  }, [patchUserClientsMap, fetchUserClientsMap, reloadAppStores, setError])
 
   const unlinkUserFromClient = useCallback(async (userId: string, clientId: string) => {
+    patchUserClientsMap(userId, clientId, 'remove')
     try {
       await adminUnlinkUserFromClient(userId, clientId)
       setError(null)
-      await fetchUsers()
       await fetchUserClientsMap()
       await reloadAppStores()
       return true
     } catch (err) {
+      patchUserClientsMap(userId, clientId, 'add')
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
       return false
     }
-  }, [fetchUsers, fetchUserClientsMap, reloadAppStores, setError])
+  }, [patchUserClientsMap, fetchUserClientsMap, reloadAppStores, setError])
 
   // ── CRUD users ───────────────────────────────────────────────────────────────
 

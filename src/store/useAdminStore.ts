@@ -44,6 +44,7 @@ interface AdminActions {
   fetchAuditLogs: (filters?: AuditFilters) => Promise<void>
   refreshAll: () => Promise<void>
   patchUser: (userId: string, patch: Partial<Member>) => void
+  patchUserClientsMap: (userId: string, clientId: string, action: 'add' | 'remove') => void
   setError: (error: string | null) => void
   invalidate: () => void
 }
@@ -67,6 +68,15 @@ export const useAdminStore = create<AdminStore>()(
         set((state) => ({
           users: state.users.map((u) => u.id === userId ? { ...u, ...patch } : u),
         })),
+
+      patchUserClientsMap: (userId, clientId, action) =>
+        set((state) => {
+          const current = state.userClientsMap[userId] ?? []
+          const updated = action === 'add'
+            ? current.includes(clientId) ? current : [...current, clientId]
+            : current.filter(id => id !== clientId)
+          return { userClientsMap: { ...state.userClientsMap, [userId]: updated } }
+        }),
 
       setError: (error) => set({ error }),
 
