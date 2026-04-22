@@ -28,14 +28,21 @@ As linhas entre os dois níveis são calculadas com `useLayoutEffect` após o re
 - Barra horizontal em `midY` abrangendo do admin mais à esquerda ao user mais à direita (só desenhada se há mais de 1 nó no total)
 - Linha vertical subindo de `midY` até o top de cada user
 
-O SVG fica posicionado `absolute` sobre o wrapper `relative`, com `pointer-events-none`.
+O SVG fica posicionado `absolute` sobre o wrapper `relative`, com `pointer-events-none`. As linhas usam keys derivadas das coordenadas (`x1-y1-x2-y2`) em vez de índice.
+
+Um `ResizeObserver` no `wrapperRef` re-computa as linhas ao redimensionar a janela; o observer é desconectado no cleanup do `useLayoutEffect`.
 
 ## Componentes internos
 
-| Componente | Responsabilidade |
-|---|---|
-| `MemberCard` | Renderiza o card de um membro (`w-56`, `bg-card`, badges de role e access_role) |
-| `Avatar` | Avatar com `avatar_url` quando disponível; fallback para iniciais (`bg-muted`, `text-muted-foreground`) |
+Extraídos para `src/views/MembersView/components/`:
+
+| Componente | Ficheiro | Responsabilidade |
+|---|---|---|
+| `HierarchyMemberCard` | `HierarchyMemberCard.tsx` | Card hierárquico (`w-72`, `bg-card`, badges de `access_role` e `role`) |
+| `HierarchyAvatar` | `HierarchyAvatar.tsx` | Avatar com `avatar_url`; fallback para iniciais (`bg-muted`, `text-muted-foreground`) |
+| `HierarchySkeleton` | `HierarchySkeleton.tsx` | Skeleton de carregamento com forma idêntica à hierarquia (1 admin + 3 users), substituindo o spinner genérico |
+
+> **Nota:** `HierarchyMemberCard` e `HierarchyAvatar` são distintos de `MemberCard` (em `components/MemberCard.tsx`), que é o card de capacidade usado na view de capacidade.
 
 ## Layout
 
