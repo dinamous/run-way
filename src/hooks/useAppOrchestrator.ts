@@ -80,6 +80,7 @@ export function useAppOrchestrator() {
       if (route.startsWith("/dashboard")) setView("calendar");
       else if (route === "/profile") setView("profile");
       else if (route === "/clients") setView("clients");
+      else if (route === "/members") setView("members");
     },
     [setView]
   );

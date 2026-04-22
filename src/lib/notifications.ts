@@ -98,6 +98,7 @@ export async function createNotificationForAll(
 }
 
 export function resolveNotificationRoute(notification: Notification): string | null {
+  if (notification.type === 'new_member') return '/members'
   if (!notification.metadata) return null
 
   switch (notification.type) {
@@ -123,6 +124,9 @@ export function resolveNotificationRoute(notification: Notification): string | n
     case 'client_access_granted':
     case 'client_access_revoked':
       return '/clients'
+
+    case 'new_member':
+      return '/members'
 
     case 'admin_broadcast':
     default:

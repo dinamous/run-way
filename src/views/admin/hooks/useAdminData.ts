@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
 import { useAdminStore } from '@/store/useAdminStore'
+import { createNotificationForClient } from '@/lib/notifications'
 import {
   adminCreateClient,
   adminUpdateClient,
@@ -152,6 +153,14 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       if (authUserId) await fetchPendingUsers()
       setError(null)
       await reloadAppStores()
+      if (clientIds && clientIds.length > 0) {
+        const roleLabel = role === 'Designer' ? '🎨 Designer' : '💻 Developer'
+        const title = `👋 Novo integrante na equipe!`
+        const message = `**${name}** acabou de entrar para a equipe como **${roleLabel}**.\n\nClique para conhecer quem faz parte do time! 🚀`
+        await Promise.all(
+          clientIds.map((cid) => createNotificationForClient(cid, title, message, 'new_member')),
+        )
+      }
       return true
     } catch (err) {
       setError(toSafeUiErrorMessage(err instanceof Error ? err.message : null))
