@@ -22,7 +22,6 @@ export function useThrottledMutation<T extends unknown[], R>(
       lastCall.current = now
       return fn(...args)
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [fn, ms],
   )
 }

@@ -14,9 +14,9 @@ describe('dateUtils', () => {
   const tuesday = new Date(2026, 3, 7)
   const friday = new Date(2026, 3, 10)
   const saturday = new Date(2026, 3, 11)
-  const sunday = new Date(2026, 3, 12)
+  const _sunday = new Date(2026, 3, 12)
   const mondayNext = new Date(2026, 3, 13)
-  const tuesdayNext = new Date(2026, 3, 14)
+  const _tuesdayNext = new Date(2026, 3, 14)
 
   describe('formatDate', () => {
     it('formata Date para YYYY-MM-DD', () => {

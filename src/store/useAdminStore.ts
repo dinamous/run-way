@@ -11,7 +11,7 @@ import {
   type PendingAuthUser,
 } from '@/lib/adminApi'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
-import { DbClientRowSchema, DbMemberRowSchema, DbUserClientMapRowSchema } from '@/lib/validators'
+import { DbClientRowSchema, DbMemberRowSchema } from '@/lib/validators'
 
 export type { PendingAuthUser }
 

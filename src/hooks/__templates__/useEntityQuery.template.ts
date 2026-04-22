@@ -17,7 +17,7 @@
  *   // em caso de erro: queryClient.setQueryData(queryKeys.entity(param), prev)
  */
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery as _useQuery } from '@tanstack/react-query'
 // import { fetchEntityFromDb, queryKeys } from '@/lib/queries'
 
 // export function useEntityQuery(param: string | null | undefined) {
