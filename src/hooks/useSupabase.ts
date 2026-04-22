@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useThrottledMutation } from '@/hooks/useThrottledMutation'
 import { supabase } from '@/lib/supabase'
 import type { Task, Step } from '@/lib/steps'
 import { toast } from 'sonner'
@@ -82,6 +83,8 @@ function didTaskFieldsChange(prevTask: Task | undefined, nextTask: Task, resolve
     || (prevTask.clientId ?? null) !== resolvedClientId
   )
 }
+
+const MUTATION_THROTTLE_MS = 500
 
 export function useSupabase(options: UseSupabaseOptions = {}) {
   const { memberId, clientId, isAdmin } = options
@@ -342,5 +345,9 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     return true
   }, [clientId, isAdmin, memberId, queryClient])
 
-  return { createTask, updateTask, deleteTask }
+  const throttledCreateTask = useThrottledMutation(createTask, MUTATION_THROTTLE_MS)
+  const throttledUpdateTask = useThrottledMutation(updateTask, MUTATION_THROTTLE_MS)
+  const throttledDeleteTask = useThrottledMutation(deleteTask, MUTATION_THROTTLE_MS)
+
+  return { createTask: throttledCreateTask, updateTask: throttledUpdateTask, deleteTask: throttledDeleteTask }
 }

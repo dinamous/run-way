@@ -35,12 +35,10 @@ const TASKS_BONES = {
   ],
 };
 import { useAuthContext } from '@/contexts/AuthContext';
-import { useQueryClient } from '@tanstack/react-query';
 import { useTasksQuery } from '@/hooks/useTasksQuery';
 import { useMembersQuery } from '@/hooks/useMembersQuery';
 import { useClients } from '@/hooks/useClients';
-import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
+import { useTaskQuickActions } from '@/hooks/useTaskQuickActions';
 import { STEP_TYPES_ORDER, type Task, type StepType } from '@/lib/steps';
 import { Button } from '@/components/ui/Button';
 import { Search, Plus } from 'lucide-react';
@@ -62,37 +60,15 @@ interface TasksViewProps {
 
 export default function TasksView({ onEdit, onOpenNew }: TasksViewProps) {
   const { member } = useAuthContext();
-  const queryClient = useQueryClient();
   const { effectiveClientId, isAdmin } = useClients();
   const { data: tasks = [], isLoading: loading } = useTasksQuery(effectiveClientId, isAdmin);
   const { data: members = [] } = useMembersQuery(effectiveClientId);
+  const { concludeTask, toggleBlock } = useTaskQuickActions(member?.auth_user_id);
 
   const [filters, setFilters] = useState<FiltersState>(EMPTY_FILTERS);
 
-  const handleToggleBlock = async (task: Task) => {
-    const newBlocked = !task.status.blocked;
-    const now = new Date().toISOString().split('T')[0];
-    const { error } = await supabase
-      .from('tasks')
-      .update({ blocked: newBlocked, blocked_at: newBlocked ? now : null })
-      .eq('id', task.id);
-
-    if (error) { toast.error('Erro ao alterar bloqueio'); return; }
-    toast.success(newBlocked ? `"${task.title}" bloqueada` : `"${task.title}" desbloqueada`);
-    queryClient.invalidateQueries({ queryKey: ['tasks'] });
-  };
-
-  const handleConclude = async (task: Task) => {
-    const now = new Date().toISOString();
-    const { error } = await supabase
-      .from('tasks')
-      .update({ concluded_at: now, concluded_by: member?.auth_user_id ?? null })
-      .eq('id', task.id);
-
-    if (error) { toast.error('Erro ao concluir demanda'); return; }
-    toast.success(`"${task.title}" concluída`);
-    queryClient.invalidateQueries({ queryKey: ['tasks'] });
-  };
+  const handleToggleBlock = (task: Task) => toggleBlock(task);
+  const handleConclude = (task: Task) => concludeTask(task);
 
   const filteredTasks = useMemo(() => {
     const { searchTerm, selectedSteps, selectedMemberIds, showOnlyBlocked, selectedPeriod } = filters;

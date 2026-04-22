@@ -13,6 +13,21 @@ Hook de **mutations apenas**. Não armazena estado — após cada operação usa
 - `updateTask(data)` — update otimista no cache do TanStack Query, depois persiste no DB; reverte em caso de erro
 - `deleteTask(id)` — remove do DB e atualiza o cache local sem re-fetch
 
+As três funções são envolvidas por `useThrottledMutation` (500ms) antes de serem expostas. Chamadas mais rápidas que o intervalo são rejeitadas com toast de aviso e retornam `false`.
+
+## Rate Limiting (client-side)
+
+Dois utilitários padronizados cobrem todos os casos:
+
+| Utilitário | Ficheiro | Quando usar |
+|---|---|---|
+| `useThrottledMutation` | `src/hooks/useThrottledMutation.ts` | Dentro de hooks React (usa `useRef`) |
+| `throttleAsync` | `src/lib/throttle.ts` | Funções puras fora de componentes/hooks |
+
+Aplicado em: `useSupabase` (500ms), `useTaskQuickActions` (500ms), `useUserClients` (500ms), `useProfile` (500ms), `notifications.markAsRead` (300ms), `notifications.markAllAsRead` (1000ms).
+
+`useTaskQuickActions` (`src/hooks/useTaskQuickActions.ts`) centraliza os toggles rápidos de bloqueio e conclusão, usados por `ListView` e `TasksView` — elimina código duplicado e garante throttle consistente.
+
 ## Update otimista (`updateTask`)
 
 ```

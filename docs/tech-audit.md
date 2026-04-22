@@ -254,24 +254,9 @@ async function inviteUser(email: string) {
 
 ---
 
-### ALTA: sem rate limiting em mutations
+### ~~ALTA: sem rate limiting em mutations~~ ✅ Resolvido
 
-`useSupabase.ts` não tem throttle em operações de escrita. Um usuário mal-intencionado pode disparar centenas de requisições por segundo.
-
-**Solução:**
-
-```typescript
-import { throttle } from 'lodash-es'
-
-const updateTask = useCallback(
-  throttle(async (task: Task) => {
-    await supabase.from('tasks').update(task).eq('id', task.id)
-  }, 500), // máximo 2 req/s
-  []
-)
-```
-
-**Prioridade:** Alta
+`useThrottledMutation` adicionado em `useSupabase.ts`. As três mutations (`createTask`, `updateTask`, `deleteTask`) são envolvidas por throttle de 500ms via `useRef` — sem lodash. Chamadas dentro do intervalo retornam `false` com toast de aviso.
 
 ---
 

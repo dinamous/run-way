@@ -4,6 +4,7 @@ import {
   adminCreateNotification as apiCreateNotification,
   adminCreateNotificationForAll as apiCreateForAll,
 } from './adminApi'
+import { throttleAsync } from './throttle'
 import type { DbNotificationRow, Notification } from '@/types/notification'
 
 export async function fetchNotifications(userId: string, clientIds?: string[]) {
@@ -31,7 +32,7 @@ export async function fetchNotifications(userId: string, clientIds?: string[]) {
   return data ? data.map(mapDbToNotification) : []
 }
 
-export async function markAsRead(id: string) {
+async function _markAsRead(id: string) {
   const { error } = await supabase
     .from('notifications')
     .update({ read: true })
@@ -40,7 +41,7 @@ export async function markAsRead(id: string) {
   if (error) throw error
 }
 
-export async function markAllAsRead(userId: string, clientIds?: string[]) {
+async function _markAllAsRead(userId: string, clientIds?: string[]) {
   let orFilter = `user_id.eq.${userId}`
 
   if (clientIds && clientIds.length > 0) {
@@ -58,6 +59,9 @@ export async function markAllAsRead(userId: string, clientIds?: string[]) {
 
   if (error) throw error
 }
+
+export const markAsRead = throttleAsync(_markAsRead, 300)
+export const markAllAsRead = throttleAsync(_markAllAsRead, 1000)
 
 export async function fetchAllNotifications() {
   const data = await apiFetchAll()
