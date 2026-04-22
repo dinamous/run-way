@@ -29,13 +29,16 @@ export const addBusinessDays = (startDate: Date | string, daysToAdd: number, hol
   const currentDate = new Date(startDate);
   let addedDays = 0;
   if (daysToAdd === 0) {
+    if (!isNonBusinessDay(currentDate, holidays)) {
+      return formatDate(currentDate)
+    }
     while (isNonBusinessDay(currentDate, holidays)) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     return formatDate(currentDate);
   }
 
-  while (addedDays < daysToAdd - 1) {
+  while (addedDays < daysToAdd) {
     currentDate.setDate(currentDate.getDate() + 1);
     if (!isNonBusinessDay(currentDate, holidays)) {
       addedDays++;

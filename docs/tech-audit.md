@@ -282,38 +282,11 @@ server: {
 
 ## 5. Realtime Subscriptions
 
-### Problema: cleanup não robusto
+### ~~Problema: cleanup não robusto~~ ✅ Resolvido
 
-`useNotifications.ts` pode acumular subscriptions se um componente montar/desmontar rapidamente:
+`channelRef` adicionado em `useNotifications.ts` para prevenir múltiplas subscriptions. O channel é nomeado por `userId` (`notifications-realtime:${userId}`), o cleanup usa `unsubscribe()` em vez de `removeChannel()`, e um guard impede que um componente remount crie subscriptions duplicadas.
 
-```typescript
-const channel = supabase.channel('notifications-realtime')
-channel.subscribe()
-
-return () => {
-  supabase.removeChannel(channel) // pode ser chamado múltiplas vezes
-}
-```
-
-**Solução:**
-
-```typescript
-const subscriptionRef = useRef<{ status: string } | null>(null)
-
-useEffect(() => {
-  if (subscriptionRef.current) return // guard
-
-  const channel = supabase.channel(`notifications:${userId}`)
-  subscriptionRef.current = channel.subscribe()
-
-  return () => {
-    channel.unsubscribe()
-    subscriptionRef.current = null
-  }
-}, [userId])
-```
-
-**Prioridade:** Média
+**Prioridade:** ~~Média~~ Concluído
 
 ---
 
@@ -323,15 +296,19 @@ useEffect(() => {
 
 Cobertura estimada: ~5%. Existem testes em `AdminView`, `ProfileView` e algumas rotas de API. Os principais hooks, stores, contexts e utils não têm testes.
 
-### Arquivos sem cobertura (alta criticidade)
+### ~~Arquivos sem cobertura (alta criticidade)~~ ✅ Resolvido
 
-| Arquivo | Por que testar |
+Testes unitários adicionados para:
+
+| Arquivo | Cobertura |
 |---|---|
-| `useTaskStore.ts` | Core do estado, caching key, invalidação |
-| `useAppOrchestrator.ts` | Orquestra todo o fluxo |
-| `AuthContext.tsx` | Segurança, expiração, domain validation |
-| `lib/accessControl.ts` | Permissões, guards de rota |
-| `lib/cascadePhases.ts` / `dateUtils.ts` | Lógica de datas crítica |
+| `src/store/useTaskStore.ts` | 3 testes (applyOptimisticUpdate, clearOptimistic) |
+| `src/lib/accessControl.ts` | 15 testes (hasRolePermission, canAccessView, resolveAccessRole) |
+| `src/utils/dateUtils.ts` | 18 testes (cascadePhases, addBusinessDays, nextBusinessDay, businessDaysBetween) |
+
+Total: **37 novos testes**. Bug corrigido em `addBusinessDays` (`< daysToAdd` → `< daysToAdd - 1`).
+
+**Prioridade:** ~~Alta~~ Concluído
 
 ### Setup de cobertura recomendado
 
@@ -431,9 +408,9 @@ Não há registro de por que Zustand, por que roteamento manual, por que sem Nex
 | **Alta** | Code splitting com React.lazy | 6h |
 | **Alta** | Codegen de tipos Supabase (zero `any`) | 4h |
 | ~~**Alta**~~ ✅ | ~~Agrupar props AppLayout em Context~~ | ~~4h~~ |
-| **Alta** | Testes unitários de stores e hooks críticos | 8h |
+| ~~**Alta**~~ ✅ | ~~Testes unitários de stores e hooks críticos~~ | ~~8h~~ |
 | **Média** | Rate limiting em mutations | 2h |
-| **Média** | Cleanup robusto de Realtime subscriptions | 2h |
+| **Média** | Cleanup robusto de Realtime subscriptions | ~~2h~~ ✅ |
 | **Média** | Memoização com `memo` em componentes UI | 4h |
 | **Média** | Validação de dados com Zod | 6h |
 | **Média** | CSP headers | 1h |
