@@ -11,8 +11,8 @@ describe('accessControl', () => {
       expect(resolveAccessRole(null)).toBeNull()
     })
 
-    it('retorna null se access_role é undefined', () => {
-      expect(resolveAccessRole({ id: '1' } as never)).toBeNull()
+    it('retorna user por padrão se access_role é undefined', () => {
+      expect(resolveAccessRole({ id: '1', role: 'Designer' } as never)).toBe('user')
     })
 
     it('retorna admin para access_role admin', () => {
@@ -21,6 +21,18 @@ describe('accessControl', () => {
 
     it('retorna user para access_role user', () => {
       expect(resolveAccessRole({ id: '1', access_role: 'user' } as never)).toBe('user')
+    })
+
+    it('normaliza access_role em maiúsculas', () => {
+      expect(resolveAccessRole({ id: '1', access_role: 'ADMIN' } as never)).toBe('admin')
+    })
+
+    it('retorna admin usando role legado', () => {
+      expect(resolveAccessRole({ id: '1', role: 'admin' } as never)).toBe('admin')
+    })
+
+    it('retorna admin usando role legado textual', () => {
+      expect(resolveAccessRole({ id: '1', role: 'Administrador' } as never)).toBe('admin')
     })
   })
 

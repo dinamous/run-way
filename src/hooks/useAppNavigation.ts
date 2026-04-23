@@ -1,5 +1,5 @@
 import { useCallback } from "react"
-import { useNavigate, useLocation, useParams } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import type { ClientOption } from "@/contexts/AuthContext"
 import type { ViewType } from "@/store/useUIStore"
 import { clientToSlug, slugToClient } from "@/lib/clientSlug"
@@ -59,7 +59,10 @@ export function urlToView(pathname: string): ViewType {
 export function viewToPath(view: ViewType, clientSlug: string | null): string {
   if (view === "profile") return "/profile"
   if (view === "admin") return "/admin"
-  if (view === "clients") return "/clients"
+  if (view === "clients") {
+    if (!clientSlug) return "/clients"
+    return `/${clientSlug}/client-info`
+  }
 
   if (!clientSlug) return "/"
 
@@ -67,7 +70,6 @@ export function viewToPath(view: ViewType, clientSlug: string | null): string {
 
   const MAP: Partial<Record<ViewType, string>> = {
     home: base,
-    clients: `${base}/client-info`,
     demandas: `${base}/tasks`,
     calendar: `${base}/tasks/calendar`,
     timeline: `${base}/tasks/timeline`,
@@ -103,14 +105,17 @@ export function taskPath(
 export function useAppNavigation(clients: ClientOption[]) {
   const navigate = useNavigate()
   const location = useLocation()
-  const params = useParams<{ clientSlug?: string; taskId?: string }>()
-
-  const currentSlug = params.clientSlug ?? null
+  // useParams só funciona dentro de um <Route> declarado — como App.tsx não usa AppRoutes
+  // como wrapper, lemos os segmentos diretamente de location.pathname
+  const segments = location.pathname.replace(/^\//, "").split("/")
+  const GLOBAL_ROUTES = new Set(["profile", "admin", "clients", ""])
+  const currentSlug = GLOBAL_ROUTES.has(segments[0]) ? null : (segments[0] || null)
   const currentClient = currentSlug ? slugToClient(currentSlug, clients) : null
   const view = urlToView(location.pathname)
 
-  // taskId presente na URL (para abrir modal)
-  const urlTaskId = params.taskId ?? null
+  // taskId: presente quando pathname tem /id/:taskId
+  const idIdx = segments.indexOf("id")
+  const urlTaskId = idIdx !== -1 ? (segments[idIdx + 1] ?? null) : null
 
   const navigateTo = useCallback(
     (newView: ViewType, client?: ClientOption | null) => {

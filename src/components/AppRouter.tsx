@@ -59,10 +59,6 @@ export function AppRouter() {
     return <NoClientView hasClients={false} onGoToClients={goToClients} />;
   }
 
-  if (hasClients && !effectiveClientId && view !== "clients" && view !== "profile" && view !== "admin") {
-    return <NoClientView hasClients={true} onGoToClients={goToClients} />;
-  }
-
   return (
     <Suspense fallback={<ViewSkeleton />}>
       {view === "home" && (

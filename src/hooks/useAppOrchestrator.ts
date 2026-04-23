@@ -11,6 +11,8 @@ import { useTaskActions } from "@/hooks/useTaskActions";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { useClientTransition } from "@/hooks/useClientTransition";
 import { useMembersQuery } from "@/hooks/useMembersQuery";
+import { useTasksQuery } from "@/hooks/useTasksQuery";
+import { useClientStore } from "@/store/useClientStore";
 import { resolveNotificationRoute } from "@/lib/notifications";
 import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
 import { clientToSlug } from "@/lib/clientSlug";
@@ -27,29 +29,22 @@ export function useAppOrchestrator() {
   const hasClients = auth.clients.length > 0;
 
   const nav = useAppNavigation(auth.clients);
+  const { selectedClientId: storedClientId, setClient: storeClient } = useClientStore();
 
-  // O cliente efetivo vem da URL (slug) ou cai no primeiro disponível
-  const effectiveClient =
-    nav.currentClient ??
-    (hasClients ? auth.clients[0] : null);
-
+  const effectiveClient = nav.currentClient ?? null;
   const effectiveClientId = effectiveClient?.id ?? null;
 
-  // Sincroniza: se não há slug na URL mas há clientes, redireciona para o primeiro
   useEffect(() => {
-    if (auth.loading || !auth.session) return;
-    if (!hasClients) return;
-    if (nav.currentSlug) return;
+    if (effectiveClientId) storeClient(effectiveClientId);
+  }, [effectiveClientId, storeClient]);
 
-    // Só redireciona se estiver na raiz ou numa rota sem slug conhecida
-    const isGlobal = ["/profile", "/admin", "/clients"].some((p) =>
-      window.location.pathname.startsWith(p)
-    );
-    if (isGlobal) return;
+  useEffect(() => {
+    if (!auth.loading && !nav.currentSlug && storedClientId) {
+      const lastClient = auth.clients.find((c) => c.id === storedClientId);
+      if (lastClient) nav.navigateToClient(lastClient);
+    }
+  }, [auth.loading, nav.currentSlug, storedClientId, auth.clients, nav]);
 
-    // Na raiz "/" não redireciona — HomeView sem cliente é válido
-    if (window.location.pathname === "/") return;
-  }, [auth.loading, auth.session, hasClients, nav.currentSlug]);
 
   const { data: members = [] } = useMembersQuery(effectiveClientId);
 
@@ -66,16 +61,25 @@ export function useAppOrchestrator() {
 
   // Modal state ainda vive no UIStore (não é URL)
   const isModalOpen = useUIStore((s) => s.isTaskModalOpen);
-  const closeTaskModal = useUIStore((s) => s.closeTaskModal);
+  const _closeTaskModal = useUIStore((s) => s.closeTaskModal);
+  const closeTaskModal = useCallback(() => {
+    _closeTaskModal();
+    // Se o modal foi aberto via URL, limpa o taskId da URL
+    if (nav.urlTaskId) nav.closeTask();
+  }, [_closeTaskModal, nav]);
 
   const taskActions = useTaskActions({ createTask, updateTask, deleteTask, effectiveClientId });
 
-  // Abre modal se há taskId na URL
+  // Carrega task pelo ID da URL e abre o modal
+  const { data: tasksData } = useTasksQuery(effectiveClientId, auth.isAdmin);
   useEffect(() => {
-    if (nav.urlTaskId) {
-      useUIStore.getState().openTaskModal();
+    if (!nav.urlTaskId || !tasksData) return;
+    const task = tasksData.find((t) => t.id === nav.urlTaskId);
+    if (task) {
+      taskActions.openEditTask(task);
     }
-  }, [nav.urlTaskId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nav.urlTaskId, tasksData]);
 
   const { transitionTarget, selectClient: selectClientWithTransition, onTransitionComplete } =
     useClientTransition(
@@ -87,9 +91,10 @@ export function useAppOrchestrator() {
   const selectClient = useCallback(
     (clientId: string | null | undefined) => {
       if (!clientId) return;
+      sidebar.openSidebar();
       selectClientWithTransition(clientId);
     },
-    [selectClientWithTransition]
+    [selectClientWithTransition, sidebar]
   );
 
   const handleViewChange = useCallback(
@@ -106,13 +111,12 @@ export function useAppOrchestrator() {
     [effectiveClientId, effectiveClient, accessRole, nav, sidebar]
   );
 
-  // Garante que a view atual é acessível
   useEffect(() => {
-    if (!auth.loading && auth.session) {
+    if (!auth.loading && auth.session && nav.currentSlug) {
       const canAccess = canAccessView(nav.view, accessRole, effectiveClientId !== null);
       if (!canAccess) nav.navigateTo("clients", effectiveClient);
     }
-  }, [auth.loading, auth.session, effectiveClientId, effectiveClient, accessRole, nav.view]);
+  }, [auth.loading, auth.session, nav, effectiveClientId, effectiveClient, accessRole]);
 
   const handleNotificationClick = useCallback(
     (notification: Notification) => {

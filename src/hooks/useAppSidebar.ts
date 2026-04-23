@@ -12,6 +12,11 @@ export function useAppSidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(resolveInitialOpen);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  const openSidebar = () => {
+    setSidebarOpen(true);
+    localStorage.setItem("sidebarOpen", "true");
+  };
+
   const toggleSidebar = () => {
     setSidebarOpen((prev) => {
       localStorage.setItem("sidebarOpen", String(!prev));
@@ -25,6 +30,7 @@ export function useAppSidebar() {
   return {
     sidebarOpen,
     mobileSidebarOpen,
+    openSidebar,
     toggleSidebar,
     openMobileSidebar,
     closeMobileSidebar,

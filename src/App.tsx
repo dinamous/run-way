@@ -1,12 +1,14 @@
 import { Toaster } from "sonner";
 import { useAppOrchestrator } from "@/hooks/useAppOrchestrator";
 import { AppLayout } from "@/components/AppLayout";
+import { ClientPickerLayout } from "@/components/ClientPickerLayout";
 import { AppModals } from "@/components/AppModals";
 import { LoginView } from "@/views/login";
 import { OnboardingView } from "@/views/onboarding";
 
 export default function App() {
   const app = useAppOrchestrator();
+  const isGlobalView = app.view === "admin" || app.view === "profile" || app.view === "clients"
 
   if (app.auth.loading) {
     return (
@@ -26,6 +28,24 @@ export default function App() {
         userName={app.auth.member?.name ?? app.auth.user?.email}
         onSignOut={app.auth.signOut}
         onClientsFound={app.auth.refreshProfile}
+      />
+    );
+  }
+
+  if (!app.clientSlug && !isGlobalView) {
+    return (
+      <ClientPickerLayout
+        userName={app.auth.member?.name ?? ""}
+        userEmail={app.auth.user?.email}
+        userAvatarUrl={app.auth.member?.avatar_url}
+        darkMode={app.darkMode}
+        onToggleDark={app.toggleDark}
+        clients={app.auth.clients}
+        onSelectClient={(client) => app.selectClient(client.id)}
+        onSignOut={app.auth.signOut}
+        onGoToProfile={() => app.handleViewChange("profile")}
+        transitionTarget={app.transitionTarget}
+        onTransitionComplete={app.onTransitionComplete}
       />
     );
   }
