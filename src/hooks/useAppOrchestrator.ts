@@ -1,6 +1,5 @@
 import { useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { useClientStore } from "@/store/useClientStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "@/hooks/useSupabase";
@@ -9,10 +8,13 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useAppSidebar } from "@/hooks/useAppSidebar";
 import { useTaskActions } from "@/hooks/useTaskActions";
+import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { useClientTransition } from "@/hooks/useClientTransition";
 import { useMembersQuery } from "@/hooks/useMembersQuery";
 import { resolveNotificationRoute } from "@/lib/notifications";
 import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
+import { clientToSlug } from "@/lib/clientSlug";
+import type { ClientOption } from "@/contexts/AuthContext";
 import type { Notification } from "@/types/notification";
 import type { ViewType } from "@/store/useUIStore";
 
@@ -24,29 +26,30 @@ export function useAppOrchestrator() {
   const accessRole = resolveAccessRole(auth.member);
   const hasClients = auth.clients.length > 0;
 
-  const { selectedClientId, setClient } = useClientStore();
+  const nav = useAppNavigation(auth.clients);
 
-  const effectiveClientId =
-    selectedClientId === undefined
-      ? hasClients ? auth.clients[0].id : null
-      : auth.isAdmin
-        ? selectedClientId
-        : selectedClientId ?? (hasClients ? auth.clients[0].id : null);
+  // O cliente efetivo vem da URL (slug) ou cai no primeiro disponível
+  const effectiveClient =
+    nav.currentClient ??
+    (hasClients ? auth.clients[0] : null);
 
+  const effectiveClientId = effectiveClient?.id ?? null;
+
+  // Sincroniza: se não há slug na URL mas há clientes, redireciona para o primeiro
   useEffect(() => {
     if (auth.loading || !auth.session) return;
+    if (!hasClients) return;
+    if (nav.currentSlug) return;
 
-    if (selectedClientId === undefined && hasClients) {
-      setClient(auth.clients[0].id);
-    } else if (!hasClients) {
-      setClient(undefined);
-    } else if (
-      typeof selectedClientId === "string" &&
-      !auth.clients.find((c) => c.id === selectedClientId)
-    ) {
-      setClient(auth.clients[0]?.id ?? undefined);
-    }
-  }, [auth.loading, auth.session, hasClients, auth.clients, selectedClientId, setClient]);
+    // Só redireciona se estiver na raiz ou numa rota sem slug conhecida
+    const isGlobal = ["/profile", "/admin", "/clients"].some((p) =>
+      window.location.pathname.startsWith(p)
+    );
+    if (isGlobal) return;
+
+    // Na raiz "/" não redireciona — HomeView sem cliente é válido
+    if (window.location.pathname === "/") return;
+  }, [auth.loading, auth.session, hasClients, nav.currentSlug]);
 
   const { data: members = [] } = useMembersQuery(effectiveClientId);
 
@@ -61,40 +64,32 @@ export function useAppOrchestrator() {
   const allClientIds = auth.clients.map((c) => c.id);
   const notifications = useNotifications(auth.member?.id, allClientIds);
 
-  const view = useUIStore((s) => s.view);
-  const setView = useUIStore((s) => s.setView);
+  // Modal state ainda vive no UIStore (não é URL)
   const isModalOpen = useUIStore((s) => s.isTaskModalOpen);
   const closeTaskModal = useUIStore((s) => s.closeTaskModal);
 
-  const { transitionTarget, selectClient, onTransitionComplete } = useClientTransition(
-    auth.clients,
-    effectiveClientId
-  );
-
   const taskActions = useTaskActions({ createTask, updateTask, deleteTask, effectiveClientId });
 
-  const handleNotificationClick = useCallback(
-    (notification: Notification) => {
-      const route = resolveNotificationRoute(notification);
-      if (!route) return;
+  // Abre modal se há taskId na URL
+  useEffect(() => {
+    if (nav.urlTaskId) {
+      useUIStore.getState().openTaskModal();
+    }
+  }, [nav.urlTaskId]);
 
-      if (notification.type === 'client_access_granted' && notification.client_id) {
-        const isAlreadyOnClient = effectiveClientId === notification.client_id;
-        const clientExists = auth.clients.some((c) => c.id === notification.client_id);
-        if (clientExists && !isAlreadyOnClient) {
-          selectClient(notification.client_id);
-          return;
-        }
-        setView('clients');
-        return;
-      }
+  const { transitionTarget, selectClient: selectClientWithTransition, onTransitionComplete } =
+    useClientTransition(
+      auth.clients,
+      effectiveClientId,
+      useCallback((client: ClientOption) => nav.navigateToClient(client, true), [nav])
+    );
 
-      if (route.startsWith("/dashboard")) setView("calendar");
-      else if (route === "/profile") setView("profile");
-      else if (route === "/clients") setView("clients");
-      else if (route === "/members") setView("members");
+  const selectClient = useCallback(
+    (clientId: string | null | undefined) => {
+      if (!clientId) return;
+      selectClientWithTransition(clientId);
     },
-    [setView, selectClient, effectiveClientId, auth.clients]
+    [selectClientWithTransition]
   );
 
   const handleViewChange = useCallback(
@@ -103,24 +98,45 @@ export function useAppOrchestrator() {
       const canAccess = canAccessView(newView, accessRole, effectiveClientId !== null);
       if (!canAccess) {
         if (newView !== "clients") toast.error("Selecione um cliente para acessar esta funcionalidade.");
-        setView("clients");
+        nav.navigateTo("clients", effectiveClient);
       } else {
-        setView(newView);
+        nav.navigateTo(newView, effectiveClient);
       }
     },
-    [effectiveClientId, accessRole, setView, sidebar]
+    [effectiveClientId, effectiveClient, accessRole, nav, sidebar]
   );
 
+  // Garante que a view atual é acessível
   useEffect(() => {
     if (!auth.loading && auth.session) {
-      const canAccess = canAccessView(view, accessRole, effectiveClientId !== null);
-      if (!canAccess) setView("clients");
+      const canAccess = canAccessView(nav.view, accessRole, effectiveClientId !== null);
+      if (!canAccess) nav.navigateTo("clients", effectiveClient);
     }
-  }, [auth.loading, auth.session, effectiveClientId, accessRole, view, setView]);
+  }, [auth.loading, auth.session, effectiveClientId, effectiveClient, accessRole, nav.view]);
 
-  const selectedClient = effectiveClientId
-    ? auth.clients.find((c) => c.id === effectiveClientId) ?? null
-    : null;
+  const handleNotificationClick = useCallback(
+    (notification: Notification) => {
+      const route = resolveNotificationRoute(notification);
+      if (!route) return;
+
+      if (notification.type === "client_access_granted" && notification.client_id) {
+        const targetClient = auth.clients.find((c) => c.id === notification.client_id);
+        if (targetClient) {
+          nav.navigateToClient(targetClient);
+          return;
+        }
+        nav.navigateTo("clients", effectiveClient);
+        return;
+      }
+
+      if (route.startsWith("/dashboard")) nav.navigateTo("calendar", effectiveClient);
+      else if (route === "/profile") nav.navigateTo("profile", null);
+      else if (route === "/clients") nav.navigateTo("clients", effectiveClient);
+      else if (route === "/members") nav.navigateTo("members", effectiveClient);
+    },
+    [nav, effectiveClient, auth.clients]
+  );
+
 
   return {
     // auth
@@ -137,10 +153,18 @@ export function useAppOrchestrator() {
 
     // client
     effectiveClientId,
-    selectedClient,
+    effectiveClient,
+    selectedClient: effectiveClient,
     selectClient,
     transitionTarget,
     onTransitionComplete,
+
+    // navigation
+    view: nav.view,
+    urlTaskId: nav.urlTaskId,
+    handleViewChange,
+    clientSlug: nav.currentSlug,
+    clientToSlug,
 
     // data
     members,
@@ -150,10 +174,6 @@ export function useAppOrchestrator() {
     notifications,
     handleNotificationClick,
 
-    // view
-    view,
-    handleViewChange,
-
     // modal
     isModalOpen,
     closeTaskModal,
@@ -161,5 +181,7 @@ export function useAppOrchestrator() {
     // task actions
     taskActions,
     updateTask,
+    openTask: nav.openTask,
+    closeTask: nav.closeTask,
   };
 }

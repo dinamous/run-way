@@ -71,6 +71,9 @@ export default function App() {
         onOpenNewTask={app.taskActions.openNewTask}
         onDeleteTask={app.taskActions.requestDeleteTask}
         onUpdateTask={app.updateTask}
+        urlTaskId={app.urlTaskId}
+        onOpenTask={app.openTask}
+        onCloseTask={app.closeTask}
       />
 
       <AppModals

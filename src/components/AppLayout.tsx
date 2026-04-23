@@ -44,6 +44,9 @@ interface AppLayoutProps {
   onOpenNewTask: () => void
   onDeleteTask: (id: string) => void
   onUpdateTask: (task: Task) => Promise<boolean>
+  urlTaskId: string | null
+  onOpenTask: (taskId: string, subview?: "calendar" | "timeline" | "list") => void
+  onCloseTask: () => void
 }
 
 export function AppLayout(props: AppLayoutProps) {
@@ -58,6 +61,7 @@ export function AppLayout(props: AppLayoutProps) {
     selectedClient, availableClients, onSelectClient, isAdmin,
     effectiveClientId, userName, holidays,
     onEditTask, onOpenNewTask, onDeleteTask, onUpdateTask,
+    urlTaskId, onOpenTask, onCloseTask,
   } = props
 
   return (
@@ -81,6 +85,7 @@ export function AppLayout(props: AppLayoutProps) {
         effectiveClientId, selectedClient, userName, userEmail,
         holidays, hasClients, onViewChange,
         onEditTask, onOpenNewTask, onDeleteTask, onUpdateTask,
+        urlTaskId, onOpenTask, onCloseTask,
       },
     }}>
       <div className="flex flex-col h-screen bg-background text-foreground font-sans">

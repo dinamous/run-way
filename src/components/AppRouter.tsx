@@ -23,7 +23,6 @@ function ViewSkeleton() {
   );
 }
 
-
 type DashboardSubview = "calendar" | "timeline" | "list";
 type ToolsSubview = Extract<ViewType, "tools-briefing-analyzer" | "tools-import" | "tools-export" | "tools-integrations">;
 
@@ -60,7 +59,7 @@ export function AppRouter() {
     return <NoClientView hasClients={false} onGoToClients={goToClients} />;
   }
 
-  if (hasClients && !effectiveClientId && view !== "clients") {
+  if (hasClients && !effectiveClientId && view !== "clients" && view !== "profile" && view !== "admin") {
     return <NoClientView hasClients={true} onGoToClients={goToClients} />;
   }
 
@@ -77,7 +76,7 @@ export function AppRouter() {
 
       {view === "admin" && <RequireAdmin><AdminView /></RequireAdmin>}
 
-      {view === "clients" && <UserClientsView client={selectedClient ?? null} />}
+      {(view === "clients") && <UserClientsView client={selectedClient ?? null} />}
 
       {DASHBOARD_VIEWS.has(view) && (
         <DashboardView
