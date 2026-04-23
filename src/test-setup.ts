@@ -2,6 +2,14 @@ import '@testing-library/jest-dom'
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 
+vi.mock('./lib/supabase', () => ({
+  supabase: {
+    from: vi.fn(() => ({ select: vi.fn(() => ({ order: vi.fn(() => ({ data: [], error: null })) })) })),
+  },
+}))
+
+vi.mock('./lib/notifications', () => ({}))
+
 afterEach(() => {
   cleanup()
 })
