@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import type { DbClientRow, DbAuditLogRow } from '@/types/db'
 import type { Member } from '@/hooks/useSupabase'
+import type { Notification } from '@/types/notification'
 import type { AuditFilters } from '@/store/useAdminStore'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
@@ -142,8 +143,8 @@ export async function adminSetUserRole(userId: string, role: 'admin' | 'user'): 
 
 // ── notifications ─────────────────────────────────────────────────────────────
 
-export async function adminFetchAllNotifications() {
-  return invoke<unknown[]>('admin-notifications')
+export async function adminFetchAllNotifications(): Promise<Notification[]> {
+  return invoke<Notification[]>('admin-notifications')
 }
 
 export async function adminCreateNotification(

@@ -212,8 +212,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       const { deactivated_at } = await adminDeactivateMember(userId)
       patchUser(userId, { is_active: false, deactivated_at })
       return true
-    } catch (err) {
-      console.error('[deactivateUser] error:', err)
+    } catch {
       return false
     }
   }, [patchUser])
@@ -223,8 +222,7 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
       await adminReactivateMember(userId)
       patchUser(userId, { is_active: true, deactivated_at: null })
       return true
-    } catch (err) {
-      console.error('[reactivateUser] error:', err)
+    } catch {
       return false
     }
   }, [patchUser])

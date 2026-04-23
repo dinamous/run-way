@@ -90,7 +90,10 @@ export async function fetchMembersFromDb(
       .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
       .order('name')
     if (error) throw new Error(error.message)
-    return data ?? []
+    return (data ?? []).map(m => ({
+      ...m,
+      access_role: m.access_role as Member['access_role']
+    }))
   }
 
   const ucResult = await supabase
@@ -110,5 +113,8 @@ export async function fetchMembersFromDb(
     .order('name')
 
   if (error) throw new Error(error.message)
-  return data ?? []
+  return (data ?? []).map(m => ({
+    ...m,
+    access_role: m.access_role as Member['access_role']
+  }))
 }
