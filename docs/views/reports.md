@@ -9,7 +9,7 @@ Visão analítica proativa e estratégica das demandas do calendário. O foco ev
 | **Geral / Dashboard** | KPIs preditivos, Vazão (Throughput), CFD (Cumulative Flow Diagram) | Visão executiva e saúde do sistema |
 | **Fluxo e Processos** | Lead Time vs Cycle Time, Scatter Plot de Entregas | Gargalos ocultos e eficiência de fluxo |
 | **Timeline** | Entregas por mês, previsibilidade vs capacidade real | Planejamento e vazão futura |
-| **Membros** | Capacidade cruzada (Heatmap), WIP (Work in Progress) | Qualidade da alocação e sobrecarga silenciosa |
+| **Membros** | Grid de cards por membro (capacity, steps ativos, atalho calendário), Capacidade cruzada (Heatmap), WIP (Work in Progress) | Qualidade da alocação e sobrecarga silenciosa |
 | **Alertas Preditivos** | Risco por histórico, tarefas estagnadas, bloqueios crônicos | Ação preventiva antes do atraso |
 
 ---

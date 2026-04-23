@@ -29,7 +29,7 @@ const STEP_BORDER_COLORS: Record<string, string> = {
   'publicacao': '#bafc50',
 };
 
-const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBarOfStep, dragPreview, onStartDrag, onClick, viewMode = 'step', demandColor }) => {
+const StepBar: React.FC<StepBarProps> = React.memo(({ bar, task, isFirstBarOfStep, isLastBarOfStep, dragPreview, onStartDrag, onClick, viewMode = 'step', demandColor }) => {
   const meta = STEP_META[bar.stepType];
   const colW = 100 / 7;
   const isDemandMode = viewMode === 'demand';
@@ -157,6 +157,19 @@ const StepBar: React.FC<StepBarProps> = ({ bar, task, isFirstBarOfStep, isLastBa
       )}
     </div>
   );
-};
+}, (prev, next) =>
+  prev.bar.taskId === next.bar.taskId &&
+  prev.bar.stepType === next.bar.stepType &&
+  prev.bar.startCol === next.bar.startCol &&
+  prev.bar.endCol === next.bar.endCol &&
+  prev.bar.slot === next.bar.slot &&
+  prev.task.concludedAt === next.task.concludedAt &&
+  prev.task.status?.blocked === next.task.status?.blocked &&
+  prev.isFirstBarOfStep === next.isFirstBarOfStep &&
+  prev.isLastBarOfStep === next.isLastBarOfStep &&
+  prev.viewMode === next.viewMode &&
+  prev.demandColor === next.demandColor &&
+  prev.dragPreview === next.dragPreview
+);
 
 export default StepBar;

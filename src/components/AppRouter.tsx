@@ -1,19 +1,28 @@
-import { DashboardView } from "@/views/dashboard";
-import MembersView from "@/views/MembersView";
-import ReportsView from "@/views/reports";
-import { AdminView } from "@/views/admin";
+import { lazy, Suspense } from "react";
 import { RequireAdmin } from "@/components/RequireAdmin";
-import { UserClientsView } from "@/views/user/UserClientsView";
 import { NoClientView } from "@/components/NoClientView";
-import { HomeView } from "@/views/home";
-import { ToolsView } from "@/views/tools";
-import TasksView from "@/views/tasks";
-import { ProfileView } from "@/views/profile";
 import type { ViewType } from "@/store/useUIStore";
-import type { Task } from "@/lib/steps";
-import type { Holiday } from "@/utils/holidayUtils";
-import type { ClientOption } from "@/contexts/AuthContext";
 import type { ReportsSubview } from "@/views/reports/ReportsView";
+import { useLayoutContext } from "@/contexts/LayoutContext";
+
+const DashboardView  = lazy(() => import("@/views/dashboard").then(m => ({ default: m.DashboardView })));
+const MembersView    = lazy(() => import("@/views/MembersView"));
+const ReportsView    = lazy(() => import("@/views/reports"));
+const AdminView      = lazy(() => import("@/views/admin").then(m => ({ default: m.AdminView })));
+const UserClientsView = lazy(() => import("@/views/user/UserClientsView").then(m => ({ default: m.UserClientsView })));
+const HomeView       = lazy(() => import("@/views/home").then(m => ({ default: m.HomeView })));
+const ToolsView      = lazy(() => import("@/views/tools").then(m => ({ default: m.ToolsView })));
+const TasksView      = lazy(() => import("@/views/tasks"));
+const ProfileView    = lazy(() => import("@/views/profile").then(m => ({ default: m.ProfileView })));
+
+function ViewSkeleton() {
+  return (
+    <div className="flex h-full w-full items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+    </div>
+  );
+}
+
 
 type DashboardSubview = "calendar" | "timeline" | "list";
 type ToolsSubview = Extract<ViewType, "tools-briefing-analyzer" | "tools-import" | "tools-export" | "tools-integrations">;
@@ -30,39 +39,20 @@ const REPORTS_SUBVIEW_MAP: Partial<Record<ViewType, ReportsSubview>> = {
   "reports-alertas": "alertas",
 };
 
-interface AppRouterProps {
-  view: ViewType;
-  hasClients: boolean;
-  effectiveClientId: string | null | undefined;
-  selectedClient: ClientOption | null;
-  userName: string;
-  userEmail: string | undefined;
-  holidays: Holiday[];
-  onViewChange: (view: ViewType) => void;
-  onEditTask: (task: Task) => void;
-  onOpenNewTask: () => void;
-  onDeleteTask: (id: string) => void;
-  onUpdateTask: (task: Task) => Promise<boolean>;
-}
-
-/**
- * Maps the active `view` to the corresponding view component.
- * Handles guard conditions (no client selected) before delegating to the view.
- */
-export function AppRouter({
-  view,
-  hasClients,
-  effectiveClientId,
-  selectedClient,
-  userName,
-  userEmail,
-  holidays,
-  onViewChange,
-  onEditTask,
-  onOpenNewTask,
-  onDeleteTask,
-  onUpdateTask,
-}: AppRouterProps) {
+export function AppRouter() {
+  const { view, router: {
+    hasClients,
+    effectiveClientId,
+    selectedClient,
+    userName,
+    userEmail,
+    holidays,
+    onViewChange,
+    onEditTask,
+    onOpenNewTask,
+    onDeleteTask,
+    onUpdateTask,
+  } } = useLayoutContext()
   const goToClients = () => onViewChange("clients");
   const displayName = userName || userEmail || "";
 
@@ -74,65 +64,53 @@ export function AppRouter({
     return <NoClientView hasClients={true} onGoToClients={goToClients} />;
   }
 
-  if (view === "home") {
-    return (
-      <HomeView
-        userName={displayName}
-        clientName={selectedClient?.name}
-        hasClient={!!effectiveClientId}
-        onViewChange={onViewChange}
-      />
-    );
-  }
-
-  if (view === "admin") {
-    return <RequireAdmin><AdminView /></RequireAdmin>;
-  }
-
-  if (view === "clients") {
-    return <UserClientsView client={selectedClient ?? null} />;
-  }
-
-  if (DASHBOARD_VIEWS.has(view)) {
-    return (
-      <DashboardView
-        subview={view as DashboardSubview}
-        onEdit={onEditTask}
-        onDelete={onDeleteTask}
-        onUpdateTask={onUpdateTask}
-        onOpenNew={onOpenNewTask}
-        onExport={() => window.print()}
-        holidays={holidays}
-      />
-    );
-  }
-
-  if (view === "demandas") {
-    return <TasksView onEdit={onEditTask} onOpenNew={onOpenNewTask} />;
-  }
-
-  if (view === "profile") {
-    return <ProfileView />;
-  }
-
-  if (view === "members") {
-    return <MembersView />;
-  }
-
-  if (TOOLS_VIEWS.has(view)) {
-    return <ToolsView subview={view === "tools" ? undefined : view as ToolsSubview} />;
-  }
-
-  if (REPORTS_VIEWS.has(view)) {
-    return <ReportsView subview={REPORTS_SUBVIEW_MAP[view]} />;
-  }
-
   return (
-    <HomeView
-      userName={displayName}
-      clientName={selectedClient?.name}
-      hasClient={!!effectiveClientId}
-      onViewChange={onViewChange}
-    />
+    <Suspense fallback={<ViewSkeleton />}>
+      {view === "home" && (
+        <HomeView
+          userName={displayName}
+          clientName={selectedClient?.name}
+          hasClient={!!effectiveClientId}
+          onViewChange={onViewChange}
+        />
+      )}
+
+      {view === "admin" && <RequireAdmin><AdminView /></RequireAdmin>}
+
+      {view === "clients" && <UserClientsView client={selectedClient ?? null} />}
+
+      {DASHBOARD_VIEWS.has(view) && (
+        <DashboardView
+          subview={view as DashboardSubview}
+          onEdit={onEditTask}
+          onDelete={onDeleteTask}
+          onUpdateTask={onUpdateTask}
+          onOpenNew={onOpenNewTask}
+          onExport={() => window.print()}
+          holidays={holidays}
+        />
+      )}
+
+      {view === "demandas" && <TasksView onEdit={onEditTask} onOpenNew={onOpenNewTask} />}
+
+      {view === "profile" && <ProfileView />}
+
+      {view === "members" && <MembersView />}
+
+      {TOOLS_VIEWS.has(view) && (
+        <ToolsView subview={view === "tools" ? undefined : view as ToolsSubview} />
+      )}
+
+      {REPORTS_VIEWS.has(view) && <ReportsView subview={REPORTS_SUBVIEW_MAP[view]} />}
+
+      {!view && (
+        <HomeView
+          userName={displayName}
+          clientName={selectedClient?.name}
+          hasClient={!!effectiveClientId}
+          onViewChange={onViewChange}
+        />
+      )}
+    </Suspense>
   );
 }

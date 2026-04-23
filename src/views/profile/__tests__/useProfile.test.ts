@@ -26,6 +26,13 @@ const mockPrefsData = {
   theme: 'system' as const,
   language: 'pt-BR' as const,
   notifications_enabled: true,
+  default_view: 'home' as const,
+  client_order: [] as string[],
+  notification_step_overdue: true,
+  notification_task_stalled: true,
+  notification_member_overloaded: true,
+  stalled_days_threshold: 5,
+  overload_threshold: 3,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 }

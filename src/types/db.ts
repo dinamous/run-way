@@ -41,7 +41,7 @@ export interface DbClientRow {
   id: string
   name: string
   slug: string
-  created_at: string
+  created_at?: string | null
 }
 
 export type Client = DbClientRow

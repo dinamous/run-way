@@ -1,6 +1,7 @@
-import { useMemo, useEffect, useState } from 'react';
-import { useTaskStore } from '@/store/useTaskStore';
-import { useMemberStore } from '@/store/useMemberStore';
+import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTasksQuery } from '@/hooks/useTasksQuery';
+import { useMembersQuery } from '@/hooks/useMembersQuery';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useClients } from '@/hooks/useClients';
 import { todayStr, enrichTask, computeMemberLoad, calDaysBetween, calculatePercentile } from './utils';
@@ -11,7 +12,7 @@ export type TimeFilter = 'all' | '30d' | '90d' | '180d' | '365d';
 export interface ReportsData {
   enriched: ReturnType<typeof enrichTask>[];
   filteredEnriched: ReturnType<typeof enrichTask>[];
-  members: ReturnType<typeof useMemberStore.getState>['members'];
+  members: import('@/hooks/useSupabase').Member[];
   total: number;
   active: number;
   bloqueadas: number;
@@ -74,29 +75,13 @@ export interface ReportsData {
 export function useReportsData(): ReportsData {
   const { isAdmin } = useAuthContext();
   const { effectiveClientId } = useClients();
-  const {
-    tasks,
-    loading: tasksLoading,
-    error: tasksError,
-    fetchTasks,
-    invalidate: invalidateTasks,
-  } = useTaskStore();
-  const {
-    members,
-    loading: membersLoading,
-    error: membersError,
-    fetchMembers,
-    invalidate: invalidateMembers,
-  } = useMemberStore();
+  const queryClient = useQueryClient();
+  const { data: tasks = [], isLoading: tasksLoading, error: tasksErr } = useTasksQuery(effectiveClientId, isAdmin);
+  const { data: members = [], isLoading: membersLoading, error: membersErr } = useMembersQuery(effectiveClientId);
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
   const [memberFilter, setMemberFilter] = useState<string>('all');
   const today = todayStr();
-
-  useEffect(() => {
-    fetchTasks(effectiveClientId, isAdmin);
-    fetchMembers(effectiveClientId);
-  }, [effectiveClientId, isAdmin, fetchTasks, fetchMembers]);
 
   const enriched = useMemo(
     () => tasks.map(task => enrichTask(task, today, members)),
@@ -335,11 +320,11 @@ export function useReportsData(): ReportsData {
   }, [members, filteredEnriched, flowMetrics.p85ByStep]);
 
   const isLoading = tasksLoading || membersLoading;
-  const errorMessage = tasksError || membersError;
+  const errorMessage = tasksErr?.message ?? membersErr?.message ?? null;
 
   const invalidate = () => {
-    invalidateTasks();
-    invalidateMembers();
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['members'] });
   };
 
   return {

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { DbUserPreferencesSchema } from '@/lib/validators'
+import { useThrottledMutation } from '@/hooks/useThrottledMutation'
 
 export interface UserPreferences {
   id: string
@@ -68,10 +70,10 @@ export function useProfile() {
         .single()
 
       if (!createError && created) {
-        setPreferences(created as UserPreferences)
+        setPreferences(DbUserPreferencesSchema.parse(created) as UserPreferences)
       }
     } else {
-      setPreferences(data as UserPreferences)
+      setPreferences(DbUserPreferencesSchema.parse(data) as UserPreferences)
     }
     setLoading(false)
   }, [member])
@@ -138,7 +140,7 @@ export function useProfile() {
     savingPrefs,
     error,
     successMessage,
-    updateProfile,
-    updatePreferences,
+    updateProfile: useThrottledMutation(updateProfile, 500),
+    updatePreferences: useThrottledMutation(updatePreferences, 500),
   }
 }

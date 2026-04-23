@@ -126,6 +126,22 @@ Cada item exibe ícone e label indicando o destinatário:
 
 `onNotificationClick` deve navegar dentro do **cliente atual** sem trocar de cliente. A rota é resolvida por `resolveNotificationRoute` em `src/lib/notifications.ts`.
 
+## Tipos e rotas de navegação
+
+| `type` | Origem | Rota | Destinatário |
+|---|---|---|---|
+| `step_assigned` / `step_unassigned` | manual | `/dashboard?step=<id>` ou `/dashboard?task=<title>` | usuário específico |
+| `role_changed` | manual | `/profile` | usuário específico |
+| `task_assigned` | manual | `/dashboard` | usuário específico |
+| `client_access_granted` / `client_access_revoked` | manual | `/clients` | usuário específico |
+| `new_member` | automático ao criar membro | `/members` | broadcast do cliente |
+| `admin_broadcast` | manual (NotificationsPanel) | `/dashboard` | broadcast (todos/cliente) |
+| `step_overdue` | pg_cron | — (sem rota) | assignee do step |
+| `task_stalled` | pg_cron | — (sem rota) | assignee da task |
+| `member_overloaded` | pg_cron | — (sem rota) | admins do cliente |
+
+> **Nota:** tipos sem rota retornam `null` em `resolveNotificationRoute` e o clique na notificação não navega.
+
 ---
 
 # Triggers automáticos (pg_cron)
@@ -141,6 +157,16 @@ Jobs agendados às **9h, 12h e 15h UTC**. Só executam se houve mudança de `sta
 | `step_overdue` | assignee do step | `task_steps.end_date < hoje` e step não concluído |
 | `task_stalled` | assignee da task | sem entrada em `audit_logs` há mais de `stalled_days_threshold` dias |
 | `member_overloaded` | admins do cliente | membro com tasks `em andamento` ≥ `overload_threshold` |
+
+## Notificações disparadas pelo frontend
+
+| `type` | Gatilho | Destinatário | Mensagem |
+|---|---|---|---|
+| `new_member` | `createUser` em `useAdminData` após `adminCreateMember` | broadcast para todos os `clientIds` do novo membro | "👋 Novo integrante na equipe! **Nome** acabou de entrar como **🎨 Designer** / **💻 Developer**. Clique para conhecer quem faz parte do time! 🚀" |
+| `client_access_granted` | `linkUserToClient` em `useAdminData` após `adminLinkUserToClient` | notificação pessoal (`user_id` preenchido) para o membro vinculado | "🏢 Novo cliente disponível! Você agora tem acesso ao cliente **NomeDoCliente**. Clique para ver seus clientes." |
+
+> `new_member` usa `createNotificationForClient` (broadcast, `user_id = null`) — todos do cliente recebem, exceto o próprio novo membro.
+> `client_access_granted` usa `createNotification` com `user_id` preenchido — apenas o membro vinculado recebe.
 
 ## Deduplicação
 

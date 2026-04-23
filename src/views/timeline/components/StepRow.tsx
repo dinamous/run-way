@@ -21,7 +21,7 @@ interface StepRowProps {
   flex1?: boolean;
 }
 
-const StepRow: React.FC<StepRowProps> = ({ step, days, daysRange, task, dragPreview, didDragRef, startDrag, onEdit, holidays = [], flex1 = false }) => (
+const StepRow: React.FC<StepRowProps> = React.memo(({ step, days, daysRange, task, dragPreview, didDragRef, startDrag, onEdit, holidays = [], flex1 = false }) => (
   <div className={`relative overflow-hidden${flex1 ? ' flex-1' : ''}`} style={{ minHeight: PHASE_ROW_H, width: daysRange * DAY_COL_W }}>
     <div className="absolute inset-0 flex pointer-events-none">
       {days.map((d, i) => {
@@ -43,6 +43,17 @@ const StepRow: React.FC<StepRowProps> = ({ step, days, daysRange, task, dragPrev
       />
     )}
   </div>
+), (prev, next) =>
+  prev.task.id === next.task.id &&
+  prev.task.concludedAt === next.task.concludedAt &&
+  prev.task.status?.blocked === next.task.status?.blocked &&
+  prev.step?.type === next.step?.type &&
+  prev.step?.start === next.step?.start &&
+  prev.step?.end === next.step?.end &&
+  prev.days.length === next.days.length &&
+  prev.daysRange === next.daysRange &&
+  prev.dragPreview === next.dragPreview &&
+  (prev.holidays ?? []).length === (next.holidays ?? []).length
 );
 
 export default StepRow;

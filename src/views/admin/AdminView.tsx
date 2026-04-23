@@ -5,7 +5,6 @@ import { UsersPanel } from './components/UsersPanel'
 import { AuditLogsPanel } from './components/AuditLogsPanel'
 import { NotificationsPanel } from './components/NotificationsPanel'
 import { useAuthContext } from '@/contexts/AuthContext'
-import { supabaseAdmin } from '@/lib/supabase'
 import { ViewState } from '@/components/ViewState'
 import { DatabaseZap, ShieldAlert } from 'lucide-react'
 import { Skeleton } from 'boneyard-js/react'
@@ -36,12 +35,12 @@ export function AdminView() {
     createUser, setUserAuthId, updateUser, deactivateUser, reactivateUser, listGoogleUsers,
   } = useAdminData({ actorUserId: member?.id ?? null })
 
-  if (!supabaseAdmin) {
+  if (member?.access_role !== 'admin') {
     return (
       <ViewState
         icon={ShieldAlert}
-        title="Configuração necessária"
-        description="Para acessar o painel admin, configure VITE_SUPABASE_SERVICE_ROLE_KEY no .env.local."
+        title="Acesso restrito"
+        description="Esta área é restrita a administradores."
       />
     )
   }

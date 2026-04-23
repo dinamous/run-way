@@ -14,6 +14,7 @@ export function useNotifications(userId?: string | null, clientIds?: string[]) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const loadedRef = useRef(false)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
@@ -44,7 +45,10 @@ export function useNotifications(userId?: string | null, clientIds?: string[]) {
 
     load()
 
-    const channel = supabase.channel('notifications-realtime')
+    if (channelRef.current) return
+
+    const channel = supabase.channel(`notifications-realtime:${userId}`)
+    channelRef.current = channel
 
     const handleInsert = (payload: { new: DbNotificationRow }) => {
       const newNotif = payload.new
@@ -97,7 +101,8 @@ export function useNotifications(userId?: string | null, clientIds?: string[]) {
     channel.subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      channel.unsubscribe()
+      channelRef.current = null
     }
   }, [userId, clientIds?.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
 

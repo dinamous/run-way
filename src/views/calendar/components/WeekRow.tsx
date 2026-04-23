@@ -34,7 +34,7 @@ interface WeekRowProps {
   weekIndex?: number;
 }
 
-const WeekRow: React.FC<WeekRowProps> = ({
+const WeekRow: React.FC<WeekRowProps> = React.memo(({
   week, tasks, today, currentMonth, rowHeight,
   dragPreview, didDragRef, onStartDrag, onEdit, holidays,
   viewMode = 'step', weekIndex = 0,
@@ -101,6 +101,15 @@ const WeekRow: React.FC<WeekRowProps> = ({
       })}
     </div>
   );
-};
+}, (prev, next) =>
+  prev.tasks.length === next.tasks.length &&
+  prev.tasks === next.tasks &&
+  prev.week[0].getTime() === next.week[0].getTime() &&
+  prev.currentMonth === next.currentMonth &&
+  prev.viewMode === next.viewMode &&
+  prev.weekIndex === next.weekIndex &&
+  prev.dragPreview === next.dragPreview &&
+  prev.holidays.length === next.holidays.length
+);
 
 export default WeekRow;

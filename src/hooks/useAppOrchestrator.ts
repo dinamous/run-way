@@ -2,8 +2,6 @@ import { useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { useClientStore } from "@/store/useClientStore";
 import { useUIStore } from "@/store/useUIStore";
-import { useMemberStore } from "@/store/useMemberStore";
-import { useTaskStore } from "@/store/useTaskStore";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useSupabase } from "@/hooks/useSupabase";
 import { useHolidays } from "@/hooks/useHolidays";
@@ -12,6 +10,7 @@ import { useAppTheme } from "@/hooks/useAppTheme";
 import { useAppSidebar } from "@/hooks/useAppSidebar";
 import { useTaskActions } from "@/hooks/useTaskActions";
 import { useClientTransition } from "@/hooks/useClientTransition";
+import { useMembersQuery } from "@/hooks/useMembersQuery";
 import { resolveNotificationRoute } from "@/lib/notifications";
 import { canAccessView, resolveAccessRole } from "@/lib/accessControl";
 import type { Notification } from "@/types/notification";
@@ -26,8 +25,6 @@ export function useAppOrchestrator() {
   const hasClients = auth.clients.length > 0;
 
   const { selectedClientId, setClient } = useClientStore();
-  const { members, fetchMembers } = useMemberStore();
-  const { fetchTasks } = useTaskStore();
 
   const effectiveClientId =
     selectedClientId === undefined
@@ -39,27 +36,19 @@ export function useAppOrchestrator() {
   useEffect(() => {
     if (auth.loading || !auth.session) return;
 
-    let resolvedClientId: string | null | undefined = selectedClientId;
-
     if (selectedClientId === undefined && hasClients) {
       setClient(auth.clients[0].id);
-      resolvedClientId = auth.clients[0].id;
     } else if (!hasClients) {
       setClient(undefined);
-      resolvedClientId = null;
     } else if (
       typeof selectedClientId === "string" &&
       !auth.clients.find((c) => c.id === selectedClientId)
     ) {
       setClient(auth.clients[0]?.id ?? undefined);
-      resolvedClientId = auth.clients[0]?.id ?? null;
     }
+  }, [auth.loading, auth.session, hasClients, auth.clients, selectedClientId, setClient]);
 
-    if (resolvedClientId !== undefined) {
-      fetchTasks(resolvedClientId, auth.isAdmin);
-      fetchMembers(resolvedClientId);
-    }
-  }, [auth.loading, auth.session, hasClients, auth.clients, selectedClientId, setClient, fetchTasks, fetchMembers, auth.isAdmin]);
+  const { data: members = [] } = useMembersQuery(effectiveClientId);
 
   const { createTask, updateTask, deleteTask } = useSupabase({
     memberId: auth.member?.id,
@@ -88,11 +77,24 @@ export function useAppOrchestrator() {
     (notification: Notification) => {
       const route = resolveNotificationRoute(notification);
       if (!route) return;
+
+      if (notification.type === 'client_access_granted' && notification.client_id) {
+        const isAlreadyOnClient = effectiveClientId === notification.client_id;
+        const clientExists = auth.clients.some((c) => c.id === notification.client_id);
+        if (clientExists && !isAlreadyOnClient) {
+          selectClient(notification.client_id);
+          return;
+        }
+        setView('clients');
+        return;
+      }
+
       if (route.startsWith("/dashboard")) setView("calendar");
       else if (route === "/profile") setView("profile");
       else if (route === "/clients") setView("clients");
+      else if (route === "/members") setView("members");
     },
-    [setView]
+    [setView, selectClient, effectiveClientId, auth.clients]
   );
 
   const handleViewChange = useCallback(

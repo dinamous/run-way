@@ -15,7 +15,7 @@ interface PhaseBarProps {
   onEdit: (t: Task) => void;
 }
 
-const PhaseBar: React.FC<PhaseBarProps> = ({ step, task, days, dragPreview, didDragRef, startDrag, onEdit }) => {
+const PhaseBar: React.FC<PhaseBarProps> = React.memo(({ step, task, days, dragPreview, didDragRef, startDrag, onEdit }) => {
   if (!step?.start || !step?.end) return null;
 
   const pStart = toLocalDate(step.start);
@@ -89,6 +89,15 @@ const PhaseBar: React.FC<PhaseBarProps> = ({ step, task, days, dragPreview, didD
       )}
     </div>
   );
-};
+}, (prev, next) =>
+  prev.step.type === next.step.type &&
+  prev.step.start === next.step.start &&
+  prev.step.end === next.step.end &&
+  prev.task.id === next.task.id &&
+  prev.task.concludedAt === next.task.concludedAt &&
+  prev.task.status?.blocked === next.task.status?.blocked &&
+  prev.days.length === next.days.length &&
+  prev.dragPreview === next.dragPreview
+);
 
 export default PhaseBar;

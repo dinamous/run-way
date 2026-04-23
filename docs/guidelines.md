@@ -24,6 +24,22 @@
 - Tailwind CSS v4 — config via plugin Vite, sem `tailwind.config.js`
 - Print: header e controlos com `print:hidden`
 
+## Segurança
+
+### Content Security Policy (CSP)
+Configurada em `vite.config.ts` via `server.headers` para o dev server:
+
+```
+default-src 'self'
+connect-src 'self' https://*.supabase.co
+script-src  'self' 'unsafe-inline'
+style-src   'self' 'unsafe-inline' https://fonts.googleapis.com
+font-src    'self' https://fonts.gstatic.com
+img-src     'self' data: https:
+```
+
+**Em produção** os headers devem ser replicados na plataforma de hospedagem (Vercel `vercel.json`, Netlify `_headers`, etc.) — o `server.headers` do Vite só se aplica ao dev server.
+
 ## Variáveis de Ambiente
 ```bash
 VITE_GOOGLE_CLIENT_ID=...   # Google OAuth 2.0 Client ID

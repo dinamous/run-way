@@ -1,8 +1,12 @@
 import { useState } from 'react';
+import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { STEP_META, type StepType, type Task } from '@/lib/steps';
 import type { Member } from '@/hooks/useSupabase';
 import { TaskRow } from './TaskRow';
+
+const TASK_ROW_HEIGHT = 52;
+const VIRTUALIZE_THRESHOLD = 50;
 
 interface StepGroupProps {
   stepType: StepType;
@@ -60,18 +64,50 @@ export function StepGroup({ stepType, tasks, members, onToggleBlock, onConclude,
 
       {/* Lista de tarefas */}
       {!isEmpty && isExpanded && (
-        <div className="p-3 space-y-2">
-          {tasks.map(task => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              stepType={stepType}
-              members={members}
-              onToggleBlock={onToggleBlock}
-              onConclude={onConclude}
-              onEdit={onEdit}
-            />
-          ))}
+        <div className="p-3">
+          {tasks.length > VIRTUALIZE_THRESHOLD ? (
+            <List
+              height={Math.min(tasks.length * TASK_ROW_HEIGHT, 600)}
+              itemCount={tasks.length}
+              itemSize={TASK_ROW_HEIGHT}
+              width="100%"
+              itemData={{ tasks, stepType, members, onToggleBlock, onConclude, onEdit }}
+            >
+              {({ index, style, data }: ListChildComponentProps<{
+                tasks: Task[];
+                stepType: StepType;
+                members: Member[];
+                onToggleBlock: (task: Task) => void;
+                onConclude: (task: Task) => void;
+                onEdit: (task: Task) => void;
+              }>) => (
+                <div style={{ ...style, paddingBottom: 8 }}>
+                  <TaskRow
+                    task={data.tasks[index]}
+                    stepType={data.stepType}
+                    members={data.members}
+                    onToggleBlock={data.onToggleBlock}
+                    onConclude={data.onConclude}
+                    onEdit={data.onEdit}
+                  />
+                </div>
+              )}
+            </List>
+          ) : (
+            <div className="space-y-2">
+              {tasks.map(task => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  stepType={stepType}
+                  members={members}
+                  onToggleBlock={onToggleBlock}
+                  onConclude={onConclude}
+                  onEdit={onEdit}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

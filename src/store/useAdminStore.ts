@@ -1,27 +1,28 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import { supabaseAdmin } from '@/lib/supabase'
 import type { DbClientRow, DbAuditLogRow } from '@/types/db'
 import type { Member } from '@/hooks/useSupabase'
-export interface PendingAuthUser {
-  id: string
-  email: string
-  name: string
-  avatarUrl: string | null
-  lastSignInAt: string | null
-}
+import {
+  adminFetchClients,
+  adminFetchMembers,
+  adminFetchUserClientsMap,
+  adminListPendingUsers,
+  adminFetchAuditLogs,
+  type PendingAuthUser,
+} from '@/lib/adminApi'
+import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
+import { DbClientRowSchema, DbMemberRowSchema } from '@/lib/validators'
+
+export type { PendingAuthUser }
 
 export interface AuditFilters {
   clientId?: string
   entityName?: string
   entity?: string
   userId?: string
-  from?: string   // YYYY-MM-DD
-  to?: string     // YYYY-MM-DD
+  from?: string
+  to?: string
 }
-import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
-
-const ALLOWED_DOMAIN = import.meta.env.VITE_ALLOWED_DOMAIN as string | undefined
 
 interface AdminState {
   clients: DbClientRow[]
@@ -43,6 +44,7 @@ interface AdminActions {
   fetchAuditLogs: (filters?: AuditFilters) => Promise<void>
   refreshAll: () => Promise<void>
   patchUser: (userId: string, patch: Partial<Member>) => void
+  patchUserClientsMap: (userId: string, clientId: string, action: 'add' | 'remove') => void
   setError: (error: string | null) => void
   invalidate: () => void
 }
@@ -67,6 +69,15 @@ export const useAdminStore = create<AdminStore>()(
           users: state.users.map((u) => u.id === userId ? { ...u, ...patch } : u),
         })),
 
+      patchUserClientsMap: (userId, clientId, action) =>
+        set((state) => {
+          const current = state.userClientsMap[userId] ?? []
+          const updated = action === 'add'
+            ? current.includes(clientId) ? current : [...current, clientId]
+            : current.filter(id => id !== clientId)
+          return { userClientsMap: { ...state.userClientsMap, [userId]: updated } }
+        }),
+
       setError: (error) => set({ error }),
 
       invalidate: () => set({
@@ -80,98 +91,42 @@ export const useAdminStore = create<AdminStore>()(
       }),
 
       fetchClients: async () => {
-        if (!supabaseAdmin) return
-        const { data, error } = await supabaseAdmin
-          .from('clients')
-          .select('*')
-          .order('name')
-        if (error) throw new Error(error.message)
-        set({ clients: data ?? [] })
+        const data = await adminFetchClients()
+        set({ clients: data.map(r => DbClientRowSchema.parse(r)) })
       },
 
       fetchUsers: async () => {
-        if (!supabaseAdmin) return
-        const { data, error } = await supabaseAdmin
-          .from('members')
-          .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role, is_active, created_at, deactivated_at')
-          .order('name')
-        if (error) throw new Error(error.message)
-        set({ users: data ?? [] })
+        const data = await adminFetchMembers()
+        set({ users: data.map(r => DbMemberRowSchema.parse(r)) as Member[] })
       },
 
       fetchUserClientsMap: async () => {
-        if (!supabaseAdmin) return
-        const { data, error } = await supabaseAdmin
-          .from('user_clients')
-          .select('user_id, client_id')
-        if (error) throw new Error(error.message)
+        const raw = await adminFetchUserClientsMap()
         const map: Record<string, string[]> = {}
-        ;(data ?? []).forEach(({ user_id, client_id }) => {
-          if (!map[user_id]) map[user_id] = []
-          map[user_id].push(client_id)
-        })
+        for (const [userId, clientIds] of Object.entries(raw)) {
+          map[userId] = clientIds
+        }
+        // re-validate via existing schema if needed
         set({ userClientsMap: map })
       },
 
       fetchPendingUsers: async () => {
-        if (!supabaseAdmin) return
-        const { data, error } = await supabaseAdmin.auth.admin.listUsers()
-        if (error || !data) return
-
-        const { data: members } = await supabaseAdmin
-          .from('members')
-          .select('auth_user_id')
-        const linkedAuthIds = new Set((members ?? []).map(m => m.auth_user_id).filter(Boolean))
-
-        const pending: PendingAuthUser[] = []
-        for (const u of data.users) {
-          if (!u.email) continue
-          const domain = u.email.split('@')[1]
-          if (ALLOWED_DOMAIN && domain !== ALLOWED_DOMAIN) continue
-          if (linkedAuthIds.has(u.id)) continue
-          pending.push({
-            id: u.id,
-            email: u.email,
-            name: u.user_metadata?.full_name ?? u.email.split('@')[0],
-            avatarUrl: u.user_metadata?.avatar_url ?? null,
-            lastSignInAt: u.last_sign_in_at ?? null,
-          })
-        }
+        const pending = await adminListPendingUsers()
         set({ pendingUsers: pending })
       },
 
       fetchAuditLogs: async (filters: AuditFilters = {}) => {
-        if (!supabaseAdmin) return
         set({ loading: true })
-
-        let query = supabaseAdmin
-          .from('audit_logs')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(200)
-
-        if (filters.clientId)    query = query.eq('client_id', filters.clientId)
-        if (filters.entity)      query = query.eq('entity', filters.entity)
-        if (filters.userId)      query = query.eq('user_id', filters.userId)
-        if (filters.entityName)  query = query.ilike('entity_name', `%${filters.entityName}%`)
-        if (filters.from)        query = query.gte('created_at', `${filters.from}T00:00:00Z`)
-        if (filters.to)          query = query.lte('created_at', `${filters.to}T23:59:59Z`)
-
-        const { data, error } = await query
-        if (error) {
-          set({ error: toSafeUiErrorMessage(error.message), loading: false })
-          return
+        try {
+          const data = await adminFetchAuditLogs(filters)
+          set({ auditLogs: data ?? [], loading: false, error: null })
+        } catch (err) {
+          set({ error: toSafeUiErrorMessage(err instanceof Error ? err.message : null), loading: false })
         }
-        set({ auditLogs: data ?? [], loading: false, error: null })
       },
 
       refreshAll: async () => {
-        if (!supabaseAdmin) {
-          set({ loadingInitial: false })
-          return
-        }
         if (get().loadingInitial) return
-
         set({ loadingInitial: true, error: null })
         try {
           const { fetchClients, fetchUsers, fetchUserClientsMap, fetchPendingUsers } = get()

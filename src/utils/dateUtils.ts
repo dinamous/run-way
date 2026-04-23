@@ -29,13 +29,16 @@ export const addBusinessDays = (startDate: Date | string, daysToAdd: number, hol
   const currentDate = new Date(startDate);
   let addedDays = 0;
   if (daysToAdd === 0) {
+    if (!isNonBusinessDay(currentDate, holidays)) {
+      return formatDate(currentDate)
+    }
     while (isNonBusinessDay(currentDate, holidays)) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     return formatDate(currentDate);
   }
 
-  while (addedDays < daysToAdd - 1) {
+  while (addedDays < daysToAdd) {
     currentDate.setDate(currentDate.getDate() + 1);
     if (!isNonBusinessDay(currentDate, holidays)) {
       addedDays++;
@@ -64,13 +67,13 @@ export const cascadePhases = (startDesignDate: Date | string, holidays: Holiday[
   const designStart = formatDate(startDesignDate);
   const designEnd = addBusinessDays(designStart, DEFAULT_DURATIONS.design, holidays);
 
-  const approvalStart = nextBusinessDay(designEnd, holidays);
+  const approvalStart = designEnd;
   const approvalEnd = addBusinessDays(approvalStart, DEFAULT_DURATIONS.approval, holidays);
 
-  const devStart = nextBusinessDay(approvalEnd, holidays);
+  const devStart = approvalEnd;
   const devEnd = addBusinessDays(devStart, DEFAULT_DURATIONS.dev, holidays);
 
-  const qaStart = nextBusinessDay(devEnd, holidays);
+  const qaStart = devEnd;
   const qaEnd = addBusinessDays(qaStart, DEFAULT_DURATIONS.qa, holidays);
 
   return {
@@ -78,7 +81,7 @@ export const cascadePhases = (startDesignDate: Date | string, holidays: Holiday[
     approval: { start: approvalStart, end: approvalEnd },
     dev: { start: devStart, end: devEnd },
     qa: { start: qaStart, end: qaEnd }
-  };
+  }
 };
 
 export const businessDaysBetween = (start: string, end: string): number => {

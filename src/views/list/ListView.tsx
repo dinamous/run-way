@@ -1,9 +1,8 @@
 import { useAuthContext } from '@/contexts/AuthContext';
-import { useTaskStore } from '@/store/useTaskStore';
-import { useMemberStore } from '@/store/useMemberStore';
+import { useTasksQuery } from '@/hooks/useTasksQuery';
+import { useMembersQuery } from '@/hooks/useMembersQuery';
 import { useClients } from '@/hooks/useClients';
-import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
+import { useTaskQuickActions } from '@/hooks/useTaskQuickActions';
 import type { Task } from '@/lib/steps';
 import { useListFilters } from './hooks/useListFilters';
 import { FilterBar } from '@/views/dashboard/components/FilterBar';
@@ -19,9 +18,10 @@ interface ListViewProps {
 
 export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProps) {
   const { member } = useAuthContext();
-  const { tasks, fetchTasks, invalidate } = useTaskStore();
-  const { members } = useMemberStore();
   const { effectiveClientId, isAdmin } = useClients();
+  const { data: tasks = [] } = useTasksQuery(effectiveClientId, isAdmin);
+  const { data: members = [] } = useMembersQuery(effectiveClientId);
+  const { concludeTask, toggleBlock } = useTaskQuickActions(member?.auth_user_id);
 
   const {
     filterAssignee, setFilterAssignee,
@@ -31,55 +31,17 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
     hasActiveFilters,
     clearFilters,
     filteredTasks,
-  } = useTaskFilters(tasks ?? [], false, '');
+  } = useTaskFilters(tasks, false, '');
 
   const {
     filterPeriodMonths, setFilterPeriodMonths,
     groupedTasks,
-  } = useListFilters(filteredTasks, members ?? []);
+  } = useListFilters(filteredTasks, members);
 
   const today = new Date().toISOString().slice(0, 7);
 
-  const handleConclude = async (task: Task) => {
-    const now = new Date().toISOString();
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        concluded_at: now,
-        concluded_by: member?.auth_user_id ?? null,
-      })
-      .eq('id', task.id);
-
-    if (error) {
-      toast.error('Erro ao concluir demanda');
-      return;
-    }
-
-    toast.success(`"${task.title}" concluída`);
-    invalidate();
-    await fetchTasks(effectiveClientId, isAdmin);
-  };
-
-  const handleToggleBlock = async (task: Task) => {
-    const newBlocked = !task.status.blocked;
-    const now = new Date().toISOString().split('T')[0];
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        blocked: newBlocked,
-        blocked_at: newBlocked ? now : null,
-      })
-      .eq('id', task.id);
-
-    if (error) {
-      toast.error('Erro ao alterar bloqueio');
-      return;
-    }
-
-    toast.success(newBlocked ? `"${task.title}" bloqueada` : `"${task.title}" desbloqueada`);
-    invalidate();
-    await fetchTasks(effectiveClientId, isAdmin);
-  };
+  const handleConclude = (task: Task) => concludeTask(task);
+  const handleToggleBlock = (task: Task) => toggleBlock(task);
 
   const togglePeriod = (months: number) => {
     if (filterPeriodMonths === months) return;
@@ -89,7 +51,7 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
   return (
     <div className="space-y-4">
       <FilterBar
-        members={members ?? []}
+        members={members}
         filterAssignee={filterAssignee}
         onChangeAssignee={setFilterAssignee}
         filterStatus={filterStatus}
@@ -107,7 +69,7 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         filteredCount={groupedTasks.size}
-        totalCount={(tasks ?? []).length}
+        totalCount={tasks.length}
       />
 
       {groupedTasks.size === 0 ? (
@@ -122,7 +84,7 @@ export function ListView({ onEdit, onDelete, onOpenNew, onExport }: ListViewProp
               monthKey={monthKey}
               items={items}
               isCurrentMonth={monthKey === today}
-              members={members ?? []}
+              members={members}
               onEdit={onEdit}
               onDelete={onDelete}
               onConclude={handleConclude}

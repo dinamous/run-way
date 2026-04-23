@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { useTaskStore } from '@/store/useTaskStore';
-import { useMemberStore } from '@/store/useMemberStore';
 import { useUIStore } from '@/store/useUIStore';
+import { useTasksQuery } from '@/hooks/useTasksQuery';
+import { useMembersQuery } from '@/hooks/useMembersQuery';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useClients } from '@/hooks/useClients';
 import { CalendarView } from '@/views/calendar';
@@ -37,27 +38,13 @@ const VIEW_TITLES: Record<string, { title: string; description: string }> = {
 const DashboardView: React.FC<DashboardViewProps> = ({ subview, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
   const { isAdmin } = useAuthContext();
   const { effectiveClientId } = useClients();
+  const queryClient = useQueryClient();
   const dashboardRedirect = useUIStore((s) => s.dashboardRedirect);
   const clearDashboardRedirect = useUIStore((s) => s.clearDashboardRedirect);
-  const {
-    tasks,
-    loading: tasksLoading,
-    error: tasksError,
-    fetchTasks,
-    invalidate: invalidateTasks,
-  } = useTaskStore();
-  const {
-    members,
-    loading: membersLoading,
-    error: membersError,
-    fetchMembers,
-    invalidate: invalidateMembers,
-  } = useMemberStore();
-
-  useEffect(() => {
-    fetchTasks(effectiveClientId, isAdmin);
-    fetchMembers(effectiveClientId);
-  }, [effectiveClientId, isAdmin, fetchTasks, fetchMembers]);
+  const { data: tasks = [], isLoading: tasksLoading, error: tasksErr } = useTasksQuery(effectiveClientId, isAdmin);
+  const { data: members = [], isLoading: membersLoading, error: membersErr } = useMembersQuery(effectiveClientId);
+  const tasksError = tasksErr?.message ?? null;
+  const membersError = membersErr?.message ?? null;
 
   const {
     filterAssignee, setFilterAssignee,
@@ -80,10 +67,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ subview, onEdit, onDelete
   const errorMessage = tasksError || membersError;
 
   const handleRetry = () => {
-    invalidateTasks();
-    invalidateMembers();
-    fetchTasks(effectiveClientId, isAdmin);
-    fetchMembers(effectiveClientId);
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['members'] });
   };
 
   if (errorMessage && !hasData) {

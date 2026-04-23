@@ -6,6 +6,7 @@ export type NotificationType =
   | 'client_access_granted'
   | 'client_access_revoked'
   | 'admin_broadcast'
+  | 'new_member'
 
 export interface Notification {
   id: string

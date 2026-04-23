@@ -45,6 +45,7 @@ npm run lint      # ESLint
 - `.env` nunca commitado
 - **Testes:** toda nova feature ou bugfix deve ter testes unitários com Vitest. Rodar com `npm run test:run`. Arquivos de teste ficam em `src/**/__tests__/` co-localizados com o módulo testado
 - **Migrations:** toda alteração de schema no Supabase requer um arquivo SQL em `supabase/migrations/`. Nomenclatura: `YYYYMMDD<seq>_<descricao>.sql` — seq começa em `000000`; se houver mais de uma migration no mesmo dia, incrementar a seq (`000001`, `000002`, …). Nunca alterar migrations já aplicadas.
+- **ADRs:** toda decisão arquitetural aceita (nova feature, mudança de stack, padrão novo) deve ser registrada em `docs/decisions.md` com status, decisão, racional e consequências. Usar o próximo número sequencial disponível.
 
 ## CI/CD (.github/workflows/)
 

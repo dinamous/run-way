@@ -1,4 +1,10 @@
-import { supabase, supabaseAdmin } from './supabase'
+import { supabase } from './supabase'
+import {
+  adminFetchAllNotifications as apiFetchAll,
+  adminCreateNotification as apiCreateNotification,
+  adminCreateNotificationForAll as apiCreateForAll,
+} from './adminApi'
+import { throttleAsync } from './throttle'
 import type { DbNotificationRow, Notification } from '@/types/notification'
 
 export async function fetchNotifications(userId: string, clientIds?: string[]) {
@@ -23,10 +29,10 @@ export async function fetchNotifications(userId: string, clientIds?: string[]) {
     console.error('fetchNotifications error:', error)
     throw error
   }
-  return data ? data.map(mapDbToNotification) : []
+  return data ? (data as DbNotificationRow[]).map(mapDbToNotification) : []
 }
 
-export async function markAsRead(id: string) {
+async function _markAsRead(id: string) {
   const { error } = await supabase
     .from('notifications')
     .update({ read: true })
@@ -35,7 +41,7 @@ export async function markAsRead(id: string) {
   if (error) throw error
 }
 
-export async function markAllAsRead(userId: string, clientIds?: string[]) {
+async function _markAllAsRead(userId: string, clientIds?: string[]) {
   let orFilter = `user_id.eq.${userId}`
 
   if (clientIds && clientIds.length > 0) {
@@ -54,19 +60,12 @@ export async function markAllAsRead(userId: string, clientIds?: string[]) {
   if (error) throw error
 }
 
+export const markAsRead = throttleAsync(_markAsRead, 300)
+export const markAllAsRead = throttleAsync(_markAllAsRead, 1000)
+
 export async function fetchAllNotifications() {
-  if (!supabaseAdmin) {
-    throw new Error('Admin não configurado')
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from('notifications')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(100)
-
-  if (error) throw error
-  return data ? data.map(mapDbToNotification) : []
+  const data = await apiFetchAll()
+  return (data as DbNotificationRow[]).map(mapDbToNotification)
 }
 
 export async function createNotification(
@@ -75,83 +74,41 @@ export async function createNotification(
   userId?: string,
   clientId?: string,
   type: string = 'admin_broadcast',
-  metadata?: Record<string, string> | null
+  metadata?: Record<string, string> | null,
 ) {
-  if (!supabaseAdmin) {
-    throw new Error('Admin não configurado')
-  }
-
-  const { error } = await supabaseAdmin
-    .from('notifications')
-    .insert({
-      user_id: userId ?? null,
-      client_id: clientId ?? null,
-      title,
-      message,
-      type,
-      metadata: metadata ?? null,
-    })
-
-  if (error) throw error
+  await apiCreateNotification(title, message, userId, clientId, type, metadata ?? undefined)
 }
 
 export async function createNotificationForClient(
   clientId: string,
   title: string,
   message: string,
-  type: string = 'admin_broadcast'
+  type: string = 'admin_broadcast',
 ) {
-  if (!supabaseAdmin) {
-    throw new Error('Admin não configurado')
-  }
-
-  const { error } = await supabaseAdmin
-    .from('notifications')
-    .insert({
-      client_id: clientId,
-      user_id: null,
-      title,
-      message,
-      type,
-    })
-
-  if (error) throw error
+  await apiCreateNotification(title, message, undefined, clientId, type)
 }
 
 export async function createNotificationForAll(
   clientIds: string[],
   title: string,
   message: string,
-  type: string = 'admin_broadcast'
+  type: string = 'admin_broadcast',
 ) {
-  if (!supabaseAdmin) throw new Error('Admin não configurado')
-
-  const rows = clientIds.map((clientId) => ({
-    client_id: clientId,
-    user_id: null,
-    title,
-    message,
-    type,
-  }))
-
-  const { error } = await supabaseAdmin.from('notifications').insert(rows)
-  if (error) throw error
+  await apiCreateForAll(clientIds, title, message, type)
 }
 
 export function resolveNotificationRoute(notification: Notification): string | null {
-  if (!notification.metadata) return null
-
   switch (notification.type) {
+    case 'new_member':
+      return '/members'
+
     case 'step_assigned':
     case 'step_unassigned': {
-      const stepId = notification.metadata?.step_id
-      const taskTitle = notification.metadata?.task_title
-      if (stepId) {
-        return `/dashboard?step=${stepId}`
-      }
-      if (taskTitle) {
-        return `/dashboard?task=${encodeURIComponent(taskTitle)}`
-      }
+      if (!notification.metadata) return '/dashboard'
+      const stepId = notification.metadata.step_id
+      const taskTitle = notification.metadata.task_title
+      if (stepId) return `/dashboard?step=${stepId}`
+      if (taskTitle) return `/dashboard?task=${encodeURIComponent(taskTitle)}`
       return '/dashboard'
     }
 
@@ -162,6 +119,8 @@ export function resolveNotificationRoute(notification: Notification): string | n
       return '/dashboard'
 
     case 'client_access_granted':
+      return notification.client_id ? `/clients/${notification.client_id}` : '/clients'
+
     case 'client_access_revoked':
       return '/clients'
 

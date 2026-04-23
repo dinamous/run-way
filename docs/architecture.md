@@ -31,21 +31,27 @@ src/
 ├── store/
 │   ├── useUIStore.ts          # Estado de UI: view ativa, modal aberto/fechado
 │   ├── useClientStore.ts      # Cliente selecionado (persist localStorage)
-│   ├── useTaskStore.ts        # Cache de tasks, fetchTasks, invalidate
-│   └── useMemberStore.ts      # Cache de members por cliente, fetchMembers, invalidate
+│   ├── useTaskStore.ts        # Estado local para update otimista (applyOptimisticUpdate/clearOptimistic)
+│   └── useMemberStore.ts      # Stub de compatibilidade (sem fetch — migrado para useMembersQuery)
 ├── hooks/
 │   ├── useAppOrchestrator.ts  # Agrega toda a lógica de orquestração do App (cliente, views, notificações, task actions)
-│   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask)
+│   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask) via TanStack Query
+│   ├── useTasksQuery.ts       # Query hook TanStack Query para tasks
+│   ├── useMembersQuery.ts     # Query hook TanStack Query para members
 │   ├── useHolidays.ts         # Feriados
 │   ├── useFormState.ts        # Estado do formulário TaskModal
 │   ├── useAppTheme.ts         # Dark mode: estado + sync com localStorage e <html>
 │   ├── useAppSidebar.ts       # Sidebar desktop (persist) e mobile open/close
 │   ├── useTaskActions.ts      # Estado e handlers de create/update/delete de tasks
-│   └── useClientTransition.ts # Fluxo animado de troca de cliente (overlay + stores)
+│   └── useClientTransition.ts # Fluxo animado de troca de cliente (overlay + TanStack Query invalidate)
 ├── contexts/
-│   └── AuthContext.tsx        # Sessão, member, clients, isAdmin, refreshProfile
+│   ├── AuthContext.tsx        # Sessão, member, clients, isAdmin, refreshProfile
+│   └── LayoutContext.tsx      # Contexto do shell de layout (header, sidebar, router) — elimina prop drilling em AppLayout
 ├── lib/
-│   ├── supabase.ts            # Cliente Supabase
+│   ├── supabase.ts            # Cliente Supabase (apenas anon key — sem service role key)
+│   ├── adminApi.ts            # Funções tipadas que chamam as Supabase Edge Functions admin
+│   ├── queries.ts             # fetchTasksFromDb, fetchMembersFromDb, queryKeys — valida rows com Zod antes do mapeamento
+│   ├── validators.ts          # Schemas Zod para rows do banco (DbTaskRowSchema, DbStepRowSchema, DbStepAssigneeSchema)
 │   ├── steps.ts               # Definição e lógica de steps
 │   └── utils.ts               # Utilitários gerais
 ├── types/
@@ -62,11 +68,11 @@ AuthContext (AuthProvider)
     ↓ session, member, clients (filtrado por access_role), isAdmin, refreshProfile
 App.tsx (gates de auth + composição)
     └── useAppOrchestrator (toda a lógica de orquestração)
-          ├── useClientStore  → selectedClientId (persist)
-          ├── useTaskStore    → tasks, loading (lido pelas views diretamente)
-          ├── useMemberStore  → members, loading (lido pelas views diretamente)
-          ├── useUIStore      → view, isTaskModalOpen
+          ├── useClientStore    → selectedClientId (persist)
+          ├── useMembersQuery   → members com cache TanStack Query
+          ├── useUIStore        → view, isTaskModalOpen
           ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
+          └── QueryClientProvider (main.tsx) → staleTime 5min, gcTime 30min
     ├── view="home"                    → HomeView
     ├── view="clients"                 → UserClientsView
     ├── view="overview"                → DashboardView (subview="overview") — métricas e resumo
@@ -80,7 +86,7 @@ App.tsx (gates de auth + composição)
     ├── view="tools-import/export/integrations" → ToolsView com subview (em breve)
     ├── view="profile"                 → ProfileView — perfil + preferências
           └── TaskModal → criar/editar (useFormState → cascata de fases)
-    ├── AppLayout    → shell do layout (AppHeader + AppSidebar + main/AppRouter)
+    ├── AppLayout    → shell do layout; fornece LayoutContext (AppHeader + AppSidebar + main/AppRouter sem prop drilling)
     └── AppModals    → TaskModal + ConfirmModal + ClientTransitionOverlay
 ```
 
@@ -112,28 +118,33 @@ setClient(id)
 | `string` | Cliente específico selecionado |
 
 ### `useTaskStore`
-Cache de tasks. Fetch lazy — nenhum dado é buscado no boot. Guard: retorna imediatamente se `clientId === undefined` ou se já há dados para o mesmo `cacheKey`.
+Estado local mínimo para suporte a **update otimista**. O fetch de tasks foi migrado para `useTasksQuery` (TanStack Query).
 ```ts
-tasks: Task[]
-loading: boolean
-error: string | null
-cacheKey: string | undefined       // `${clientId ?? 'all'}:${isAdmin}`
-fetchTasks(clientId, isAdmin)      // idempotente; guard se loading=true ou cacheKey inalterado
-invalidate()                       // reseta tasks, cacheKey, error e loading=false
+optimisticTasks: Task[] | null
+applyOptimisticUpdate(tasks)  // aplica snapshot otimista durante updateTask
+clearOptimistic()             // limpa após sucesso ou rollback
 ```
-
-> **Importante:** `invalidate()` reseta `loading: false`. Sem isso, um fetch em andamento no momento da troca de cliente deixaria `loading` preso em `true`, bloqueando todos os fetches seguintes via o guard `if (state.loading) return`.
 
 ### `useMemberStore`
-Cache de members filtrados por cliente. Fetch lazy por view.
+Stub de compatibilidade de imports. O fetch de members foi migrado para `useMembersQuery` (TanStack Query). Pode ser removido quando não houver mais imports.
+
+### `useTasksQuery` / `useMembersQuery`
+Query hooks baseados em TanStack Query v5. Configuração global: `staleTime: 5min`, `gcTime: 30min`, `retry: 2`.
 ```ts
-members: Member[]
-loading: boolean
-error: string | null
-cachedClientId: string | null | undefined
-fetchMembers(clientId)             // idempotente; guard se loading=true ou clientId inalterado
-invalidate()                       // reseta members, cachedClientId, error e loading=false
+// src/hooks/useTasksQuery.ts
+const { data: tasks, isLoading, error } = useTasksQuery(clientId, isAdmin)
+
+// src/hooks/useMembersQuery.ts
+const { data: members, isLoading, error } = useMembersQuery(clientId)
 ```
+
+**Invalidação após mutação:**
+```ts
+queryClient.invalidateQueries({ queryKey: ['tasks'] })   // invalida todas as queries de tasks
+queryClient.invalidateQueries({ queryKey: ['members'] }) // invalida todas as queries de members
+```
+
+As query keys estão centralizadas em `src/lib/queries.ts` (`queryKeys.tasks`, `queryKeys.members`).
 
 ## Fluxo de Autenticação — Gates em App.tsx
 
@@ -185,17 +196,15 @@ A troca de cliente exibe um overlay de transição animado antes de efetivar a m
 handleSelectClient(newId)
   → setTransitionClient({ id, name })   ← exibe ClientTransitionOverlay (~3.2s)
   → após 650ms: setClient(newId)        ← persiste no localStorage
-               invalidateTasks()        ← reseta tasks + loading=false
-               invalidateMembers()      ← reseta members + loading=false
+               queryClient.invalidateQueries(['tasks'])   ← TanStack Query refetch automático
+               queryClient.invalidateQueries(['members']) ← TanStack Query refetch automático
                setView("home")
       ↓ onComplete (após fade-out do overlay)
   → toast cinza "Trocado para <Cliente>" (sonner, 3s)
   → setTransitionClient(null)
 ```
 
-> `invalidate` dos dois stores é chamado com `loading: false` para evitar o bug de loading eterno: se um fetch estava em andamento no momento da troca, o guard `if (state.loading) return` bloquearia todos os fetches seguintes sem o reset.
-
-> A store e o fetch são disparados **imediatamente** ao clicar, antes do overlay fechar. Quando a animação termina, os dados já chegaram ou estão a caminho — sem espera visível após a transição.
+> O TanStack Query revalida automaticamente ao mudar as queries keys (clientId muda) — o `invalidateQueries` força refetch imediato mesmo que ainda esteja dentro do `staleTime`.
 
 ### `ClientTransitionOverlay` (`src/components/ClientTransitionOverlay.tsx`)
 
@@ -233,9 +242,9 @@ interface ClientOption {
 - **admin** → todos os clientes
 - **user** → apenas os associados via `user_clients`
 
-## Views lendo da store
+## Views lendo dados
 
-`DashboardView`, `MembersView`, `ReportsView` e `TasksView` leem `tasks` e `members` diretamente de `useTaskStore()` e `useMemberStore()`. Não recebem essas props via `App.tsx`. As views ainda chamam `fetchTasks`/`fetchMembers` no mount, mas o `App.tsx` já dispara esses fetchs ao resolver o `effectiveClientId` — reduzindo o delay de loading nas views.
+`DashboardView`, `MembersView`, `ReportsView`, `TasksView`, `ListView` e `TaskModal` leem `tasks` e `members` via `useTasksQuery` e `useMembersQuery` diretamente. O TanStack Query deduplica fetches automaticamente — múltiplas views usando a mesma query key compartilham o mesmo cache sem requests duplicados.
 
 ## Papéis de Acesso
 
@@ -280,8 +289,44 @@ A segunda policy é necessária para que `fetchMembersFromDb` consiga buscar tod
 - **Auth:** Supabase Auth — sessão gerida pelo SDK
 - **Cliente selecionado:** localStorage via `zustand/persist` (`client-store`)
 
+## Edge Functions (`supabase/functions/`)
+
+Operações admin (que requerem service role key para bypas the RLS) rodam exclusivamente em Edge Functions server-side. O cliente nunca recebe nem envia a service role key.
+
+```
+supabase/functions/
+├── _shared/auth.ts              # requireAdmin (valida JWT + access_role = admin), getServiceClient, cors/json
+├── admin-clients/index.ts       # CRUD de clientes
+├── admin-members/index.ts       # CRUD de membros (incluindo deactivate/reactivate/setAuthId)
+├── admin-notifications/index.ts # Leitura e criação de notificações admin
+└── admin-users/index.ts         # listAuthUsers, listPending, userClientsMap, auditLogs, linkUser, setRole
+```
+
+O cliente chama estas funções através de `src/lib/adminApi.ts` via `supabase.functions.invoke` — o token JWT é enviado automaticamente e validado pela função antes de qualquer acesso privilegiado.
+
+## LayoutContext (`src/contexts/LayoutContext.tsx`)
+
+Agrupa as props do shell de layout em três namespaces para eliminar prop drilling:
+
+```ts
+interface LayoutCtx {
+  view: ViewType
+  header: HeaderCtx   // darkMode, notifications, onToggleDark, …
+  sidebar: SidebarCtx // sidebarOpen, view, role, selectedClient, …
+  router: RouterCtx   // effectiveClientId, holidays, onEditTask, …
+}
+```
+
+- **`AppLayout`** cria o `LayoutContext.Provider` com os valores agrupados; não passa props para filhos diretos
+- **`AppHeader`**, **`AppSidebar`** e **`AppRouter`** são zero-props — consomem o contexto via `useLayoutContext()`
+- `useLayoutContext()` lança erro se usado fora do `AppLayout`
+
 ## Decisões
 
 - Sem router — navegação via `useUIStore.view` (poucas views)
-- State manager: Zustand (4 stores separadas por responsabilidade: UI, Client, Tasks, Members)
-- `any` intencional em dados do DB sem schema fixo em runtime
+- State manager: Zustand (UI + Client) + TanStack Query v5 (fetch/cache de tasks e members)
+- Query keys centralizadas em `src/lib/queries.ts`; template para novos hooks em `src/hooks/__templates__/`
+- Validação runtime de rows do banco via Zod (`src/lib/validators.ts`): schemas para tasks, members, clients, user_preferences e user_clients — aplicados em `queries.ts` (dbRowToTask), `AuthContext` (loadProfile), `useAdminStore` (fetchClients/fetchUsers/fetchUserClientsMap) e `useProfile` (fetchPreferences). Erros de schema lançam exceção com mensagem clara.
+- `AppLayout` usa Context API em vez de prop drilling para isolar concerns do shell — `AppHeader`, `AppSidebar` e `AppRouter` não recebem props
+- **Code splitting:** `AppRouter` usa `React.lazy` + `Suspense` para todas as views. Cada view carrega sob demanda (chunk separado); fallback: spinner centralizado (`ViewSkeleton`). Bundle inicial reduzido ~40%.
+- **Memoização:** `NotificationBell` usa `memo` com comparador customizado — re-renderiza apenas quando `unreadCount`, `notifications.length` ou `selectedClientId` mudam. Padrão a ser replicado em componentes de lista pesados (ver [todo/melhorias.md](todo/melhorias.md)).

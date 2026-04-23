@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$raw = $Input | Out-String; $obj = $raw | ConvertFrom-Json; $path = $obj.tool_input.file_path.Replace('\\', '/'); if ($path -match 'supabase/migrations/.+[.]sql') { Write-Output '{\"systemMessage\": \"⚠️  Migration detectada! Regenere os tipos do Supabase:\\nnpx supabase gen types typescript --project-id SEU_PROJECT_ID > src/types/supabase.ts\"}' }",
+            "statusMessage": "Verificando se é migration..."
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Read(.env*)",
+      "Edit(.env*)",
+      "Bash(cat *.env*)",
+      "Bash(head *.env*)",
+      "Bash(tail *.env*)",
+      "Bash(less *.env*)",
+      "Bash(more *.env*)"
+    ]
+  }
+}

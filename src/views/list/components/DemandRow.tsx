@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ExternalLink, Check, Lock, Trash2, Users, Calendar } from 'lucide-react';
 import type { Task } from '@/lib/steps';
 import type { Member } from '@/hooks/useSupabase';
@@ -17,7 +18,7 @@ function formatDate(isoDate: string): string {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-export function DemandRow({ task, referenceDate, members, onEdit, onDelete, onConclude, onToggleBlock }: DemandRowProps) {
+export const DemandRow = memo(function DemandRow({ task, referenceDate, members, onEdit, onDelete, onConclude, onToggleBlock }: DemandRowProps) {
   const allAssigneeIds = [...new Set(task.steps.flatMap(s => s.assignees))];
   const assigneeMembers = allAssigneeIds
     .map(id => members.find(m => m.id === id))
@@ -111,4 +112,10 @@ export function DemandRow({ task, referenceDate, members, onEdit, onDelete, onCo
       </div>
     </div>
   );
-}
+}, (prev, next) =>
+  prev.task.id === next.task.id &&
+  prev.task.status?.blocked === next.task.status?.blocked &&
+  prev.task.concludedAt === next.task.concludedAt &&
+  prev.referenceDate === next.referenceDate &&
+  prev.members.length === next.members.length
+);

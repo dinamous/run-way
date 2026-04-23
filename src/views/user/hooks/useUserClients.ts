@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useThrottledMutation } from '@/hooks/useThrottledMutation'
 import type { ClientOption } from '@/contexts/AuthContext'
 
 export function useUserClients() {
@@ -87,5 +88,12 @@ export function useUserClients() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchClients() }, [fetchClients])
 
-  return { userClients, availableClients, loading, linkToClient, unlinkFromClient, refetch: fetchClients }
+  return {
+    userClients,
+    availableClients,
+    loading,
+    linkToClient: useThrottledMutation(linkToClient, 500),
+    unlinkFromClient: useThrottledMutation(unlinkFromClient, 500),
+    refetch: fetchClients,
+  }
 }

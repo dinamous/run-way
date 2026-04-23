@@ -1,32 +1,21 @@
-import { Menu, LayoutDashboard, Sun, Moon } from "lucide-react";
-import { NotificationBell } from "./NotificationBell";
-import type { Notification } from "@/types/notification";
+import { Menu, LayoutDashboard, Sun, Moon } from "lucide-react"
+import { NotificationBell } from "./NotificationBell"
+import { useLayoutContext } from "@/contexts/LayoutContext"
 
-interface AppHeaderProps {
-  onToggleMobileSidebar?: () => void;
-  notifications?: Notification[];
-  unreadCount?: number;
-  onMarkNotificationAsRead?: (notificationId: string) => void;
-  onMarkAllNotificationsAsRead?: () => void;
-  onNotificationClick?: (notification: Notification) => void;
-  reloadNotifications?: () => void;
-  selectedClientId?: string | null;
-  darkMode?: boolean;
-  onToggleDark?: () => void;
-}
+export function AppHeader() {
+  const { header: {
+    onToggleMobileSidebar,
+    notifications,
+    unreadCount,
+    onMarkNotificationAsRead,
+    onMarkAllNotificationsAsRead,
+    onNotificationClick,
+    onReloadNotifications,
+    selectedClientId,
+    darkMode,
+    onToggleDark,
+  } } = useLayoutContext()
 
-export function AppHeader({
-  onToggleMobileSidebar,
-  notifications = [],
-  unreadCount = 0,
-  onMarkNotificationAsRead,
-  onMarkAllNotificationsAsRead,
-  onNotificationClick,
-  reloadNotifications,
-  selectedClientId,
-  darkMode,
-  onToggleDark,
-}: AppHeaderProps) {
   return (
     <header className="bg-neutral-100 dark:bg-neutral-950 border-b border-border sticky top-0 z-10 print:hidden">
       <div className="px-4 h-16 flex items-center justify-between">
@@ -59,14 +48,14 @@ export function AppHeader({
           <NotificationBell
             notifications={notifications}
             unreadCount={unreadCount}
-            onMarkAsRead={onMarkNotificationAsRead ?? (() => {})}
-            onMarkAllAsRead={onMarkAllNotificationsAsRead ?? (() => {})}
-            onNotificationClick={onNotificationClick ?? (() => {})}
-            reload={reloadNotifications}
+            onMarkAsRead={onMarkNotificationAsRead}
+            onMarkAllAsRead={onMarkAllNotificationsAsRead}
+            onNotificationClick={onNotificationClick}
+            reload={onReloadNotifications}
             selectedClientId={selectedClientId ?? undefined}
           />
         </div>
       </div>
     </header>
-  );
+  )
 }

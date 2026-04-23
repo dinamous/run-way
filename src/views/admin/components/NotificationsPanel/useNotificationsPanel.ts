@@ -1,13 +1,11 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
-import { supabaseAdmin } from '@/lib/supabase'
 import {
-  createNotification,
-  createNotificationForClient,
-  createNotificationForAll,
-  fetchAllNotifications,
-  markAsRead as markAsReadApi,
-} from '@/lib/notifications'
+  adminFetchAllNotifications,
+  adminCreateNotification,
+  adminCreateNotificationForAll,
+} from '@/lib/adminApi'
+import { markAsRead as markAsReadApi } from '@/lib/notifications'
 import type { Client } from '@/types/db'
 import type { Notification } from '@/types/notification'
 import { groupNotifications } from './utils'
@@ -28,11 +26,10 @@ export function useNotificationsPanel(clients: Client[]) {
   const [error, setError] = useState<string | null>(null)
 
   const loadHistory = useCallback(async () => {
-    if (!supabaseAdmin) return
     setLoadingHistory(true)
     setError(null)
     try {
-      setHistory(await fetchAllNotifications())
+      setHistory(await adminFetchAllNotifications())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar')
     } finally {
@@ -46,16 +43,15 @@ export function useNotificationsPanel(clients: Client[]) {
 
   const handleSend = async () => {
     if (!title.trim() || !message.trim()) { toast.error('Preencha o título e a mensagem'); return }
-    if (!supabaseAdmin) { toast.error('Admin não configurado'); return }
 
     setSending(true)
     try {
       if (targetType === 'user' && selectedUserId) {
-        await createNotification(title, message, selectedUserId, undefined, 'manual')
+        await adminCreateNotification(title, message, selectedUserId, undefined, 'manual')
       } else if (targetType === 'client' && selectedClientId) {
-        await createNotificationForClient(selectedClientId, title, message)
+        await adminCreateNotification(title, message, undefined, selectedClientId)
       } else if (targetType === 'all') {
-        await createNotificationForAll(clients.map((c) => c.id), title, message)
+        await adminCreateNotificationForAll(clients.map((c) => c.id), title, message)
       } else {
         toast.error('Selecione um destino'); setSending(false); return
       }

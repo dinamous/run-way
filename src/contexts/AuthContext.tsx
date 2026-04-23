@@ -1,9 +1,12 @@
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { Member } from '@/hooks/useSupabase'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
+import { DbMemberRowSchema, DbClientRowSchema, DbUserClientRowSchema } from '@/lib/validators'
 import { getSafeRedirectUrl } from '@/lib/securityRedirect'
+import { toast } from 'sonner'
+import { useClientStore } from '@/store/useClientStore'
 
 export interface ClientOption {
   id: string
@@ -53,17 +56,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [impersonatedClientId, setImpersonatedClientId] = useState<string | null>(null)
   const subscriptionRef = useRef<ReturnType<typeof supabase.auth.onAuthStateChange>['data']['subscription'] | null>(null)
+  const realtimeRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const bootstrappedUserIdRef = useRef<string | null>(null)
+  const memberRef = useRef<Member | null>(null)
 
   async function loadProfile(authUid: string, userEmail?: string) {
     try {
-      let { data: memberData } = await supabase
+      let { data: rawMemberData } = await supabase
         .from('members')
         .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
         .eq('auth_user_id', authUid)
         .single()
 
-      if (!memberData && userEmail) {
+      if (!rawMemberData && userEmail) {
         const { data: pendingMember } = await supabase
           .from('members')
           .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
@@ -81,27 +86,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             })
             .eq('id', pendingMember.id)
 
-          memberData = { ...pendingMember, auth_user_id: authUid, avatar_url: avatarFromSession ?? pendingMember.avatar_url }
+          rawMemberData = { ...pendingMember, auth_user_id: authUid, avatar_url: avatarFromSession ?? pendingMember.avatar_url }
         }
       }
 
-      if (!memberData) { setMember(null); setClients([]); return }
+      if (!rawMemberData) { setMember(null); setClients([]); return }
 
       const avatarFromSession = user?.user_metadata?.avatar_url
-      if (avatarFromSession && !memberData.avatar_url) {
+      if (avatarFromSession && !rawMemberData.avatar_url) {
         await supabase
           .from('members')
           .update({ avatar_url: avatarFromSession })
-          .eq('id', memberData.id)
-        memberData.avatar_url = avatarFromSession
+          .eq('id', rawMemberData.id)
+        rawMemberData.avatar_url = avatarFromSession
       }
 
+      const memberData = DbMemberRowSchema.parse(rawMemberData)
+      memberRef.current = memberData as Member
       setMember(memberData as Member)
 
-      const { data: allClients } = await supabase
+      const { data: rawClients } = await supabase
         .from('clients')
         .select('id, name, slug')
         .order('name')
+
+      const allClients = (rawClients ?? []).map(c => DbClientRowSchema.parse(c))
 
       if (memberData.access_role !== 'admin') {
         const { data: uc } = await supabase
@@ -109,15 +118,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .select('client_id')
           .eq('user_id', memberData.id)
 
-        const clientIds = (uc ?? []).map((r: { client_id: string }) => r.client_id)
+        const clientIds = (uc ?? []).map((r) => DbUserClientRowSchema.parse(r).client_id)
 
         if (clientIds.length > 0) {
-          setClients((allClients ?? []).filter(c => clientIds.includes(c.id)))
+          setClients(allClients.filter(c => clientIds.includes(c.id)))
         } else {
           setClients([])
         }
       } else {
-        setClients(allClients ?? [])
+        setClients(allClients)
       }
     } catch (err) {
       console.warn('[AuthContext] Erro ao carregar perfil:', err)
@@ -125,6 +134,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setClients([])
     }
   }
+
+  const reloadClients = useCallback(async (currentMemberId: string, isAdmin: boolean) => {
+    const { data: rawClients } = await supabase
+      .from('clients')
+      .select('id, name, slug')
+      .order('name')
+
+    const allClients = (rawClients ?? []).map(c => DbClientRowSchema.parse(c))
+
+    if (isAdmin) {
+      setClients(allClients)
+      return allClients
+    }
+
+    const { data: uc } = await supabase
+      .from('user_clients')
+      .select('client_id')
+      .eq('user_id', currentMemberId)
+
+    const clientIds = (uc ?? []).map((r) => DbUserClientRowSchema.parse(r).client_id)
+    const filtered = clientIds.length > 0 ? allClients.filter(c => clientIds.includes(c.id)) : []
+    setClients(filtered)
+    return filtered
+  }, [])
+
+  useEffect(() => {
+    const currentMember = memberRef.current
+    if (!currentMember || currentMember.access_role === 'admin') return
+
+    const channel = supabase
+      .channel(`user_clients:${currentMember.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_clients',
+          filter: `user_id=eq.${currentMember.id}`,
+        },
+        async (payload) => {
+          const selectedClientId = useClientStore.getState().selectedClientId
+          const newClients = await reloadClients(currentMember.id, false)
+
+          if (payload.eventType === 'INSERT') {
+            toast.info('Você foi adicionado a um novo cliente.')
+          } else if (payload.eventType === 'DELETE') {
+            const removedClientId = (payload.old as { client_id?: string }).client_id
+            if (removedClientId && removedClientId === selectedClientId) {
+              useClientStore.getState().setClient(newClients[0]?.id ?? undefined)
+              toast.warning('O seu acesso a este cliente foi revogado. Você foi redirecionado.')
+            } else {
+              toast.info('O seu acesso a um cliente foi revogado.')
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    realtimeRef.current = channel
+
+    return () => {
+      channel.unsubscribe()
+      realtimeRef.current = null
+    }
+  }, [member, reloadClients])
 
   useEffect(() => {
     if (subscriptionRef.current) return
@@ -179,9 +253,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 await loadProfile(newSession.user.id, newSession.user.email ?? undefined)
               }
             } else {
+              memberRef.current = null
               setMember(null)
               setClients([])
               bootstrappedUserIdRef.current = null
+              realtimeRef.current?.unsubscribe()
+              realtimeRef.current = null
             }
 
             setSession(newSession)
