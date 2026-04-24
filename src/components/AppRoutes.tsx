@@ -5,12 +5,12 @@ import { Routes, Route, Navigate } from "react-router-dom"
  *
  * /:clientSlug                          → home do cliente
  * /:clientSlug/client-info              → UserClientsView
- * /:clientSlug/tasks                    → TasksView (todas demandas)
- * /:clientSlug/tasks/calendar           → DashboardView (calendário)
+ * /:clientSlug/tasks                    → PlanningView (demandas por etapa)
+ * /:clientSlug/tasks/calendar           → PlanningView (calendário)
  * /:clientSlug/tasks/calendar/id/:taskId
- * /:clientSlug/tasks/timeline           → DashboardView (linha do tempo)
+ * /:clientSlug/tasks/timeline           → PlanningView (linha do tempo)
  * /:clientSlug/tasks/timeline/id/:taskId
- * /:clientSlug/tasks/list               → DashboardView (lista)
+ * /:clientSlug/tasks/list               → PlanningView (lista)
  * /:clientSlug/tasks/list/id/:taskId
  * /:clientSlug/tasks/id/:taskId         → abre modal em calendar (default)
  * /:clientSlug/members                  → MembersView

@@ -4,7 +4,7 @@
  * Importar a partir de `src/types` dá acesso a todos os tipos públicos:
  *
  * ```ts
- * import type { Task, Member, DashboardViewProps } from '../types';
+ * import type { Task, Member, PlanningViewProps } from '../types';
  * ```
  *
  * Tipos de baixo nível (DB rows, legacy) são importados diretamente dos
@@ -15,7 +15,7 @@ export type { Task, Step, StepType, TaskStatus, LegacyTask } from './task';
 export type { Member } from './member';
 export type {
   TaskModalProps,
-  DashboardViewProps,
+  PlanningViewProps,
   CalendarViewProps,
   TimelineViewProps,
 } from './props';

@@ -24,10 +24,10 @@ export interface TaskModalProps {
   holidays: Holiday[];
 }
 
-// ─── DashboardView ────────────────────────────────────────────────────────────
+// ─── PlanningView ─────────────────────────────────────────────────────────────
 
-export interface DashboardViewProps {
-  subview: 'calendar' | 'timeline' | 'list';
+export interface PlanningViewProps {
+  subview: 'calendar' | 'timeline' | 'list' | 'demandas';
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;

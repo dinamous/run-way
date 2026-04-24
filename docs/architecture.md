@@ -22,7 +22,7 @@ src/
 │   ├── client-picker/         # ClientPickerView — boas-vindas + grid de seleção de cliente (rota "/")
 │   │   └── components/
 │   │       └── ClientCard.tsx
-│   ├── dashboard/             # DashboardView → Calendar/Timeline
+│   ├── planning/              # PlanningView → Calendar/Timeline/List/Demandas
 │   ├── calendar/              # CalendarView — calendário mensal com drag-drop
 │   ├── timeline/              # TimelineView — Gantt com drag-drop por fase
 │   ├── MembersView/           # Capacidade por membro

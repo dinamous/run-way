@@ -5,9 +5,9 @@ import { useClients } from '@/hooks/useClients';
 import { useTaskQuickActions } from '@/hooks/useTaskQuickActions';
 import type { Task } from '@/lib/steps';
 import { useListFilters } from './hooks/useListFilters';
-import { FilterBar } from '@/views/dashboard/components/FilterBar';
+import { FilterBar } from '@/views/planning/components/FilterBar';
 import { MonthGroup } from './components/MonthGroup';
-import { useTaskFilters } from '@/views/dashboard/hooks/useTaskFilters';
+import { useTaskFilters } from '@/views/planning/hooks/useTaskFilters';
 
 interface ListViewProps {
   onEdit: (task: Task) => void;

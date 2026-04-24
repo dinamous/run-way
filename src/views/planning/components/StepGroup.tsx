@@ -25,20 +25,17 @@ export function StepGroup({ stepType, tasks, members, onToggleBlock, onConclude,
 
   return (
     <div className={`rounded-xl border transition-colors ${isEmpty ? 'border-border/40 bg-muted/5' : 'border-border bg-card'}`}>
-      {/* Header da categoria */}
       <button
         className="flex items-center gap-3 w-full text-left select-none px-4 py-3 disabled:cursor-default"
         onClick={() => setIsExpanded(prev => !prev)}
         disabled={isEmpty}
       >
-        {/* Faixa colorida lateral */}
         <div className={`w-1 h-7 rounded-full shrink-0 ${isEmpty ? 'bg-muted-foreground/20' : meta.dot}`} />
 
         <span className={`text-sm font-semibold tracking-tight ${isEmpty ? 'text-muted-foreground/50' : 'text-foreground'}`}>
           {meta.label}
         </span>
 
-        {/* Badge de contagem */}
         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full leading-none ${
           isEmpty
             ? 'text-muted-foreground/40 bg-muted/40'
@@ -47,7 +44,6 @@ export function StepGroup({ stepType, tasks, members, onToggleBlock, onConclude,
           {tasks.length}
         </span>
 
-        {/* Separador flex */}
         <div className="flex-1" />
 
         {!isEmpty && (
@@ -57,12 +53,10 @@ export function StepGroup({ stepType, tasks, members, onToggleBlock, onConclude,
         )}
       </button>
 
-      {/* Separator entre header e lista */}
       {!isEmpty && isExpanded && (
         <div className="h-px bg-border/60 mx-4" />
       )}
 
-      {/* Lista de tarefas */}
       {!isEmpty && isExpanded && (
         <div className="p-3">
           {tasks.length > VIRTUALIZE_THRESHOLD ? (
