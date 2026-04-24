@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { useAppOrchestrator } from "@/hooks/useAppOrchestrator";
 import { AppLayout } from "@/components/AppLayout";
@@ -9,7 +10,15 @@ import { OnboardingView } from "@/views/onboarding";
 
 export default function App() {
   const app = useAppOrchestrator();
-  const isGlobalView = app.view === "profile" || app.view === "clients"
+  const isProfileView = app.view === "profile"
+  const needsPicker = !app.effectiveClientId && !isProfileView && !app.auth.loading
+
+  // Quando não há cliente na URL mas há um em cache, redireciona preservando a view atual
+  useEffect(() => {
+    if (!needsPicker) return
+    if (!app.cachedClient) return
+    app.navigateTo(app.view, app.cachedClient)
+  }, [needsPicker, app.cachedClient, app.view, app.navigateTo])
 
   if (app.auth.loading) {
     return (
@@ -33,7 +42,8 @@ export default function App() {
     );
   }
 
-  if (!app.clientSlug && !isGlobalView) {
+  if (needsPicker) {
+    if (app.cachedClient) return null
     return (
       <>
         <ClientPickerLayout

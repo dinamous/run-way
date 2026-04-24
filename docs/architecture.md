@@ -39,7 +39,7 @@ src/
 │   ├── useTaskStore.ts        # Estado local para update otimista (applyOptimisticUpdate/clearOptimistic)
 │   └── useMemberStore.ts      # Stub de compatibilidade (sem fetch — migrado para useMembersQuery)
 ├── hooks/
-│   ├── useAppOrchestrator.ts  # Agrega toda a lógica de orquestração do App (cliente, views, notificações, task actions)
+│   ├── useAppOrchestrator.ts  # Agrega toda a lógica de orquestração do App (cliente, views, notificações, task actions); expõe cachedClient, navigateTo e navigateToClient para App.tsx coordenar redirects sem estado intermediário
 │   ├── useAppNavigation.ts    # URL ↔ ViewType: urlToView, viewToPath, taskPath; lê clientSlug via location.pathname (não useParams)
 │   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask) via TanStack Query
 │   ├── useTasksQuery.ts       # Query hook TanStack Query para tasks
@@ -76,9 +76,9 @@ AuthContext (AuthProvider)
 App.tsx (gates de auth + composição)
     ├── !session                       → LoginView
     ├── !hasClients                    → OnboardingView
-    ├── !clientSlug (rota "/")         → ClientPickerLayout → ClientPickerView
-    │       1 cliente: redirect automático para /:slug
-    │       N clientes: grid de ClientCards
+    ├── !effectiveClientId (sem slug, slug inválido, /clients…) e não é /profile
+    │       ├── cachedClient válido    → useEffect: navigateTo(view, cachedClient) → redirect preservando a view (ex: /clients → /:slug/client-info); renderiza null enquanto navega
+    │       └── sem cache             → ClientPickerLayout → ClientPickerView
     └── useAppOrchestrator (toda a lógica de orquestração)
           ├── useClientStore    → selectedClientId (persist)
           ├── useMembersQuery   → members com cache TanStack Query

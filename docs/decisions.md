@@ -151,9 +151,9 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 ## ADR-017: ClientPickerView como tela obrigatória de seleção de cliente
 
 **Status:** Aceito (Abr 2026)
-**Decisão:** a rota `/` (sem `clientSlug`) exibe uma tela de boas-vindas (`ClientPickerView`) com cards dos clientes disponíveis, em vez de assumir `clients[0]` implicitamente; usuários com 1 cliente têm redirect transparente; `App.tsx` renderiza `ClientPickerLayout` (header + mini-sidebar recolhida) quando `!clientSlug`
-**Racional:** o fallback `clients[0]` causava estado ambíguo logo após o login — o usuário nunca escolheu um cliente, mas a app operava como se tivesse, gerando bugs em funcionalidades que dependem do cliente efetivo; tornar a escolha explícita elimina a ambiguidade estruturalmente
-**Consequências:** usuários com múltiplos clientes veem a tela de seleção ao acessar `/`; usuários com 1 cliente têm redirect automático sem fricção; o fallback `clients[0]` foi removido de `useAppOrchestrator`; o guard `!effectiveClientId` foi removido de `AppRouter` (esse estado é agora válido e tratado antes do AppLayout)
+**Decisão:** qualquer rota sem `effectiveClientId` válido (sem slug, slug inválido, `/clients`, etc.) exibe `ClientPickerView` com cards dos clientes disponíveis — exceto `/profile`, que é genuinamente global; se houver um cliente válido em cache (`cachedClient` de `useClientStore`), o redirect ocorre automaticamente sem exibir a tela de seleção; `App.tsx` renderiza `ClientPickerLayout` quando `!effectiveClientId && !isProfileView`
+**Racional:** o guard anterior (`!clientSlug`) só cobria ausência de slug, deixando rotas como `/clients` ou slugs inválidos caírem no `AppLayout` sem cliente, causando estado ambíguo; expandir o guard para `!effectiveClientId` cobre todos os casos estruturalmente; o redirect via `cachedClient` preserva a experiência de retorno sem fricção
+**Consequências:** `/clients` não é mais uma rota global tratada separadamente — redireciona para o cliente em cache preservando a view (ex: `/clients` → `/:slug/client-info`) ou exibe a tela de seleção; `useAppOrchestrator` expõe `cachedClient`, `navigateTo` e `navigateToClient`; o redirect usa `useEffect` para evitar loop de re-render (`selectClient` durante render causava "Too many re-renders"); `isGlobalView` foi simplificado para `isProfileView` em `App.tsx`
 
 ---
 

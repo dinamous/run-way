@@ -149,6 +149,10 @@ export function useAppOrchestrator() {
   );
 
 
+  const cachedClient = (!effectiveClientId && isClientBuffValid())
+    ? (auth.clients.find((c) => c.id === storedClientId) ?? null)
+    : null
+
   return {
     // auth
     auth,
@@ -166,6 +170,7 @@ export function useAppOrchestrator() {
     effectiveClientId,
     effectiveClient,
     selectedClient: effectiveClient,
+    cachedClient,
     selectClient,
     transitionTarget,
     onTransitionComplete,
@@ -174,6 +179,8 @@ export function useAppOrchestrator() {
     view: nav.view,
     urlTaskId: nav.urlTaskId,
     handleViewChange,
+    navigateTo: nav.navigateTo,
+    navigateToClient: nav.navigateToClient,
     clientSlug: nav.currentSlug,
     clientToSlug,
 
