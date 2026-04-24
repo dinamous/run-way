@@ -8,7 +8,6 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui"
 import { ClientPickerView } from "@/views/client-picker"
-import { ClientTransitionOverlay } from "@/components/ClientTransitionOverlay"
 import type { ClientOption } from "@/contexts/AuthContext"
 
 function getInitials(email?: string) {
@@ -29,8 +28,6 @@ interface ClientPickerLayoutProps {
   onSelectClient: (client: ClientOption) => void
   onSignOut: () => void
   onGoToProfile: () => void
-  transitionTarget?: { id: string | null | undefined; name: string } | null
-  onTransitionComplete?: () => void
 }
 
 export function ClientPickerLayout({
@@ -43,8 +40,6 @@ export function ClientPickerLayout({
   onSelectClient,
   onSignOut,
   onGoToProfile,
-  transitionTarget,
-  onTransitionComplete,
 }: ClientPickerLayoutProps) {
   return (
     <div className="flex flex-col h-screen bg-background text-foreground font-sans">
@@ -121,12 +116,6 @@ export function ClientPickerLayout({
         </main>
       </div>
 
-      {transitionTarget && onTransitionComplete && (
-        <ClientTransitionOverlay
-          clientName={transitionTarget.name}
-          onComplete={onTransitionComplete}
-        />
-      )}
     </div>
   )
 }

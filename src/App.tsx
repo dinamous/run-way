@@ -3,6 +3,7 @@ import { useAppOrchestrator } from "@/hooks/useAppOrchestrator";
 import { AppLayout } from "@/components/AppLayout";
 import { ClientPickerLayout } from "@/components/ClientPickerLayout";
 import { AppModals } from "@/components/AppModals";
+import { ClientTransitionOverlay } from "@/components/ClientTransitionOverlay";
 import { LoginView } from "@/views/login";
 import { OnboardingView } from "@/views/onboarding";
 
@@ -34,19 +35,25 @@ export default function App() {
 
   if (!app.clientSlug && !isGlobalView) {
     return (
-      <ClientPickerLayout
-        userName={app.auth.member?.name ?? ""}
-        userEmail={app.auth.user?.email}
-        userAvatarUrl={app.auth.member?.avatar_url}
-        darkMode={app.darkMode}
-        onToggleDark={app.toggleDark}
-        clients={app.auth.clients}
-        onSelectClient={(client) => app.selectClient(client.id)}
-        onSignOut={app.auth.signOut}
-        onGoToProfile={() => app.handleViewChange("profile")}
-        transitionTarget={app.transitionTarget}
-        onTransitionComplete={app.onTransitionComplete}
-      />
+      <>
+        <ClientPickerLayout
+          userName={app.auth.member?.name ?? ""}
+          userEmail={app.auth.user?.email}
+          userAvatarUrl={app.auth.member?.avatar_url}
+          darkMode={app.darkMode}
+          onToggleDark={app.toggleDark}
+          clients={app.auth.clients}
+          onSelectClient={(client) => app.selectClient(client.id)}
+          onSignOut={app.auth.signOut}
+          onGoToProfile={() => app.handleViewChange("profile")}
+        />
+        {app.transitionTarget && (
+          <ClientTransitionOverlay
+            clientName={app.transitionTarget.name}
+            onComplete={app.onTransitionComplete}
+          />
+        )}
+      </>
     );
   }
 

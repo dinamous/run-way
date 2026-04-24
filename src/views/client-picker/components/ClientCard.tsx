@@ -14,7 +14,7 @@ export function ClientCard({ client, onClick }: ClientCardProps) {
     <button
       onClick={onClick}
       className={cn(
-        "group relative flex flex-col justify-between gap-8 rounded-2xl border border-border",
+        "group relative flex flex-col justify-between gap-8 rounded-2xl border border-border cursor-pointer",
         "bg-background hover:bg-muted/40 dark:hover:bg-neutral-900",
         "p-7 text-left transition-all duration-200",
         "hover:border-foreground/20 hover:shadow-md"
