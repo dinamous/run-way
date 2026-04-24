@@ -17,6 +17,9 @@ interface HeaderCtx {
   onMarkAllNotificationsAsRead: () => Promise<void>
   onNotificationClick: (notification: Notification) => void
   onReloadNotifications: () => Promise<void>
+  onLoadOlderNotifications: () => Promise<void>
+  hasMoreNotifications: boolean
+  loadingOlderNotifications: boolean
 }
 
 interface SidebarCtx {

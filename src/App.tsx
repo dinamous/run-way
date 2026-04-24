@@ -84,6 +84,9 @@ export default function App() {
         onMarkAllNotificationsAsRead={app.notifications.markAllAsRead}
         onNotificationClick={app.handleNotificationClick}
         onReloadNotifications={app.notifications.reload}
+        onLoadOlderNotifications={app.notifications.loadOlder}
+        hasMoreNotifications={app.notifications.hasMore}
+        loadingOlderNotifications={app.notifications.loadingOlder}
         // sidebar
         sidebarOpen={app.sidebar.sidebarOpen}
         mobileSidebarOpen={app.sidebar.mobileSidebarOpen}

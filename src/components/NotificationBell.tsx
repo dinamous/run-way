@@ -1,7 +1,19 @@
-import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkBreaks from 'remark-breaks'
-import { Bell, CheckCheck, UserCheck, UserX, ShieldCheck, ShieldOff, Megaphone, MessageSquare, ClipboardList } from 'lucide-react'
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import {
+  Bell,
+  CheckCheck,
+  UserCheck,
+  UserX,
+  ShieldCheck,
+  ShieldOff,
+  Megaphone,
+  MessageSquare,
+  ClipboardList,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -11,88 +23,117 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
-} from '@/components/ui'
-import { useNotificationPolling } from '@/hooks/useNotificationPolling'
-import type { Notification } from '@/types/notification'
+} from "@/components/ui";
+import { useNotificationPolling } from "@/hooks/useNotificationPolling";
+import type { Notification } from "@/types/notification";
 
 interface NotificationBellProps {
-  notifications: Notification[]
-  unreadCount: number
-  loading?: boolean
-  onMarkAsRead: (notificationId: string) => void
-  onMarkAllAsRead: () => void
-  onNotificationClick: (notification: Notification) => void
-  reload?: () => void
-  selectedClientId?: string | null
+  notifications: Notification[];
+  unreadCount: number;
+  loading?: boolean;
+
+  onMarkAsRead: (notificationId: string) => void;
+  onMarkAllAsRead: () => void;
+  onNotificationClick: (notification: Notification) => void;
+  reload?: () => void;
+  onLoadOlder?: () => void;
+  hasMore?: boolean;
+  loadingOlder?: boolean;
+  selectedClientId?: string | null;
+}
+
+function formatTime(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
 }
 
 function formatDate(dateString: string): string {
   try {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMins / 60)
-    const diffDays = Math.floor(diffHours / 24)
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'agora'
-    if (diffMins < 60) return `${diffMins}m`
-    if (diffHours < 24) return `${diffHours}h`
-    if (diffDays < 7) return `${diffDays}d`
+    if (diffMins < 1) return "agora";
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
 
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+    });
   } catch {
-    return ''
+    return "";
   }
 }
 
 function getDateGroup(dateString: string): { label: string; key: string } {
-  const date = new Date(dateString)
-  date.setHours(0, 0, 0, 0)
-  const now = new Date()
-  now.setHours(0, 0, 0, 0)
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000)
+  const date = new Date(dateString);
+  date.setHours(0, 0, 0, 0);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
 
-  if (diffDays === 0) return { label: 'Hoje', key: 'today' }
-  if (diffDays === 1) return { label: 'Ontem', key: 'yesterday' }
-  if (diffDays < 7) return { label: 'Últimos 7 dias', key: 'week' }
-  return { label: 'Mais antigas', key: 'older' }
+  if (diffDays === 0) return { label: "Hoje", key: "today" };
+  if (diffDays === 1) return { label: "Ontem", key: "yesterday" };
+  if (diffDays < 7) return { label: "Últimos 7 dias", key: "week" };
+  return { label: "Mais antigas", key: "older" };
 }
 
-function groupNotificationsByDate(notifications: Notification[]): Map<string, Notification[]> {
-  const groups = new Map<string, Notification[]>()
+function groupNotificationsByDate(
+  notifications: Notification[],
+): Map<string, Notification[]> {
+  const groups = new Map<string, Notification[]>();
 
   for (const n of notifications) {
-    const { key } = getDateGroup(n.created_at)
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(n)
+    const { key } = getDateGroup(n.created_at);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(n);
   }
 
-  const order = ['today', 'yesterday', 'week', 'older']
-  const sorted = new Map<string, Notification[]>()
+  const order = ["today", "yesterday", "week", "older"];
+  const sorted = new Map<string, Notification[]>();
   for (const key of order) {
-    if (groups.has(key)) sorted.set(key, groups.get(key)!)
+    if (groups.has(key)) sorted.set(key, groups.get(key)!);
   }
-  return sorted
+  return sorted;
 }
 
 function getNotificationTypeIcon(type: string): React.ReactNode {
   switch (type) {
-    case 'step_assigned': return <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
-    case 'step_unassigned': return <UserX className="w-3.5 h-3.5 text-orange-500" />
-    case 'role_changed': return <ShieldCheck className="w-3.5 h-3.5 text-violet-500" />
-    case 'client_access_granted': return <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
-    case 'client_access_revoked': return <ShieldOff className="w-3.5 h-3.5 text-destructive" />
-    case 'admin_broadcast': return <Megaphone className="w-3.5 h-3.5 text-primary" />
-    case 'manual': return <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-    default: return <ClipboardList className="w-3.5 h-3.5 text-muted-foreground" />
+    case "step_assigned":
+      return <UserCheck className="w-3.5 h-3.5 text-emerald-500" />;
+    case "step_unassigned":
+      return <UserX className="w-3.5 h-3.5 text-orange-500" />;
+    case "role_changed":
+      return <ShieldCheck className="w-3.5 h-3.5 text-violet-500" />;
+    case "client_access_granted":
+      return <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />;
+    case "client_access_revoked":
+      return <ShieldOff className="w-3.5 h-3.5 text-destructive" />;
+    case "admin_broadcast":
+      return <Megaphone className="w-3.5 h-3.5 text-primary" />;
+    case "manual":
+      return <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />;
+    default:
+      return <ClipboardList className="w-3.5 h-3.5 text-muted-foreground" />;
   }
 }
 
 function playNotificationSound() {
-  const audio = new Audio('/notification.mp3')
-  audio.volume = 0.3
-  audio.play().catch(() => {})
+  const audio = new Audio("/notification.mp3");
+  audio.volume = 0.3;
+  audio.play().catch(() => {});
 }
 
 function NotificationItem({
@@ -100,51 +141,55 @@ function NotificationItem({
   onMarkAsRead,
   onClick,
 }: {
-  notification: Notification
-  onMarkAsRead: (id: string) => void
-  onClick: (n: Notification) => void
+  notification: Notification;
+  onMarkAsRead: (id: string) => void;
+  onClick: (n: Notification) => void;
 }) {
-  const isPersonal = !!notification.user_id
+  const isPersonal = !!notification.user_id;
 
   const handleClick = () => {
-    if (!notification.read) onMarkAsRead(notification.id)
-    onClick(notification)
-  }
+    if (!notification.read) onMarkAsRead(notification.id);
+    onClick(notification);
+  };
 
   return (
     <DropdownMenuItem
       onSelect={(e) => {
-        e.preventDefault()
-        handleClick()
+        e.preventDefault();
+        handleClick();
       }}
-     className={`group flex items-start gap-3 px-3 py-3 cursor-pointer rounded-md mx-1 border border-black/5 dark:border-white/10 transition-colors ${
-  notification.read
-    ? 'bg-background hover:bg-muted/40'
-    : 'bg-muted/30 hover:bg-muted/50'
-}`}
+      className={`group relative flex items-start gap-3 px-3 py-3 cursor-pointer rounded-md m-1 border border-black/5 dark:border-white/10 transition-colors ${
+        notification.read
+          ? "bg-background hover:bg-muted/40"
+          : "bg-muted/30 hover:bg-muted/50"
+      }`}
     >
       <div className="mt-0.5 flex-shrink-0 p-1.5 rounded-full bg-muted">
         {getNotificationTypeIcon(notification.type)}
       </div>
 
       <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <span className={`text-sm leading-snug ${!notification.read ? 'font-semibold' : 'text-foreground/80'}`}>
-            {notification.title}
-          </span>
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap mt-0.5 flex-shrink-0">
-            {formatDate(notification.created_at)}
+        <div className="flex flex-col items-end text-[10px] text-muted-foreground whitespace-nowrap mt-0.5 flex-shrink-0 leading-tight">
+          <span>{formatDate(notification.created_at)}</span>
+          <span className="opacity-60">
+            {formatTime(notification.created_at)}
           </span>
         </div>
 
         <div className="text-xs text-muted-foreground prose prose-xs dark:prose-invert max-w-none [&_p]:mb-0 [&_strong]:text-foreground [&_em]:text-foreground/80">
-          <ReactMarkdown remarkPlugins={[remarkBreaks]}>{notification.message}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkBreaks]}>
+            {notification.message}
+          </ReactMarkdown>
         </div>
 
-        <span className={`text-[10px] mt-0.5 font-medium ${
-          isPersonal ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
-        }`}>
-          {isPersonal ? 'Para você' : 'Para todos do cliente'}
+        <span
+          className={`text-[10px] mt-0.5 font-medium ${
+            isPersonal
+              ? "text-blue-600 dark:text-blue-400"
+              : "text-muted-foreground"
+          }`}
+        >
+          {isPersonal ? "Para você" : "Para todos do cliente"}
         </span>
       </div>
 
@@ -152,16 +197,16 @@ function NotificationItem({
         <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0 mt-1.5" />
       )}
     </DropdownMenuItem>
-  )
+  );
 }
 
 const GROUP_LABELS: Record<string, string> = {
-  today: 'Hoje',
-  yesterday: 'Ontem',
-  week: 'Últimos 7 dias',
-  older: 'Mais antigas',
-}
-const GROUP_ORDER = ['today', 'yesterday', 'week', 'older']
+  today: "Hoje",
+  yesterday: "Ontem",
+  week: "Últimos 7 dias",
+  older: "Mais antigas",
+};
+const GROUP_ORDER = ["today", "yesterday", "week", "older"];
 
 export const NotificationBell = memo(
   function NotificationBell({
@@ -171,164 +216,202 @@ export const NotificationBell = memo(
     onMarkAllAsRead,
     onNotificationClick,
     reload,
+    onLoadOlder,
+    hasMore = false,
+    loadingOlder = false,
     selectedClientId,
   }: NotificationBellProps) {
-  const [open, setOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'all' | 'current'>('all')
-  const prevIdsRef = useRef<Set<string>>(new Set())
-  const initialOpenDone = useRef(false)
-  const hasInitiallyLoaded = useRef(false)
+    const [open, setOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<"all" | "current">("all");
+    const prevIdsRef = useRef<Set<string>>(new Set());
+    const initialOpenDone = useRef(false);
+    const hasInitiallyLoaded = useRef(false);
 
-  const handleReload = useCallback(() => reload?.(), [reload])
+    const handleReload = useCallback(() => reload?.(), [reload]);
 
-  useNotificationPolling({ enabled: !!reload, interval: 15000, fn: handleReload })
+    useNotificationPolling({
+      enabled: !!reload,
+      interval: 15000,
+      fn: handleReload,
+    });
 
-  // Reload na primeira abertura
-  useEffect(() => {
-    if (open && !initialOpenDone.current && reload) {
-      initialOpenDone.current = true
-      reload()
-    }
-  }, [open, reload])
-
-  // Detecta novas notificações — toca som (toast já está no useNotifications via realtime)
-  useEffect(() => {
-    if (!hasInitiallyLoaded.current) {
-      hasInitiallyLoaded.current = true
-      prevIdsRef.current = new Set(notifications.map((n) => n.id))
-      return
-    }
-
-    const newIds = new Set<string>()
-    let hasNew = false
-
-    for (const n of notifications) {
-      newIds.add(n.id)
-      if (!prevIdsRef.current.has(n.id)) {
-        hasNew = true
+    // Reload na primeira abertura
+    useEffect(() => {
+      if (open && !initialOpenDone.current && reload) {
+        initialOpenDone.current = true;
+        reload();
       }
-    }
+    }, [open, reload]);
 
-    if (hasNew) playNotificationSound()
+    // Detecta novas notificações — toca som (toast já está no useNotifications via realtime)
+    useEffect(() => {
+      if (!hasInitiallyLoaded.current) {
+        hasInitiallyLoaded.current = true;
+        prevIdsRef.current = new Set(notifications.map((n) => n.id));
+        return;
+      }
 
-    prevIdsRef.current = newIds
-  }, [notifications])
+      const newIds = new Set<string>();
+      let hasNew = false;
 
-  const filteredNotifications = useMemo(() => {
-    if (activeTab === 'current' && selectedClientId) {
-      return notifications.filter((n) => n.client_id === selectedClientId)
-    }
-    return notifications
-  }, [notifications, activeTab, selectedClientId])
+      for (const n of notifications) {
+        newIds.add(n.id);
+        if (!prevIdsRef.current.has(n.id)) {
+          hasNew = true;
+        }
+      }
 
-  const groupedNotifications = useMemo(
-    () => groupNotificationsByDate(filteredNotifications),
-    [filteredNotifications]
-  )
+      if (hasNew) playNotificationSound();
 
-  const unreadInTab = filteredNotifications.filter((n) => !n.read).length
+      prevIdsRef.current = newIds;
+    }, [notifications]);
 
-  return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <button className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-          <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-[10px] font-bold bg-primary text-primary-foreground rounded-full flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </button>
-      </DropdownMenuTrigger>
+    const filteredNotifications = useMemo(() => {
+      if (activeTab === "current" && selectedClientId) {
+        return notifications.filter((n) => n.client_id === selectedClientId);
+      }
+      return notifications;
+    }, [notifications, activeTab, selectedClientId]);
 
-      <DropdownMenuContent align="end" className="w-[95vw] max-w-[420px] sm:max-w-[480px] p-0 overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">Notificações</span>
+    const groupedNotifications = useMemo(
+      () => groupNotificationsByDate(filteredNotifications),
+      [filteredNotifications],
+    );
+
+    const unreadInTab = filteredNotifications.filter((n) => !n.read).length;
+
+    return (
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <button className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
-                {unreadCount}
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-[10px] font-bold bg-primary text-primary-foreground rounded-full flex items-center justify-center">
+                {unreadCount > 9 ? "9+" : unreadCount}
               </span>
+            )}
+          </button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent
+          align="end"
+          className="w-[95vw] max-w-[420px] sm:max-w-[480px] p-0 overflow-hidden flex flex-col"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">Notificações</span>
+              {unreadCount > 0 && (
+                <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+
+            {unreadInTab > 0 && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  onMarkAllAsRead();
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <CheckCheck className="w-3.5 h-3.5" />
+                Marcar como lidas
+              </button>
             )}
           </div>
 
-          {unreadInTab > 0 && (
-            <button
-              onClick={(e) => {
-                e.preventDefault()
-                onMarkAllAsRead()
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
+          {/* Tabs */}
+          <div className="px-3 pb-2">
+            <Tabs
+              value={activeTab}
+              onValueChange={(v) => setActiveTab(v as "all" | "current")}
             >
-              <CheckCheck className="w-3.5 h-3.5" />
-              Marcar como lidas
-            </button>
-          )}
-        </div>
+              <TabsList variant="pills" className="h-8 w-full p-1">
+                <TabsTrigger
+                  value="all"
+                  className="flex-1 text-xs font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Todas
+                </TabsTrigger>
+                <TabsTrigger
+                  value="current"
+                  className="flex-1 text-xs font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Cliente atual
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
-        {/* Tabs */}
-        <div className="px-3 pb-2">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'current')}>
-            <TabsList variant="pills" className="h-8 w-full p-1">
-              <TabsTrigger
-                value="all"
-                className="flex-1 text-xs font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Todas
-              </TabsTrigger>
-              <TabsTrigger
-                value="current"
-                className="flex-1 text-xs font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Cliente atual
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+          <DropdownMenuSeparator className="m-0" />
 
-        <DropdownMenuSeparator className="m-0" />
+          {/* Lista */}
+          <div className="overflow-y-auto max-h-80">
+            {filteredNotifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
+                <Bell className="w-6 h-6 opacity-30" />
+                <span className="text-sm">Nenhuma notificação</span>
+              </div>
+            ) : (
+              <div className="py-1">
+                {GROUP_ORDER.map((groupKey) => {
+                  const items = groupedNotifications.get(groupKey);
+                  if (!items?.length) return null;
 
-        {/* Lista */}
-        <div className="overflow-y-auto max-h-80">
-          {filteredNotifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
-              <Bell className="w-6 h-6 opacity-30" />
-              <span className="text-sm">Nenhuma notificação</span>
-            </div>
-          ) : (
-            <div className="py-1">
-              {GROUP_ORDER.map((groupKey) => {
-                const items = groupedNotifications.get(groupKey)
-                if (!items?.length) return null
-
-                return (
-                  <div key={groupKey}>
-                    <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 sticky top-0 z-10">
-                      {GROUP_LABELS[groupKey]}
+                  return (
+                    <div key={groupKey}>
+                      <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 sticky top-0 z-10">
+                        {GROUP_LABELS[groupKey]}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {items.map((notification) => (
+                          <NotificationItem
+                            key={notification.id}
+                            notification={notification}
+                            onMarkAsRead={onMarkAsRead}
+                            onClick={onNotificationClick}
+                          />
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-1">
-                    {items.map((notification) => (
-                      <NotificationItem
-                        key={notification.id}
-                        notification={notification}
-                        onMarkAsRead={onMarkAsRead}
-                        onClick={onNotificationClick}
-                      />
-                    ))}
+                  );
+                })}
+
+                {/* Botão "Ver anteriores" — só aparece na aba "Todas" */}
+                {activeTab === "all" &&
+                  (hasMore || loadingOlder) &&
+                  onLoadOlder && (
+                    <div className="flex justify-center py-3">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onLoadOlder();
+                        }}
+                        disabled={loadingOlder}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loadingOlder ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                        {loadingOlder ? "Carregando..." : "Ver anteriores"}
+                      </button>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-},
+                  )}
+              </div>
+            )}
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  },
   (prev, next) =>
     prev.unreadCount === next.unreadCount &&
     prev.notifications.length === next.notifications.length &&
-    prev.selectedClientId === next.selectedClientId
-)
+    prev.hasMore === next.hasMore &&
+    prev.loadingOlder === next.loadingOlder &&
+    prev.selectedClientId === next.selectedClientId,
+);

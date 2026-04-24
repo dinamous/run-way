@@ -11,6 +11,9 @@ export function AppHeader() {
     onMarkAllNotificationsAsRead,
     onNotificationClick,
     onReloadNotifications,
+    onLoadOlderNotifications,
+    hasMoreNotifications,
+    loadingOlderNotifications,
     selectedClientId,
     darkMode,
     onToggleDark,
@@ -52,6 +55,9 @@ export function AppHeader() {
             onMarkAllAsRead={onMarkAllNotificationsAsRead}
             onNotificationClick={onNotificationClick}
             reload={onReloadNotifications}
+            onLoadOlder={onLoadOlderNotifications}
+            hasMore={hasMoreNotifications}
+            loadingOlder={loadingOlderNotifications}
             selectedClientId={selectedClientId ?? undefined}
           />
         </div>

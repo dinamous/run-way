@@ -22,6 +22,9 @@ interface AppLayoutProps {
   onMarkAllNotificationsAsRead: () => Promise<void>
   onNotificationClick: (notification: Notification) => void
   onReloadNotifications: () => Promise<void>
+  onLoadOlderNotifications: () => Promise<void>
+  hasMoreNotifications: boolean
+  loadingOlderNotifications: boolean
   sidebarOpen: boolean
   mobileSidebarOpen: boolean
   onToggleSidebar: () => void
@@ -55,6 +58,7 @@ export function AppLayout(props: AppLayoutProps) {
     notifications, unreadCount, selectedClientId,
     onToggleMobileSidebar, onMarkNotificationAsRead, onMarkAllNotificationsAsRead,
     onNotificationClick, onReloadNotifications,
+    onLoadOlderNotifications, hasMoreNotifications, loadingOlderNotifications,
     sidebarOpen, mobileSidebarOpen, onToggleSidebar, onCloseMobileSidebar,
     view, onViewChange, hasClients, role,
     userEmail, userAvatarUrl, onSignOut,
@@ -73,6 +77,7 @@ export function AppLayout(props: AppLayoutProps) {
         onToggleMobileSidebar,
         onMarkNotificationAsRead, onMarkAllNotificationsAsRead,
         onNotificationClick, onReloadNotifications,
+        onLoadOlderNotifications, hasMoreNotifications, loadingOlderNotifications,
       },
       sidebar: {
         sidebarOpen, mobileSidebarOpen, onToggleSidebar, onCloseMobileSidebar,
