@@ -121,13 +121,17 @@ openTaskModal() / closeTaskModal()
 Cliente selecionado. **Persiste no localStorage** (`client-store`). Não persiste `undefined`.
 ```ts
 selectedClientId: string | null | undefined
-setClient(id)
+selectedAt: number | null   // timestamp (ms) da última seleção
+setClient(id)               // grava id + selectedAt = Date.now()
+isClientBuffValid()         // true se selectedAt < 4h atrás
 ```
-| Valor | Significado |
+| Valor de `selectedClientId` | Significado |
 |---|---|
 | `undefined` | Não inicializado — aguarda resolução da auth |
 | `null` | Admin vê todos os clientes (sem filtro no fetch) |
 | `string` | Cliente específico selecionado |
+
+O "buff" de 4h (`CLIENT_BUFF_MS = 4 * 60 * 60 * 1000`) é verificado em `useAppOrchestrator` antes de restaurar o cliente automaticamente. Após expirar, o usuário vê o `ClientPickerView` independentemente do valor persistido.
 
 ### `useTaskStore`
 Estado local mínimo para suporte a **update otimista**. O fetch de tasks foi migrado para `useTasksQuery` (TanStack Query).
@@ -202,7 +206,7 @@ Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de aut
 
 ## Leitura do clientSlug na URL
 
-`useAppNavigation` deriva `currentSlug` diretamente de `location.pathname` em vez de `useParams`. O motivo: `App.tsx` está montado diretamente dentro de `<BrowserRouter>` sem nenhum `<Route path="/:clientSlug">` como ancestral — logo `useParams()` retorna sempre `{}`. A extração manual lê o primeiro segmento do pathname e descarta rotas globais conhecidas (`profile`, `admin`, `clients`, `""`).
+`useAppNavigation` deriva `currentSlug` diretamente de `location.pathname` em vez de `useParams`. O motivo: `App.tsx` está montado diretamente dentro de `<BrowserRouter>` sem nenhum `<Route path="/:clientSlug">` como ancestral — logo `useParams()` retorna sempre `{}`. A extração manual lê o primeiro segmento do pathname e descarta rotas globais conhecidas (`profile`, `clients`, `""`). Nota: `admin` **não** é uma rota global — sua URL é `/:clientSlug/admin` e `currentSlug` é derivado normalmente.
 
 `urlTaskId` é derivado da mesma forma: busca o segmento `"id"` no pathname e retorna o próximo segmento.
 
@@ -210,10 +214,10 @@ Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de aut
 
 `useAppOrchestrator` integra `useClientStore` para dois comportamentos:
 
-1. **Persistência:** sempre que `effectiveClientId` muda (URL com slug válido), grava o ID na `useClientStore` (localStorage via zustand/persist).
-2. **Restauração:** ao cair em `/` sem slug (ex: pós-login), se `storedClientId` existir e corresponder a um cliente válido do usuário, redireciona automaticamente para `/:slug` — sem exibir o `ClientPickerView`.
+1. **Persistência:** sempre que `effectiveClientId` muda (URL com slug válido), grava o ID na `useClientStore` (localStorage via zustand/persist) junto com `selectedAt` (timestamp da seleção).
+2. **Restauração com TTL de 4h ("buff"):** ao cair em `/` sem slug (ex: pós-login), redireciona automaticamente para `/:slug` **somente se** `storedClientId` existir, corresponder a um cliente válido do usuário, **e** a seleção tiver menos de 4 horas (`isClientBuffValid()`). Após expirar, o usuário vê o `ClientPickerView` normalmente.
 
-Usuários com apenas 1 cliente já tinham redirect automático no `ClientPickerView`. Este mecanismo cobre usuários com múltiplos clientes que já fizeram uma escolha anterior.
+Usuários com apenas 1 cliente já tinham redirect automático no `ClientPickerView`. Este mecanismo cobre usuários com múltiplos clientes que já fizeram uma escolha anterior, com expiração automática para forçar re-seleção após uma sessão longa.
 
 ## Troca de Cliente
 

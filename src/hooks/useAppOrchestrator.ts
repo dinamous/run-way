@@ -29,7 +29,7 @@ export function useAppOrchestrator() {
   const hasClients = auth.clients.length > 0;
 
   const nav = useAppNavigation(auth.clients);
-  const { selectedClientId: storedClientId, setClient: storeClient } = useClientStore();
+  const { selectedClientId: storedClientId, setClient: storeClient, isClientBuffValid } = useClientStore();
 
   const effectiveClient = nav.currentClient ?? null;
   const effectiveClientId = effectiveClient?.id ?? null;
@@ -39,7 +39,14 @@ export function useAppOrchestrator() {
   }, [effectiveClientId, storeClient]);
 
   useEffect(() => {
-    if (!auth.loading && !nav.currentSlug && storedClientId) {
+    const shouldRestoreLastClient =
+      !auth.loading &&
+      !nav.currentSlug &&
+      nav.view === "home" &&
+      storedClientId &&
+      isClientBuffValid()
+
+    if (shouldRestoreLastClient) {
       const lastClient = auth.clients.find((c) => c.id === storedClientId);
       if (lastClient) nav.navigateToClient(lastClient);
     }

@@ -25,7 +25,7 @@ import { Routes, Route, Navigate } from "react-router-dom"
  * /:clientSlug/tools/export
  * /:clientSlug/tools/integrations
  * /profile                              → ProfileView
- * /admin                                → AdminView
+ * /:clientSlug/admin                    → AdminView
  * /clients                              → UserClientsView (sem cliente)
  * /                                     → HomeView (sem cliente selecionado)
  */
@@ -37,7 +37,6 @@ export function AppRoutes() {
 
       {/* Rotas globais (sem cliente) */}
       <Route path="/profile" element={null} />
-      <Route path="/admin" element={null} />
       <Route path="/clients" element={null} />
 
       {/* Rotas por cliente */}
@@ -53,6 +52,9 @@ export function AppRoutes() {
       <Route path="/:clientSlug/tasks/timeline/id/:taskId" element={null} />
       <Route path="/:clientSlug/tasks/list" element={null} />
       <Route path="/:clientSlug/tasks/list/id/:taskId" element={null} />
+
+      {/* Admin */}
+      <Route path="/:clientSlug/admin" element={null} />
 
       {/* Members */}
       <Route path="/:clientSlug/members" element={null} />

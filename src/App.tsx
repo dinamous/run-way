@@ -8,7 +8,7 @@ import { OnboardingView } from "@/views/onboarding";
 
 export default function App() {
   const app = useAppOrchestrator();
-  const isGlobalView = app.view === "admin" || app.view === "profile" || app.view === "clients"
+  const isGlobalView = app.view === "profile" || app.view === "clients"
 
   if (app.auth.loading) {
     return (

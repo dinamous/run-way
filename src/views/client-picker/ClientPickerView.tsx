@@ -20,7 +20,7 @@ export function ClientPickerView({ userName, clients, onSelectClient }: ClientPi
   if (clients.length === 1) return null
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-full overflow-hidden bg-neutral-50 dark:bg-neutral-950">
+    <div className="relative flex flex-col items-center justify-center h-full overflow-hidden bg-neutral-50 dark:bg-neutral-950">
       {/* Grade de fundo estilo blueprint */}
       <div
         className="absolute inset-0 opacity-[0.04] dark:opacity-[0.07]"

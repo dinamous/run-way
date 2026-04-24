@@ -154,3 +154,12 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 **Decisão:** a rota `/` (sem `clientSlug`) exibe uma tela de boas-vindas (`ClientPickerView`) com cards dos clientes disponíveis, em vez de assumir `clients[0]` implicitamente; usuários com 1 cliente têm redirect transparente; `App.tsx` renderiza `ClientPickerLayout` (header + mini-sidebar recolhida) quando `!clientSlug`
 **Racional:** o fallback `clients[0]` causava estado ambíguo logo após o login — o usuário nunca escolheu um cliente, mas a app operava como se tivesse, gerando bugs em funcionalidades que dependem do cliente efetivo; tornar a escolha explícita elimina a ambiguidade estruturalmente
 **Consequências:** usuários com múltiplos clientes veem a tela de seleção ao acessar `/`; usuários com 1 cliente têm redirect automático sem fricção; o fallback `clients[0]` foi removido de `useAppOrchestrator`; o guard `!effectiveClientId` foi removido de `AppRouter` (esse estado é agora válido e tratado antes do AppLayout)
+
+---
+
+## ADR-018: AdminView com rota escopada por cliente (`/:clientSlug/admin`)
+
+**Status:** Aceito (Abr 2026)
+**Decisão:** a `AdminView` passa a ser acessada via `/:clientSlug/admin` em vez de `/admin` (rota global sem slug); `admin` foi removido de `GLOBAL_ROUTES` em `useAppNavigation`; a regra em `accessControl.ts` passou a ter `requiresClient: true`
+**Racional:** admin gerencia dados (clientes, membros, notificações) que pertencem a uma empresa específica; ter o `clientSlug` na URL mantém consistência com o restante da aplicação, permite deep links contextuais e prepara a estrutura para um futuro multi-tenant onde cada empresa terá seu próprio escopo de admin
+**Consequências:** a URL `/admin` deixa de existir (redireciona para `/` via wildcard); é necessário ter um cliente selecionado para acessar admin; `isGlobalView` em `App.tsx` não inclui mais `"admin"`, logo admin usa o `AppLayout` normal com sidebar
