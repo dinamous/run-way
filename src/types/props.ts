@@ -6,7 +6,7 @@
  */
 
 import type { Task } from '../lib/steps';
-import type { Member } from '../hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 import type { Holiday } from '../utils/holidayUtils';
 import type { CalendarViewMode } from '../utils/dashboardUtils';
 

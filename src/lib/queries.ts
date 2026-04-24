@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Task, Step, StepType } from '@/lib/steps'
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import type { DbTaskRow } from '@/types/db'
 import { DbTaskRowSchema } from '@/lib/validators'
 

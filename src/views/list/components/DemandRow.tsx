@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { ExternalLink, Check, Lock, Trash2, Users, Calendar } from 'lucide-react';
 import type { Task } from '@/lib/steps';
-import type { Member } from '@/hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 
 interface DemandRowProps {
   task: Task;

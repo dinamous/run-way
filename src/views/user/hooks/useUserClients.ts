@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useThrottledMutation } from '@/hooks/useThrottledMutation'
+import { useThrottledMutation } from '@/hooks/infra/useThrottledMutation'
 import type { ClientOption } from '@/contexts/AuthContext'
 
 export function useUserClients() {

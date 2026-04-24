@@ -2,7 +2,7 @@ import { Send, Users, Building2, Globe } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import { Button, Input, Label } from '@/components/ui'
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import type { Client } from '@/types/db'
 import type { TargetType, UseNotificationsPanelReturn } from './useNotificationsPanel'
 

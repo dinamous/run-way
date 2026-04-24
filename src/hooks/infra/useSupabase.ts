@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useThrottledMutation } from '@/hooks/useThrottledMutation'
+import { useThrottledMutation } from '@/hooks/infra/useThrottledMutation'
 import { supabase } from '@/lib/supabase'
 import type { Task, Step } from '@/lib/steps'
 import { toast } from 'sonner'

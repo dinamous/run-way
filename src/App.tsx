@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Toaster } from "sonner";
-import { useAppOrchestrator } from "@/hooks/useAppOrchestrator";
+import { useAppOrchestrator } from "@/hooks/app/useAppOrchestrator";
 import { AppLayout } from "@/components/AppLayout";
 import { ClientPickerLayout } from "@/components/ClientPickerLayout";
 import { AppModals } from "@/components/AppModals";

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useUIStore } from '@/store/useUIStore';
-import { useTasksQuery } from '@/hooks/useTasksQuery';
-import { useMembersQuery } from '@/hooks/useMembersQuery';
+import { useTasksQuery } from '@/hooks/tasks/useTasksQuery';
+import { useMembersQuery } from '@/hooks/members/useMembersQuery';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { useClients } from '@/hooks/useClients';
-import { useTaskQuickActions } from '@/hooks/useTaskQuickActions';
+import { useClients } from '@/hooks/clients/useClients';
+import { useTaskQuickActions } from '@/hooks/tasks/useTaskQuickActions';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
 import { ListView } from '@/views/list';

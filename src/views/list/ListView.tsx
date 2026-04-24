@@ -1,8 +1,8 @@
 import { useAuthContext } from '@/contexts/AuthContext';
-import { useTasksQuery } from '@/hooks/useTasksQuery';
-import { useMembersQuery } from '@/hooks/useMembersQuery';
-import { useClients } from '@/hooks/useClients';
-import { useTaskQuickActions } from '@/hooks/useTaskQuickActions';
+import { useTasksQuery } from '@/hooks/tasks/useTasksQuery';
+import { useMembersQuery } from '@/hooks/members/useMembersQuery';
+import { useClients } from '@/hooks/clients/useClients';
+import { useTaskQuickActions } from '@/hooks/tasks/useTaskQuickActions';
 import type { Task } from '@/lib/steps';
 import { useListFilters } from './hooks/useListFilters';
 import { FilterBar } from '@/views/planning/components/FilterBar';

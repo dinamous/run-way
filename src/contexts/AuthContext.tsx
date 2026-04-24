@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
 import { DbMemberRowSchema, DbClientRowSchema, DbUserClientRowSchema } from '@/lib/validators'
 import { getSafeRedirectUrl } from '@/lib/securityRedirect'

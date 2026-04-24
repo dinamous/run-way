@@ -4,7 +4,7 @@ import { Button } from '@/components/ui';
 import { migrateLegacyTask } from '@/lib/steps';
 import { STEP_META } from '@/lib/steps';
 import type { Task, Step, LegacyTask } from '@/lib/steps';
-import type { Member } from '@/hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 import { ArrowUpRight, CalendarDays } from 'lucide-react';
 import MemberTaskItem from './MemberTaskItem';
 

@@ -1,4 +1,4 @@
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import type { ViewType } from '@/store/useUIStore'
 
 export type AccessRole = 'admin' | 'user'

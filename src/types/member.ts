@@ -5,4 +5,4 @@
  * re-exportamos aqui para acesso centralizado via `src/types`.
  */
 
-export type { Member } from '../hooks/useSupabase';
+export type { Member } from '@/hooks/infra/useSupabase';

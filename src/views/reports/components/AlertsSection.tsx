@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertTriangle, AlertCircle } from 'lucide-react';
 import { formatDateToBR } from '@/lib/utils';
-import type { Member } from '@/hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 import type { EnrichedTask } from '../utils';
 
 interface AlertsSectionProps {

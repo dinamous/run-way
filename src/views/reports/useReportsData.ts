@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTasksQuery } from '@/hooks/useTasksQuery';
-import { useMembersQuery } from '@/hooks/useMembersQuery';
+import { useTasksQuery } from '@/hooks/tasks/useTasksQuery';
+import { useMembersQuery } from '@/hooks/members/useMembersQuery';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { useClients } from '@/hooks/useClients';
+import { useClients } from '@/hooks/clients/useClients';
 import { todayStr, enrichTask, computeMemberLoad, calDaysBetween, calculatePercentile } from './utils';
 import type { StepType } from '@/lib/steps';
 
@@ -12,7 +12,7 @@ export type TimeFilter = 'all' | '30d' | '90d' | '180d' | '365d';
 export interface ReportsData {
   enriched: ReturnType<typeof enrichTask>[];
   filteredEnriched: ReturnType<typeof enrichTask>[];
-  members: import('@/hooks/useSupabase').Member[];
+  members: import('@/hooks/infra/useSupabase').Member[];
   total: number;
   active: number;
   bloqueadas: number;

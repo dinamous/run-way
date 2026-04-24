@@ -3,7 +3,7 @@ import { Search, User, Calendar, AlertCircle, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { STEP_META, STEP_TYPES_ORDER, type StepType } from '@/lib/steps';
-import type { Member } from '@/hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 
 const PERIOD_TABS = [
   { value: '', label: 'Todos' },

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { STEP_META, type StepType, type Task } from '@/lib/steps';
-import type { Member } from '@/hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 import { TaskRow } from './TaskRow';
 
 const TASK_ROW_HEIGHT = 52;

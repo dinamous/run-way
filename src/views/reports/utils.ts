@@ -1,6 +1,6 @@
 import { migrateLegacyTask, getCurrentStep } from '@/lib/steps';
 import type { Task, Step, LegacyTask, StepType } from '@/lib/steps';
-import type { Member } from '@/hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 

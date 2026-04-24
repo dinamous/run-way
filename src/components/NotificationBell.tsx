@@ -24,7 +24,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui";
-import { useNotificationPolling } from "@/hooks/useNotificationPolling";
+import { useNotificationPolling } from "@/hooks/notifications/useNotificationPolling";
 import type { Notification } from "@/types/notification";
 
 interface NotificationBellProps {

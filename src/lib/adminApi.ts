@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import type { DbClientRow, DbAuditLogRow } from '@/types/db'
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import type { Notification } from '@/types/notification'
 import type { AuditFilters } from '@/store/useAdminStore'
 

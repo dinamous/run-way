@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { DAY_COL_W, STEP_META, getTaskStatusDisplay, getVisibleSteps } from '@/utils/dashboardUtils';
 import type { TimelineViewProps } from '@/types/props';
-import { usePhaseDrag } from '@/hooks/usePhaseDrag';
+import { usePhaseDrag } from '@/hooks/ui/usePhaseDrag';
 import { useTimelineDays } from './hooks/useTimelineDays';
 import { useRowHeightSync } from './hooks/useRowHeightSync';
 import { useHeaderHeightSync } from './hooks/useHeaderHeightSync';

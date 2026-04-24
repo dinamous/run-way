@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useLayoutEffect, useState, useCallback } from 'react';
 import { UserCircle2 } from 'lucide-react';
-import { useMembersQuery } from '@/hooks/useMembersQuery';
-import { useClients } from '@/hooks/useClients';
+import { useMembersQuery } from '@/hooks/members/useMembersQuery';
+import { useClients } from '@/hooks/clients/useClients';
 import type { Member } from '@/types/member';
 import HierarchyMemberCard from './components/HierarchyMemberCard';
 import HierarchySkeleton from './components/HierarchySkeleton';

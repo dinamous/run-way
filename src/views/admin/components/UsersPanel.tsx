@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/Drawer'
 import { toast } from 'sonner'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import type { PendingAuthUser } from '../hooks/useAdminData'
 import type { DbClientRow } from '@/types/db'
 import { Plus, Building, Check, Search, UserCheck, ChevronLeft, ChevronRight, Key, Clock, Mail, Link2, UserX } from 'lucide-react'
