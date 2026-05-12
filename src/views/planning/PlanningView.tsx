@@ -40,6 +40,7 @@ const PLANNING_BONES = {
 const EMPTY_FILTERS: FiltersState = {
   searchTerm: '',
   selectedSteps: [],
+  selectedProgressStatuses: [],
   selectedMemberIds: [],
   selectedPeriod: '',
   showOnlyBlocked: false,
@@ -131,17 +132,24 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
 
   const filteredDemandasTasks = useMemo(() => {
     if (subview !== 'demandas') return [];
-    const { searchTerm, selectedSteps, selectedMemberIds, showOnlyBlocked, selectedPeriod, showConcluded } = demandasFilters;
+    const { searchTerm, selectedSteps, selectedProgressStatuses, selectedMemberIds, showOnlyBlocked, selectedPeriod, showConcluded } = demandasFilters;
     return tasks.filter(task => {
       const isConcluded = !!task.concludedAt;
       if (!showConcluded && isConcluded) return false;
 
+      const lowerSearch = searchTerm.toLowerCase();
       const matchSearch =
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.id.toLowerCase().includes(searchTerm.toLowerCase());
+        task.title.toLowerCase().includes(lowerSearch) ||
+        task.id.toLowerCase().includes(lowerSearch) ||
+        task.subtasks.some(s => s.title.toLowerCase().includes(lowerSearch));
 
       const currentStep = task.subtasks.find(s => s.active) ?? task.subtasks[0];
-      const matchStep = selectedSteps.length > 0 ? selectedSteps.includes(currentStep?.status) : true;
+      const matchStep = selectedSteps.length > 0
+        ? task.subtasks.some(s => selectedSteps.includes(s.status))
+        : true;
+      const matchProgressStatus = selectedProgressStatuses.length > 0
+        ? task.subtasks.some(s => selectedProgressStatuses.includes(s.progressStatus))
+        : true;
       const matchMember = selectedMemberIds.length > 0
         ? task.subtasks.some(s => s.assignees.some(a => selectedMemberIds.includes(a)))
         : true;
@@ -157,13 +165,14 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
         matchPeriod = false;
       }
 
-      return matchSearch && matchStep && matchMember && matchBlocked && matchPeriod;
+      return matchSearch && matchStep && matchProgressStatus && matchMember && matchBlocked && matchPeriod;
     });
   }, [tasks, demandasFilters, subview]);
 
 const hasDemandasActiveFilters =
     demandasFilters.searchTerm !== '' ||
     demandasFilters.selectedSteps.length > 0 ||
+    demandasFilters.selectedProgressStatuses.length > 0 ||
     demandasFilters.selectedMemberIds.length > 0 ||
     demandasFilters.selectedPeriod !== '' ||
     demandasFilters.showOnlyBlocked;
@@ -208,9 +217,17 @@ const hasDemandasActiveFilters =
         </TabsList>
       </Tabs>
 
-      <div>
-        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
-        <p className="text-muted-foreground text-sm">{description}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
+          <p className="text-muted-foreground text-sm">{description}</p>
+        </div>
+        {subview === 'demandas' && (
+          <Button onClick={onOpenNew} className="shrink-0">
+            <Plus className="w-4 h-4" />
+            Nova Demanda
+          </Button>
+        )}
       </div>
 
       {showFilterBar && (
@@ -253,18 +270,12 @@ const hasDemandasActiveFilters =
         <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
       ) : subview === 'demandas' ? (
         <div className="space-y-5">
-          <div className="flex items-center justify-between gap-2">
-            <TasksFilters
-              filters={demandasFilters}
-              members={members}
-              onChange={next => setDemandasFilters(prev => ({ ...prev, ...next }))}
-              onClear={() => setDemandasFilters(EMPTY_FILTERS)}
-            />
-            <Button onClick={onOpenNew} className="shrink-0">
-              <Plus className="w-4 h-4" />
-              Nova Demanda
-            </Button>
-          </div>
+          <TasksFilters
+            filters={demandasFilters}
+            members={members}
+            onChange={next => setDemandasFilters(prev => ({ ...prev, ...next }))}
+            onClear={() => setDemandasFilters(EMPTY_FILTERS)}
+          />
 
           {tasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border border-dashed border-border rounded-xl bg-muted/10">

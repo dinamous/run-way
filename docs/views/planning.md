@@ -28,7 +28,7 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | `src/views/planning/components/FilterBar.tsx` | Barra de filtros usada por calendar e timeline |
 | `src/views/planning/components/MetricsBar.tsx` | Cards de métricas (saúde operacional, em andamento, bloqueadas) |
 | `src/views/planning/components/StepsLegend.tsx` | Legenda de cores das fases |
-| `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, etapa, responsável, período, bloqueadas, concluídas) |
+| `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, status de subtask, responsável com avatares, período, bloqueadas, concluídas) |
 | `src/views/planning/components/TaskTable.tsx` | Componente raiz da tabela — itera tasks e delega para `TaskTableRow` |
 | `src/views/planning/components/TaskTableRow.tsx` | Linha-pai colapsável de uma task com progresso, prazo, avatares e painel de subtasks |
 | `src/views/planning/components/SubtaskRow.tsx` | Linha-filho de uma subtask com ícone de status, badge de etapa, popover de andamento, `DatesPopover` e `AssigneesPopover` |
@@ -111,16 +111,31 @@ Os popovers fecham ao clicar fora ou pressionar `Escape` (hook `usePopover`). Re
 - Subtasks sem datas mostram `—` no campo Período
 
 ### TasksFilters
-Barra de filtros com `CheckboxDropdown` customizado para etapa e responsável. Filtros:
+Barra de filtros do subview `demandas`. Interface `FiltersState`:
 
-| Filtro | Implementação |
-|---|---|
-| Busca por texto/ID | `task.title` e `task.id` case-insensitive |
-| Etapa | `selectedSteps: SubtaskStatus[]` — verifica `subtask.status` das ativas |
-| Responsável | `selectedMemberIds: string[]` — qualquer assignee de qualquer subtask |
-| Período (prazo) | Tabs "Todos / 7d / 15d / 30d" — compara `end` da subtask ativa com `today + N dias` |
-| Bloqueadas | Toggle — filtra `task.status.blocked === true` |
-| Concluídas | Toggle — mostra tarefas com `task.concludedAt` preenchido (default: ocultas) |
+```ts
+{
+  searchTerm: string;
+  selectedSteps: SubtaskStatus[];           // categoria/fase
+  selectedProgressStatuses: SubtaskProgressStatus[]; // andamento
+  selectedMemberIds: string[];
+  selectedPeriod: string;
+  showOnlyBlocked: boolean;
+  showConcluded: boolean;
+}
+```
+
+| Filtro | Campo | Implementação |
+|---|---|---|
+| Busca por texto/ID | `searchTerm` | `task.title`, `task.id` e `subtask.title` case-insensitive |
+| Categoria | `selectedSteps: SubtaskStatus[]` | Dropdown — verifica `subtask.status` de **todas** as subtasks |
+| Status | `selectedProgressStatuses: SubtaskProgressStatus[]` | Dropdown — verifica `subtask.progressStatus` de **todas** as subtasks |
+| Responsável | `selectedMemberIds` | `MemberAvatarPicker` — botão exibe avatares empilhados dos selecionados |
+| Período (prazo) | `selectedPeriod` | Tabs "Todos / 7d / 15d / 30d" — compara `end` da subtask ativa com `today + N dias` |
+| Bloqueadas | `showOnlyBlocked` | Toggle — filtra `task.status.blocked === true` |
+| Concluídas | `showConcluded` | Toggle — mostra tarefas com `task.concludedAt` preenchido (default: ocultas) |
+
+O botão **Nova Demanda** fica na row do título (alinhado à direita), não dentro da barra de filtros.
 
 ### Ordenação dentro dos grupos
 Tasks ordenadas por `end` da subtask ativa no grupo — da mais atrasada para a mais recente. Sem data ficam no final.

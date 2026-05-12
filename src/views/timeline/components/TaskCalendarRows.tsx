@@ -1,5 +1,5 @@
 import React from 'react';
-import { getVisibleSteps, type DragPreview, type DragState, type Task, type Step, type StepType } from '@/utils/dashboardUtils';
+import { getVisibleSteps, type DragPreview, type DragState, type Task, type Subtask } from '@/utils/dashboardUtils';
 import type { Member } from '@/types/member';
 import type { Holiday } from '@/utils/holidayUtils';
 import StepRow from './StepRow';
@@ -13,7 +13,7 @@ interface TaskCalendarRowsProps {
   daysRange: number;
   dragPreview: DragPreview | null;
   didDragRef: React.MutableRefObject<boolean>;
-  startDrag: (e: React.MouseEvent, taskId: string, stepType: StepType, type: DragState['type'], step: Step, colWidth: number) => void;
+  startDrag: (e: React.MouseEvent, taskId: string, subtaskId: string, type: DragState['type'], subtask: Subtask, colWidth: number) => void;
   onEdit: (t: Task) => void;
   onDelete: (id: string) => void;
   taskIndex: number;
@@ -34,7 +34,7 @@ const TaskCalendarRows: React.FC<TaskCalendarRowsProps> = ({ task, days, daysRan
     >
       {visibleSteps.length === 0 ? (
         <StepRow
-          step={null}
+          subtask={null}
           days={days}
           daysRange={daysRange}
           task={task}
@@ -45,10 +45,10 @@ const TaskCalendarRows: React.FC<TaskCalendarRowsProps> = ({ task, days, daysRan
           holidays={holidays}
           flex1
         />
-      ) : visibleSteps.map((step) => (
+      ) : visibleSteps.map((subtask) => (
         <StepRow
-          key={step.id}
-          step={step}
+          key={subtask.id}
+          subtask={subtask}
           days={days}
           daysRange={daysRange}
           task={task}
