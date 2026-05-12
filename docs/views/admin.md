@@ -2,7 +2,7 @@
 
 **Ficheiro:** `src/views/admin/AdminView.tsx`  
 **URL:** `/:clientSlug/admin`  
-**Acesso:** exclusivo para `member.access_role === 'admin'` — verificado no componente via `useAuthContext`; requer cliente selecionado (`requiresClient: true` em `accessControl.ts`)
+**Acesso:** exclusivo para `member.access_role === 'admin'` — verificado no componente via `useAuthContext`; não requer cliente selecionado (`requiresClient: false` em `accessControl.ts`)
 
 ## Estrutura
 
