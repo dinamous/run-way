@@ -2,24 +2,24 @@ import React from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import {
   DAY_COL_W, toLocalDate, normaliseTask, isStepBlocked, formatDateDisplay,
-  STEP_META, type DragPreview, type DragState, type Task, type Step, type StepType,
+  STEP_META, type DragPreview, type DragState, type Task, type Subtask,
 } from '@/utils/dashboardUtils';
 
 interface PhaseBarProps {
-  step: Step;
+  subtask: Subtask;
   task: Task;
   days: Date[];
   dragPreview: DragPreview | null;
   didDragRef: React.MutableRefObject<boolean>;
-  startDrag: (e: React.MouseEvent, taskId: string, stepType: StepType, type: DragState['type'], step: Step, colWidth: number) => void;
+  startDrag: (e: React.MouseEvent, taskId: string, subtaskId: string, type: DragState['type'], subtask: Subtask, colWidth: number) => void;
   onEdit: (t: Task) => void;
 }
 
-const PhaseBar: React.FC<PhaseBarProps> = React.memo(({ step, task, days, dragPreview, didDragRef, startDrag, onEdit }) => {
-  if (!step?.start || !step?.end) return null;
+const PhaseBar: React.FC<PhaseBarProps> = React.memo(({ subtask, task, days, dragPreview, didDragRef, startDrag, onEdit }) => {
+  if (!subtask?.start || !subtask?.end) return null;
 
-  const pStart = toLocalDate(step.start);
-  const pEnd = toLocalDate(step.end);
+  const pStart = toLocalDate(subtask.start);
+  const pEnd = toLocalDate(subtask.end);
   const tStart = days[0];
   const tEnd = days[days.length - 1];
   if (pEnd < tStart || pStart > tEnd) return null;
@@ -28,7 +28,7 @@ const PhaseBar: React.FC<PhaseBarProps> = React.memo(({ step, task, days, dragPr
   let e = Math.round((pEnd.getTime() - tStart.getTime()) / 86400000);
 
   const dp = dragPreview;
-  if (dp && dp.taskId === task.id && dp.stepType === step.type) {
+  if (dp && dp.taskId === task.id && dp.subtaskId === subtask.id) {
     if (dp.type === 'move') { s += dp.deltaDays; e += dp.deltaDays; }
     else if (dp.type === 'resize-start') { s = Math.min(s + dp.deltaDays, e); }
     else { e = Math.max(e + dp.deltaDays, s); }
@@ -40,17 +40,17 @@ const PhaseBar: React.FC<PhaseBarProps> = React.memo(({ step, task, days, dragPr
 
   const left = (sC / days.length) * 100;
   const width = ((eC - sC + 1) / days.length) * 100;
-  const meta = STEP_META[step.type];
+  const meta = STEP_META[subtask.status];
   const norm = normaliseTask(task);
-  const blocked = isStepBlocked(norm, step.start);
-  const isDragging = dp?.taskId === task.id && dp?.stepType === step.type;
+  const blocked = isStepBlocked(norm, subtask.start);
+  const isDragging = dp?.taskId === task.id && dp?.subtaskId === subtask.id;
   const startsHere = s >= 0;
   const endsHere = e < days.length;
   const isConcluded = !!task.concludedAt;
-  const barCls = isConcluded 
-    ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-300 border border-gray-400 dark:border-gray-500' 
-    : blocked 
-      ? meta.barBlocked 
+  const barCls = isConcluded
+    ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-300 border border-gray-400 dark:border-gray-500'
+    : blocked
+      ? meta.barBlocked
       : meta.bar;
 
   return (
@@ -62,37 +62,39 @@ const PhaseBar: React.FC<PhaseBarProps> = React.memo(({ step, task, days, dragPr
         cursor: isDragging ? 'grabbing' : 'grab',
         transition: isDragging ? 'none' : 'filter 0.1s',
       }}
-      title={`${meta.label}: ${formatDateDisplay(pStart)} → ${formatDateDisplay(pEnd)}`}
-      onMouseDown={e => startDrag(e, task.id, step.type, 'move', step, DAY_COL_W)}
+      title={`${subtask.title || meta.label}: ${formatDateDisplay(pStart)} → ${formatDateDisplay(pEnd)}`}
+      onMouseDown={e => startDrag(e, task.id, subtask.id, 'move', subtask, DAY_COL_W)}
       onClick={() => { if (!didDragRef.current) onEdit(task); }}
     >
       {startsHere && (
         <div
           className={`absolute left-0 top-0 bottom-0 w-2 ${isConcluded ? 'bg-gray-400 dark:bg-gray-500' : meta.handle} cursor-ew-resize z-20`}
           style={{ borderRadius: '5px 0 0 5px' }}
-          onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, step.type, 'resize-start', step, DAY_COL_W); }}
+          onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, subtask.id, 'resize-start', subtask, DAY_COL_W); }}
         />
       )}
       {startsHere && (
         <span className="truncate px-2 pointer-events-none flex items-center gap-1">
           {isConcluded && <CheckCircle2 className="w-3 h-3 shrink-0" />}
           {blocked && !isConcluded && <AlertTriangle className="w-3 h-3 shrink-0" />}
-          {meta.label}
+          {subtask.title || meta.label}
         </span>
       )}
       {endsHere && (
         <div
           className={`absolute right-0 top-0 bottom-0 w-2 ${isConcluded ? 'bg-gray-400 dark:bg-gray-500' : meta.handle} cursor-ew-resize z-20`}
           style={{ borderRadius: '0 5px 5px 0' }}
-          onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, step.type, 'resize-end', step, DAY_COL_W); }}
+          onMouseDown={e => { e.stopPropagation(); startDrag(e, task.id, subtask.id, 'resize-end', subtask, DAY_COL_W); }}
         />
       )}
     </div>
   );
 }, (prev, next) =>
-  prev.step.type === next.step.type &&
-  prev.step.start === next.step.start &&
-  prev.step.end === next.step.end &&
+  prev.subtask.id === next.subtask.id &&
+  prev.subtask.status === next.subtask.status &&
+  prev.subtask.start === next.subtask.start &&
+  prev.subtask.end === next.subtask.end &&
+  prev.subtask.title === next.subtask.title &&
   prev.task.id === next.task.id &&
   prev.task.concludedAt === next.task.concludedAt &&
   prev.task.status?.blocked === next.task.status?.blocked &&

@@ -2,18 +2,44 @@ import React, { useState } from 'react';
 import { useMembersQuery } from '@/hooks/members/useMembersQuery';
 import { useClients } from '@/hooks/clients/useClients';
 import { Input, Label, Button, ConfirmModal } from './ui';
-import { Save, ExternalLink, Trash2, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Save, ExternalLink, Trash2, Users, AlertCircle, CheckCircle2, Plus, GripVertical, X } from 'lucide-react';
 import {
   STEP_META,
-  createDefaultSteps,
+  STEP_TYPES_ORDER,
   migrateLegacyTask,
-  type Step,
-  type StepType,
+  type Subtask,
+  type SubtaskStatus,
   type TaskStatus,
 } from '../lib/steps';
 import type { TaskModalProps } from '../types/props';
 import { useFormState } from '@/hooks/ui/useFormState';
 import { isWeekendOrHoliday, getHolidayName, nextNonHolidayBusinessDay } from '../utils/holidayUtils';
+
+let _subtaskCounter = 0;
+function tempId() {
+  return `__new__${++_subtaskCounter}`;
+}
+
+/** Subtask com id temporário para subtasks novas (ainda não no DB) */
+type SubtaskDraft = Subtask & { _tempId: string };
+
+function draftFromSubtask(s: Subtask): SubtaskDraft {
+  return { ...s, _tempId: s.id || tempId() };
+}
+
+function newDraft(order: number): SubtaskDraft {
+  return {
+    _tempId: tempId(),
+    id: '',
+    title: '',
+    status: 'design' as SubtaskStatus,
+    start: '',
+    end: '',
+    assignees: [],
+    active: true,
+    order,
+  };
+}
 
 const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClose, onSave, onDelete, holidays }) => {
   const { effectiveClientId } = useClients();
@@ -30,15 +56,15 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
     init.status.blockedAt ?? new Date().toISOString().split('T')[0]
   );
   const [concludedAt, setConcludedAt] = useState<string | undefined>(task?.concludedAt);
-  const [steps, setSteps] = useState<Step[]>(
-    task ? init.steps : createDefaultSteps()
+  const [subtasks, setSubtasks] = useState<SubtaskDraft[]>(
+    init.subtasks.map(draftFromSubtask)
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pendingSubmitData, setPendingSubmitData] = useState<Parameters<typeof onSave>[0] | null>(null);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [showDirtyCloseConfirm, setShowDirtyCloseConfirm] = useState(false);
 
-  const formSnapshot = { title, clickupLink, blocked, blockedAt, steps, concludedAt };
+  const formSnapshot = { title, clickupLink, blocked, blockedAt, subtasks, concludedAt };
   const { isDirty, submitting, withSubmit } = useFormState(
     formSnapshot,
     !task,
@@ -46,13 +72,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
   );
 
   const handleRequestClose = () => {
-    if (!isDirty) {
-      onClose();
-      return;
-    }
-
+    if (!isDirty) { onClose(); return; }
     setShowDirtyCloseConfirm(true);
   };
+
+  const activeSubtasks = subtasks.filter(s => s.active);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -60,24 +84,36 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
     if (clickupLink) {
       try { new URL(clickupLink) } catch { e.clickupLink = 'Insira um URL válido (ex: https://...).'; }
     }
-    if (activeCount === 0) e.steps = 'Selecione pelo menos um step.';
-    steps.filter(s => s.active).forEach(s => {
-      if (!s.start || !s.end) e[`${s.type}-dates`] = 'Datas obrigatórias quando step está ativo.';
-      else if (s.end < s.start) e[`${s.type}-dates`] = 'Fim anterior ao início.';
+    if (activeSubtasks.length === 0) e.subtasks = 'Adicione pelo menos uma subtask ativa.';
+    subtasks.forEach(s => {
+      if (!s.title.trim()) e[`${s._tempId}-title`] = 'Título obrigatório.';
+      if (!s.start || !s.end) e[`${s._tempId}-dates`] = 'Datas obrigatórias.';
+      else if (s.end < s.start) e[`${s._tempId}-dates`] = 'Fim anterior ao início.';
     });
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const buildTaskData = (drafts: SubtaskDraft[]) => {
+    const finalSubtasks: Subtask[] = drafts.map((s, i) => ({
+      id: s.id,
+      title: s.title,
+      status: s.status,
+      start: s.start,
+      end: s.end,
+      assignees: s.assignees,
+      active: s.active,
+      order: i,
+    }));
+    const status: TaskStatus = { blocked, blockedAt: blocked ? blockedAt : undefined };
+    return { ...task, title, clickupLink, status, subtasks: finalSubtasks, concludedAt };
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
-    const status: TaskStatus = {
-      blocked,
-      blockedAt: blocked ? blockedAt : undefined,
-    };
-    const taskData = { ...task, title, clickupLink, status, steps, concludedAt };
+    const taskData = buildTaskData(subtasks);
 
     const describeDateConflict = (date: string): string => {
       const holidayName = getHolidayName(date, holidays);
@@ -86,18 +122,17 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
       return `${date} (${dow === 0 ? 'Domingo' : 'Sábado'})`;
     };
 
-    const affected = steps
-      .filter(s => s.active)
+    const affected = subtasks
       .filter(s => (s.start && isWeekendOrHoliday(s.start, holidays)) || (s.end && isWeekendOrHoliday(s.end, holidays)))
       .map(s => {
         const parts: string[] = [];
         if (s.start && isWeekendOrHoliday(s.start, holidays)) parts.push(`início em ${describeDateConflict(s.start)}`);
         if (s.end && isWeekendOrHoliday(s.end, holidays)) parts.push(`fim em ${describeDateConflict(s.end)}`);
-        return `• ${STEP_META[s.type]?.label ?? s.type}: ${parts.join(' e ')}`;
+        return `• ${s.title || STEP_META[s.status]?.label}: ${parts.join(' e ')}`;
       });
 
     if (affected.length > 0) {
-      setConfirmMessage(`As seguintes fases têm datas em fim de semana ou feriado:\n\n${affected.join('\n')}\n\nDeseja salvar mesmo assim?`);
+      setConfirmMessage(`As seguintes subtasks têm datas em fim de semana ou feriado:\n\n${affected.join('\n')}\n\nDeseja salvar mesmo assim?`);
       setPendingSubmitData(taskData as Parameters<typeof onSave>[0]);
       return;
     }
@@ -111,54 +146,48 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
     withSubmit(() => onSave(pendingSubmitData));
   };
 
-  const handleCancelWeekend = () => {
-    setPendingSubmitData(null);
-  };
+  const handleCancelWeekend = () => setPendingSubmitData(null);
 
   const handlePostponeWeekend = () => {
     if (!pendingSubmitData) return;
 
-    const adjustedTaskData = {
+    const adjusted = {
       ...pendingSubmitData,
-      steps: pendingSubmitData.steps.map(step => {
-        if (!step.active) return step;
-
-        const adjustedStart = step.start && isWeekendOrHoliday(step.start, holidays)
-          ? nextNonHolidayBusinessDay(step.start, holidays)
-          : step.start;
-        let adjustedEnd = step.end && isWeekendOrHoliday(step.end, holidays)
-          ? nextNonHolidayBusinessDay(step.end, holidays)
-          : step.end;
-
-        if (adjustedStart && adjustedEnd && adjustedEnd < adjustedStart) {
-          adjustedEnd = adjustedStart;
-        }
-
-        return { ...step, start: adjustedStart, end: adjustedEnd };
+      subtasks: pendingSubmitData.subtasks.map((s: Subtask) => {
+        const adjustedStart = s.start && isWeekendOrHoliday(s.start, holidays)
+          ? nextNonHolidayBusinessDay(s.start, holidays)
+          : s.start;
+        let adjustedEnd = s.end && isWeekendOrHoliday(s.end, holidays)
+          ? nextNonHolidayBusinessDay(s.end, holidays)
+          : s.end;
+        if (adjustedStart && adjustedEnd && adjustedEnd < adjustedStart) adjustedEnd = adjustedStart;
+        return { ...s, start: adjustedStart, end: adjustedEnd };
       }),
     };
 
     setPendingSubmitData(null);
-    withSubmit(() => onSave(adjustedTaskData));
+    withSubmit(() => onSave(adjusted));
   };
 
-  const toggleStep = (type: StepType) => {
-    setSteps(prev => prev.map(s => s.type === type ? { ...s, active: !s.active } : s));
+  const addSubtask = () => {
+    setSubtasks(prev => [...prev, newDraft(prev.length)]);
   };
 
-  const updateStep = (type: StepType, field: keyof Step, value: Step[keyof Step]) => {
-    setSteps(prev => prev.map(s => s.type === type ? { ...s, [field]: value } : s));
+  const removeSubtask = (tempId: string) => {
+    setSubtasks(prev => prev.filter(s => s._tempId !== tempId));
   };
 
-  const toggleAssignee = (type: StepType, memberId: string) => {
-    setSteps(prev => prev.map(s => {
-      if (s.type !== type) return s;
+  const updateSubtask = <K extends keyof SubtaskDraft>(tempId: string, field: K, value: SubtaskDraft[K]) => {
+    setSubtasks(prev => prev.map(s => s._tempId === tempId ? { ...s, [field]: value } : s));
+  };
+
+  const toggleAssignee = (tempId: string, memberId: string) => {
+    setSubtasks(prev => prev.map(s => {
+      if (s._tempId !== tempId) return s;
       const has = s.assignees.includes(memberId);
       return { ...s, assignees: has ? s.assignees.filter(id => id !== memberId) : [...s.assignees, memberId] };
     }));
   };
-
-  const activeCount = steps.filter(s => s.active).length;
 
   return (
     <div
@@ -240,7 +269,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
                         Bloqueado
                       </div>
                       <div className="text-[10px] text-muted-foreground">
-                        Steps a partir da data de bloqueio ficam em alerta vermelho
+                        Subtasks a partir da data de bloqueio ficam em alerta vermelho
                       </div>
                     </div>
                   </div>
@@ -305,125 +334,135 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
                 )}
               </div>
 
-              {/* Steps */}
+              {/* Subtasks */}
               <div className="space-y-2">
-                {errors.steps && <p className="text-xs text-red-500">{errors.steps}</p>}
                 <div className="flex items-center justify-between">
-                  <Label>Steps da Demanda</Label>
+                  <Label>Subtasks</Label>
                   <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                    {activeCount} ativo{activeCount !== 1 ? 's' : ''}
+                    {activeSubtasks.length} ativa{activeSubtasks.length !== 1 ? 's' : ''}
                   </span>
                 </div>
-                <div className="space-y-1.5">
-                  {steps.map((step) => {
-                    const meta = STEP_META[step.type as StepType];
-                    if (!meta) return null;
+                {errors.subtasks && <p className="text-xs text-red-500">{errors.subtasks}</p>}
+
+                <div className="space-y-2">
+                  {subtasks.map((subtask) => {
+                    const meta = STEP_META[subtask.status];
                     return (
                       <div
-                        key={step.type}
-                        className={`rounded-xl border transition-all ${step.active ? meta.color : 'bg-muted/50 border-border'}`}
+                        key={subtask._tempId}
+                        className={`rounded-xl border transition-all ${meta.color}`}
                       >
-                        {/* Step header — always visible */}
-                        <button
-                          type="button"
-                          onClick={() => toggleStep(step.type)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
-                        >
-                          {/* Checkbox */}
-                          <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${
-                            step.active
-                              ? 'bg-current border-current'
-                              : 'border-muted-foreground/40 bg-transparent'
-                          }`}>
-                            {step.active && <span className="text-white text-[9px] leading-none font-bold">✓</span>}
-                          </span>
+                        {/* Subtask header */}
+                        <div className="flex items-center gap-2 px-3 py-2.5">
+                          <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0 cursor-grab" />
                           <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dot}`} />
-                          <span className={`text-xs font-semibold flex-1 ${step.active ? '' : 'text-muted-foreground'}`}>
-                            {meta.label}
-                          </span>
-                          {/* Assignee avatars when active */}
-                          {step.active && step.assignees.length > 0 && (
-                            <div className="flex -space-x-1 shrink-0">
-                              {step.assignees.map(aid => {
-                                const m = resolvedMembers.find(m => m.id === aid);
-                                return m ? (
-                                  <div
-                                    key={aid}
-                                    className="w-5 h-5 rounded-full bg-white/80 dark:bg-black/30 border border-white dark:border-black/20 text-[8px] font-bold flex items-center justify-center text-foreground"
-                                    title={m.name}
-                                  >{m.avatar}</div>
-                                ) : null;
+
+                          {/* Título livre */}
+                          <input
+                            type="text"
+                            value={subtask.title}
+                            onChange={e => updateSubtask(subtask._tempId, 'title', e.target.value)}
+                            placeholder="Nome da subtask…"
+                            className="flex-1 bg-transparent text-xs font-semibold placeholder:text-current/40 outline-none min-w-0"
+                          />
+
+                          {/* Select de status */}
+                          <select
+                            value={subtask.status}
+                            onChange={e => updateSubtask(subtask._tempId, 'status', e.target.value as SubtaskStatus)}
+                            className="text-[10px] bg-white/40 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-md px-1.5 py-0.5 outline-none cursor-pointer shrink-0"
+                          >
+                            {STEP_TYPES_ORDER.map(s => (
+                              <option key={s} value={s}>{STEP_META[s].label}</option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            onClick={() => removeSubtask(subtask._tempId)}
+                            className="w-5 h-5 flex items-center justify-center rounded text-current/50 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors shrink-0"
+                            aria-label="Remover subtask"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Subtask body — responsáveis + datas */}
+                        <div className="px-3 pb-3 space-y-3 border-t border-black/10 dark:border-white/10 pt-2.5">
+                          {errors[`${subtask._tempId}-title`] && (
+                            <p className="text-[10px] text-red-600">{errors[`${subtask._tempId}-title`]}</p>
+                          )}
+
+                          {/* Responsáveis */}
+                          <div>
+                            <span className="text-[10px] opacity-70 font-medium flex items-center gap-1 mb-1.5">
+                              <Users className="w-3 h-3" /> Responsáveis
+                              <span className="opacity-60">(opcional)</span>
+                            </span>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {resolvedMembers.map(m => {
+                                const sel = subtask.assignees.includes(m.id);
+                                return (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => toggleAssignee(subtask._tempId, m.id)}
+                                    className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all ${
+                                      sel
+                                        ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200'
+                                        : 'border-transparent bg-white/50 dark:bg-white/10 text-inherit hover:bg-white/80 dark:hover:bg-white/20'
+                                    }`}
+                                  >
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                                      sel ? 'bg-blue-500 text-white' : 'bg-black/10 dark:bg-white/20 text-inherit'
+                                    }`}>
+                                      {m.avatar}
+                                    </div>
+                                    {m.name}
+                                  </button>
+                                );
                               })}
                             </div>
-                          )}
-                        </button>
-
-                        {/* Step details — only when active */}
-                        {step.active && (
-                          <div className="px-3 pb-3 space-y-3 border-t border-black/10 dark:border-white/10 pt-2.5">
-
-                            {/* Responsáveis */}
-                            <div>
-                              <span className="text-[10px] opacity-70 font-medium flex items-center gap-1 mb-1.5">
-                                <Users className="w-3 h-3" /> Responsáveis
-                                <span className="opacity-60">(opcional)</span>
-                              </span>
-                              <div className="flex gap-1.5 flex-wrap">
-                                {resolvedMembers.map(m => {
-                                  const sel = step.assignees.includes(m.id);
-                                  return (
-                                    <button
-                                      key={m.id}
-                                      type="button"
-                                      onClick={() => toggleAssignee(step.type, m.id)}
-                                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all ${
-                                        sel
-                                          ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200'
-                                          : 'border-transparent bg-white/50 dark:bg-white/10 text-inherit hover:bg-white/80 dark:hover:bg-white/20'
-                                      }`}
-                                    >
-                                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
-                                        sel ? 'bg-blue-500 text-white' : 'bg-black/10 dark:bg-white/20 text-inherit'
-                                      }`}>
-                                        {m.avatar}
-                                      </div>
-                                      {m.name}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {/* Datas */}
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <span className="text-[10px] opacity-70">Início</span>
-                                <Input
-                                  type="date"
-                                  value={step.start}
-                                  onChange={e => updateStep(step.type, 'start', e.target.value)}
-                                  className="h-8 text-xs bg-white/70 dark:bg-black/20 border-0 focus:ring-1"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <span className="text-[10px] opacity-70">Fim</span>
-                                <Input
-                                  type="date"
-                                  value={step.end}
-                                  onChange={e => updateStep(step.type, 'end', e.target.value)}
-                                  className="h-8 text-xs bg-white/70 dark:bg-black/20 border-0 focus:ring-1"
-                                />
-                              </div>
-                            </div>
-                            {errors[`${step.type}-dates`] && (
-                              <p className="text-[10px] text-red-600">{errors[`${step.type}-dates`]}</p>
-                            )}
                           </div>
-                        )}
+
+                          {/* Datas */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <span className="text-[10px] opacity-70">Início</span>
+                              <Input
+                                type="date"
+                                value={subtask.start}
+                                onChange={e => updateSubtask(subtask._tempId, 'start', e.target.value)}
+                                className="h-8 text-xs bg-white/70 dark:bg-black/20 border-0 focus:ring-1"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-[10px] opacity-70">Fim</span>
+                              <Input
+                                type="date"
+                                value={subtask.end}
+                                onChange={e => updateSubtask(subtask._tempId, 'end', e.target.value)}
+                                className="h-8 text-xs bg-white/70 dark:bg-black/20 border-0 focus:ring-1"
+                              />
+                            </div>
+                          </div>
+                          {errors[`${subtask._tempId}-dates`] && (
+                            <p className="text-[10px] text-red-600">{errors[`${subtask._tempId}-dates`]}</p>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={addSubtask}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Adicionar subtask
+                </button>
               </div>
 
             </div>

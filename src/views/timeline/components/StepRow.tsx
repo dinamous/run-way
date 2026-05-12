@@ -1,5 +1,5 @@
 import React from 'react';
-import { DAY_COL_W, type DragPreview, type DragState, type Task, type Step, type StepType } from '@/utils/dashboardUtils';
+import { DAY_COL_W, type DragPreview, type DragState, type Task, type Subtask } from '@/utils/dashboardUtils';
 import type { Holiday } from '@/utils/holidayUtils';
 import { getHolidayName } from '@/utils/holidayUtils';
 import PhaseBar from './PhaseBar';
@@ -9,19 +9,19 @@ const PHASE_ROW_H = 28;
 const toDateStr = (d: Date) => d.toISOString().slice(0, 10);
 
 interface StepRowProps {
-  step: Step | null;
+  subtask: Subtask | null;
   days: Date[];
   daysRange: number;
   task: Task;
   dragPreview: DragPreview | null;
   didDragRef: React.MutableRefObject<boolean>;
-  startDrag: (e: React.MouseEvent, taskId: string, stepType: StepType, type: DragState['type'], step: Step, colWidth: number) => void;
+  startDrag: (e: React.MouseEvent, taskId: string, subtaskId: string, type: DragState['type'], subtask: Subtask, colWidth: number) => void;
   onEdit: (t: Task) => void;
   holidays?: Holiday[];
   flex1?: boolean;
 }
 
-const StepRow: React.FC<StepRowProps> = React.memo(({ step, days, daysRange, task, dragPreview, didDragRef, startDrag, onEdit, holidays = [], flex1 = false }) => (
+const StepRow: React.FC<StepRowProps> = React.memo(({ subtask, days, daysRange, task, dragPreview, didDragRef, startDrag, onEdit, holidays = [], flex1 = false }) => (
   <div className={`relative overflow-hidden${flex1 ? ' flex-1' : ''}`} style={{ minHeight: PHASE_ROW_H, width: daysRange * DAY_COL_W }}>
     <div className="absolute inset-0 flex pointer-events-none">
       {days.map((d, i) => {
@@ -31,9 +31,9 @@ const StepRow: React.FC<StepRowProps> = React.memo(({ step, days, daysRange, tas
         return <div key={i} className={`shrink-0 border-r border-border/50 ${bgClass}`} style={{ width: DAY_COL_W }} />;
       })}
     </div>
-    {step && (
+    {subtask && (
       <PhaseBar
-        step={step}
+        subtask={subtask}
         task={task}
         days={days}
         dragPreview={dragPreview}
@@ -47,9 +47,11 @@ const StepRow: React.FC<StepRowProps> = React.memo(({ step, days, daysRange, tas
   prev.task.id === next.task.id &&
   prev.task.concludedAt === next.task.concludedAt &&
   prev.task.status?.blocked === next.task.status?.blocked &&
-  prev.step?.type === next.step?.type &&
-  prev.step?.start === next.step?.start &&
-  prev.step?.end === next.step?.end &&
+  prev.subtask?.id === next.subtask?.id &&
+  prev.subtask?.status === next.subtask?.status &&
+  prev.subtask?.start === next.subtask?.start &&
+  prev.subtask?.end === next.subtask?.end &&
+  prev.subtask?.title === next.subtask?.title &&
   prev.days.length === next.days.length &&
   prev.daysRange === next.daysRange &&
   prev.dragPreview === next.dragPreview &&

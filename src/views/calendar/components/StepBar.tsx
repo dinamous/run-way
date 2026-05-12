@@ -30,7 +30,7 @@ const STEP_BORDER_COLORS: Record<string, string> = {
 };
 
 const StepBar: React.FC<StepBarProps> = React.memo(({ bar, task, isFirstBarOfStep, isLastBarOfStep, dragPreview, onStartDrag, onClick, viewMode = 'step', demandColor }) => {
-  const meta = STEP_META[bar.stepType];
+  const meta = STEP_META[bar.subtaskStatus];
   const colW = 100 / 7;
   const isDemandMode = viewMode === 'demand';
 
@@ -44,7 +44,7 @@ const StepBar: React.FC<StepBarProps> = React.memo(({ bar, task, isFirstBarOfSte
 
   let adjStart = bar.startCol;
   let adjEnd = bar.endCol;
-  if (dragPreview && dragPreview.taskId === bar.taskId && dragPreview.stepType === bar.stepType) {
+  if (dragPreview && dragPreview.taskId === bar.taskId && dragPreview.subtaskId === bar.subtaskId) {
     const d = dragPreview.deltaDays;
     if (dragPreview.type === 'move') { adjStart = bar.startCol + d; adjEnd = bar.endCol + d; }
     else if (dragPreview.type === 'resize-start') { adjStart = Math.min(bar.startCol + d, bar.endCol); }
@@ -56,14 +56,14 @@ const StepBar: React.FC<StepBarProps> = React.memo(({ bar, task, isFirstBarOfSte
   const left = clampedStart * colW;
   const width = (clampedEnd - clampedStart + 1) * colW;
   const top = `calc(var(--cal-day-header-h) + ${bar.slot} * var(--cal-slot-height) + 3px)`;
-  const isDragging = dragPreview?.taskId === bar.taskId && dragPreview?.stepType === bar.stepType;
+  const isDragging = dragPreview?.taskId === bar.taskId && dragPreview?.subtaskId === bar.subtaskId;
   const norm = normaliseTask(task);
   const blocked = isStepBlocked(norm, bar.stepStart);
   const isConcluded = !!task.concludedAt;
-  
+
   let bgClass: string;
   let borderColor: string;
-  
+
   if (isConcluded) {
     bgClass = 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-300';
     borderColor = '#9ca3af';
@@ -72,10 +72,10 @@ const StepBar: React.FC<StepBarProps> = React.memo(({ bar, task, isFirstBarOfSte
     borderColor = demandColor;
   } else {
     bgClass = blocked ? 'bg-red-500 dark:bg-red-600 text-white' : meta.bar.replace(/border\s+\S+/g, '');
-    borderColor = blocked ? '#dc2626' : (STEP_BORDER_COLORS[bar.stepType] ?? '#d1d5db');
+    borderColor = blocked ? '#dc2626' : (STEP_BORDER_COLORS[bar.subtaskStatus] ?? '#d1d5db');
   }
 
-  const stepKey = `${bar.taskId}-${bar.stepType}`;
+  const stepKey = `${bar.taskId}-${bar.subtaskId}`;
 
   let borderRadius = '0px';
   if (isFirstBarOfStep && isLastBarOfStep) {
@@ -110,7 +110,7 @@ const StepBar: React.FC<StepBarProps> = React.memo(({ bar, task, isFirstBarOfSte
         cursor: cursorStyle,
         transition: isDragging ? 'none' : 'filter 0.1s',
       }}
-      title={`${task.title}${isDemandMode ? '' : ` · ${meta.label}`}${blocked ? ' · BLOQUEADO' : ''}${isConcluded ? ' · CONCLUÍDA' : ''}`}
+      title={`${task.title}${isDemandMode ? '' : ` · ${bar.subtaskTitle || meta.label}`}${blocked ? ' · BLOQUEADO' : ''}${isConcluded ? ' · CONCLUÍDA' : ''}`}
       onMouseDown={e => !isDemandMode && onStartDrag(e, bar, 'move', task)}
       onMouseEnter={(e) => {
         document.querySelectorAll(`[data-step-key="${stepKey}"]`).forEach(el => {
@@ -137,11 +137,11 @@ const StepBar: React.FC<StepBarProps> = React.memo(({ bar, task, isFirstBarOfSte
             ? <AlertTriangle className="w-3 h-3 shrink-0" />
             : <span className={`shrink-0 text-[9px] font-bold px-1 py-0.5 rounded ${meta.tagBg}`}>{meta.tag}</span>
           }
-          <span className="truncate text-[11px]">{task.title}</span>
+          <span className="truncate text-[11px]">{bar.subtaskTitle || task.title}</span>
         </span>
       )}
       {isDemandMode && demandColor && (
-        <span 
+        <span
           className="flex items-center gap-1 px-1.5 truncate leading-none pointer-events-none min-w-0"
           style={{ color: getContrastColor(demandColor) }}
         >
@@ -159,7 +159,8 @@ const StepBar: React.FC<StepBarProps> = React.memo(({ bar, task, isFirstBarOfSte
   );
 }, (prev, next) =>
   prev.bar.taskId === next.bar.taskId &&
-  prev.bar.stepType === next.bar.stepType &&
+  prev.bar.subtaskId === next.bar.subtaskId &&
+  prev.bar.subtaskStatus === next.bar.subtaskStatus &&
   prev.bar.startCol === next.bar.startCol &&
   prev.bar.endCol === next.bar.endCol &&
   prev.bar.slot === next.bar.slot &&

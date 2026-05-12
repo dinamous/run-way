@@ -8,10 +8,12 @@
 
 // ─── Supabase rows ────────────────────────────────────────────────────────────
 
+/** @deprecated use DbSubtaskAssigneeRow */
 export interface DbStepAssigneeRow {
   member_id: string;
 }
 
+/** @deprecated use DbSubtaskRow */
 export interface DbStepRow {
   id: string;
   type: string;
@@ -20,6 +22,35 @@ export interface DbStepRow {
   start_date: string | null;
   end_date: string | null;
   step_assignees: DbStepAssigneeRow[];
+}
+
+/** @deprecated use DbTaskRow (com task_subtasks) */
+export interface DbTaskRowLegacy {
+  id: string;
+  title: string;
+  clickup_link: string | null;
+  blocked: boolean;
+  blocked_at: string | null;
+  created_at: string;
+  concluded_at: string | null;
+  concluded_by: string | null;
+  client_id: string | null;
+  task_steps: DbStepRow[];
+}
+
+export interface DbSubtaskAssigneeRow {
+  member_id: string;
+}
+
+export interface DbSubtaskRow {
+  id: string;
+  title: string;
+  status: string;
+  subtask_order: number;
+  active: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  subtask_assignees: DbSubtaskAssigneeRow[];
 }
 
 export interface DbTaskRow {
@@ -32,7 +63,7 @@ export interface DbTaskRow {
   concluded_at: string | null;
   concluded_by: string | null;
   client_id: string | null;
-  task_steps: DbStepRow[];
+  task_subtasks: DbSubtaskRow[];
 }
 
 // ─── RBAC / Multi-tenant rows ─────────────────────────────────────────────────

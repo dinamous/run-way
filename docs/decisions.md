@@ -163,3 +163,13 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 **Decisão:** a `AdminView` passa a ser acessada via `/:clientSlug/admin` em vez de `/admin` (rota global sem slug); `admin` foi removido de `GLOBAL_ROUTES` em `useAppNavigation`; a regra em `accessControl.ts` passou a ter `requiresClient: true`
 **Racional:** admin gerencia dados (clientes, membros, notificações) que pertencem a uma empresa específica; ter o `clientSlug` na URL mantém consistência com o restante da aplicação, permite deep links contextuais e prepara a estrutura para um futuro multi-tenant onde cada empresa terá seu próprio escopo de admin
 **Consequências:** a URL `/admin` deixa de existir (redireciona para `/` via wildcard); é necessário ter um cliente selecionado para acessar admin; `isGlobalView` em `App.tsx` não inclui mais `"admin"`, logo admin usa o `AppLayout` normal com sidebar
+
+---
+
+## ADR-019: Steps → Subtasks (modelo flexível por demanda)
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** o modelo de `Step` (8 tipos fixos por task, identidade = tipo) foi substituído por `Subtask` (N subtasks livres por task, identidade = `id`, tipo expresso como campo `status`). Tabelas: `task_subtasks` + `subtask_assignees` (substituem `task_steps` + `step_assignees`). Tipo domínio: `Subtask` com campos `id, title, status: SubtaskStatus, start, end, assignees, active, order`. `StepType` passou a ser alias de `SubtaskStatus` para compatibilidade temporária.
+**Racional:** o modelo fixo de 8 steps impedia nomear etapas de forma contextual (ex: "Homepage — Design" vs "Design"); uma demanda pode ter múltiplas subtasks do mesmo tipo em paralelo; a flexibilidade de N subtasks livres é mais adequada a diferentes tipos de projeto
+**Consequências:** nova task nasce sem subtasks — usuário adiciona livremente via TaskModal; dados existentes migrados automaticamente (`title = type`, `status = type`); `Planning View` exibe a demanda em todos os grupos onde tiver subtask ativa (não apenas o grupo "atual"); drag/drop no Calendar e Timeline indexado por `subtaskId` em vez de `stepType`; `task_steps` e `step_assignees` mantidas no banco para rollback até a migration de drop (`20260512000001`)
+

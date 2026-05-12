@@ -19,7 +19,7 @@ import { useUIStore } from '@/store/useUIStore';
 import { ViewState } from '@/components/ViewState';
 import { CalendarX2, DatabaseZap, FilterX, Search, Plus } from 'lucide-react';
 import { Skeleton } from 'boneyard-js/react';
-import { STEP_TYPES_ORDER, type StepType, type Task } from '@/lib/steps';
+import { STEP_TYPES_ORDER, type SubtaskStatus, type Task } from '@/lib/steps';
 import { Button } from '@/components/ui/Button';
 
 const PLANNING_BONES = {
@@ -108,10 +108,10 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
         task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.id.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const currentStep = task.steps.find(s => s.active) ?? task.steps[0];
-      const matchStep = selectedSteps.length > 0 ? selectedSteps.includes(currentStep?.type) : true;
+      const currentStep = task.subtasks.find(s => s.active) ?? task.subtasks[0];
+      const matchStep = selectedSteps.length > 0 ? selectedSteps.includes(currentStep?.status) : true;
       const matchMember = selectedMemberIds.length > 0
-        ? task.steps.some(s => s.assignees.some(a => selectedMemberIds.includes(a)))
+        ? task.subtasks.some(s => s.assignees.some(a => selectedMemberIds.includes(a)))
         : true;
       const matchBlocked = showOnlyBlocked ? task.status.blocked : true;
 
@@ -131,29 +131,32 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
 
   const groupedDemandasTasks = useMemo(() => {
     const { selectedMemberIds } = demandasFilters;
-    const groups = new Map<StepType, Task[]>();
-    STEP_TYPES_ORDER.forEach(step => groups.set(step, []));
+    const groups = new Map<SubtaskStatus, Task[]>();
+    STEP_TYPES_ORDER.forEach(s => groups.set(s, []));
     filteredDemandasTasks.forEach(task => {
-      let stepsToUse = task.steps.filter(s => s.active);
-      if (stepsToUse.length === 0) stepsToUse = task.steps.slice(0, 1);
+      let subtasksToUse = task.subtasks.filter(s => s.active);
+      if (subtasksToUse.length === 0) subtasksToUse = task.subtasks.slice(0, 1);
 
       if (selectedMemberIds.length > 0) {
-        const memberSteps = task.steps.filter(s =>
+        const memberSubtasks = task.subtasks.filter(s =>
           s.assignees.some(a => selectedMemberIds.includes(a))
         );
-        if (memberSteps.length > 0) stepsToUse = memberSteps;
+        if (memberSubtasks.length > 0) subtasksToUse = memberSubtasks;
       }
 
-      stepsToUse.forEach(step => {
-        const bucket = groups.get(step.type);
+      const seenStatuses = new Set<SubtaskStatus>();
+      subtasksToUse.forEach(subtask => {
+        if (seenStatuses.has(subtask.status)) return;
+        seenStatuses.add(subtask.status);
+        const bucket = groups.get(subtask.status);
         if (bucket) bucket.push(task);
       });
     });
 
-    groups.forEach((bucket, stepType) => {
+    groups.forEach((bucket, status) => {
       bucket.sort((a, b) => {
-        const endA = a.steps.find(s => s.type === stepType)?.end;
-        const endB = b.steps.find(s => s.type === stepType)?.end;
+        const endA = a.subtasks.find(s => s.status === status && s.active)?.end;
+        const endB = b.subtasks.find(s => s.status === status && s.active)?.end;
         if (!endA && !endB) return 0;
         if (!endA) return 1;
         if (!endB) return -1;
@@ -279,7 +282,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
             </div>
           ) : (
             <div className="space-y-3 pb-16">
-              {([...groupedDemandasTasks.entries()] as [StepType, Task[]][])
+              {([...groupedDemandasTasks.entries()] as [SubtaskStatus, Task[]][])
                 .filter(([stepType]) =>
                   demandasFilters.selectedSteps.length === 0 || demandasFilters.selectedSteps.includes(stepType)
                 )

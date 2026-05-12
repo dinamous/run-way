@@ -48,10 +48,12 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 
 ## Subview: Demandas
 
-Lista todas as demandas agrupadas pela **etapa atual** (step ativo). Focada em acompanhamento operacional.
+Lista todas as demandas agrupadas por **subtask status**. Focada em acompanhamento operacional.
 
 ### StepGroup
-Agrupa tasks por `StepType`. Colapsa/expande via `ChevronDown`/`ChevronRight`.
+Agrupa tasks por `SubtaskStatus` (8 grupos fixos). Colapsa/expande via `ChevronDown`/`ChevronRight`.
+
+Uma demanda aparece em **todos os grupos** onde tiver subtask ativa (`active: true`) — não apenas no grupo da "subtask atual". Com filtro por membro, aparece nos grupos das subtasks onde o membro está atribuído.
 
 Recebe `hasActiveFilters?: boolean`. Comportamento por estado:
 - **Com tasks:** expansível normalmente, cabeçalho com contador colorido
@@ -68,8 +70,8 @@ Exibe:
 - Ícone `Link2` inline para abrir o ClickUp diretamente
 - Badge "Bloqueada" (vermelho) — fundo da linha fica vermelho sutil
 - Badge "Concluída" (muted) — linha com opacidade reduzida
-- Badge de prazo dinâmico baseado no `end` do step ativo (`formatDueDate`)
-- Avatares dos responsáveis do step correspondente ao grupo
+- Badge de prazo dinâmico baseado no `end` da subtask ativa do grupo (`formatDueDate`)
+- Avatares dos responsáveis da subtask correspondente ao grupo
 
 ### TasksFilters
 Barra de filtros com `CheckboxDropdown` customizado para etapa e responsável. Filtros:
@@ -77,17 +79,14 @@ Barra de filtros com `CheckboxDropdown` customizado para etapa e responsável. F
 | Filtro | Implementação |
 |---|---|
 | Busca por texto/ID | `task.title` e `task.id` case-insensitive |
-| Etapa | `selectedSteps: StepType[]` — verifica `currentStep.type` |
-| Responsável | `selectedMemberIds: string[]` — qualquer assignee de qualquer step |
-| Período (prazo) | Tabs "Todos / 7d / 15d / 30d" — compara `currentStep.end` com `today + N dias` |
+| Etapa | `selectedSteps: SubtaskStatus[]` — verifica `subtask.status` das ativas |
+| Responsável | `selectedMemberIds: string[]` — qualquer assignee de qualquer subtask |
+| Período (prazo) | Tabs "Todos / 7d / 15d / 30d" — compara `end` da subtask ativa com `today + N dias` |
 | Bloqueadas | Toggle — filtra `task.status.blocked === true` |
 | Concluídas | Toggle — mostra tarefas com `task.concludedAt` preenchido (default: ocultas) |
 
 ### Ordenação dentro dos grupos
-Tasks ordenadas por `end` do step correspondente — da mais atrasada para a mais recente. Sem data ficam no final.
-
-### Agrupamento
-"Etapa atual" é `task.steps.find(s => s.active) ?? task.steps[0]`. Uma task aparece em **todas** as categorias cujos steps estão `active: true`. Com filtro por membro, aparece nos grupos de **todos os steps onde o membro está atribuído**.
+Tasks ordenadas por `end` da subtask ativa no grupo — da mais atrasada para a mais recente. Sem data ficam no final.
 
 ## Subview: Calendar
 

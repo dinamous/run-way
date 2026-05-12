@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   toLocalDate, toDateStr, addDays, normaliseTask,
-  type DragState, type DragPreview, type Task, type Step, type StepType,
+  type DragState, type DragPreview, type Task, type Subtask,
 } from '@/utils/dashboardUtils';
 import { isWeekendOrHoliday, nextNonHolidayBusinessDay, type Holiday } from '@/utils/holidayUtils';
 
-type PendingDragUpdate = { task: Task; stepType: StepType };
+type PendingDragUpdate = { task: Task; subtaskId: string };
 
 export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, holidays: Holiday[] = []) {
   const dragStateRef = useRef<DragState | null>(null);
@@ -20,7 +20,7 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, 
       if (!ds) return;
       const delta = Math.round((e.clientX - ds.startX) / ds.colWidth);
       if (delta !== 0) didDragRef.current = true;
-      setDragPreview({ taskId: ds.taskId, stepType: ds.stepType, deltaDays: delta, type: ds.type });
+      setDragPreview({ taskId: ds.taskId, subtaskId: ds.subtaskId, deltaDays: delta, type: ds.type });
     };
 
     const onUp = (e: MouseEvent) => {
@@ -46,8 +46,8 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, 
           const norm = normaliseTask(task);
           const updatedTask: Task = {
             ...norm,
-            steps: norm.steps.map((s: Step) =>
-              s.type === ds.stepType
+            subtasks: norm.subtasks.map((s: Subtask) =>
+              s.id === ds.subtaskId
                 ? { ...s, start: toDateStr(newStart), end: toDateStr(newEnd) }
                 : s
             ),
@@ -55,12 +55,12 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, 
 
           const startStr = toDateStr(newStart);
           const endStr = toDateStr(newEnd);
-            if (isWeekendOrHoliday(startStr, holidays) || isWeekendOrHoliday(endStr, holidays)) {
-              originalTaskRef.current = { start: ds.originalStart, end: ds.originalEnd };
-              setPendingDragUpdate({ task: updatedTask, stepType: ds.stepType });
-            } else {
-              onUpdateTask(updatedTask);
-            }
+          if (isWeekendOrHoliday(startStr, holidays) || isWeekendOrHoliday(endStr, holidays)) {
+            originalTaskRef.current = { start: ds.originalStart, end: ds.originalEnd };
+            setPendingDragUpdate({ task: updatedTask, subtaskId: ds.subtaskId });
+          } else {
+            onUpdateTask(updatedTask);
+          }
         }
       }
       dragStateRef.current = null;
@@ -79,17 +79,17 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, 
   const startDrag = useCallback((
     e: React.MouseEvent,
     taskId: string,
-    stepType: StepType,
+    subtaskId: string,
     type: DragState['type'],
-    step: Step,
+    subtask: Subtask,
     colWidth: number,
   ) => {
     e.preventDefault();
     e.stopPropagation();
     dragStateRef.current = {
-      type, taskId, stepType,
-      originalStart: toLocalDate(step.start),
-      originalEnd: toLocalDate(step.end),
+      type, taskId, subtaskId,
+      originalStart: toLocalDate(subtask.start),
+      originalEnd: toLocalDate(subtask.end),
       startX: e.clientX,
       colWidth,
     };
@@ -113,21 +113,19 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, 
 
     const adjustedTask: Task = {
       ...pendingDragUpdate.task,
-      steps: pendingDragUpdate.task.steps.map((step: Step) => {
-        if (step.type !== pendingDragUpdate.stepType) return step;
+      subtasks: pendingDragUpdate.task.subtasks.map((s: Subtask) => {
+        if (s.id !== pendingDragUpdate.subtaskId) return s;
 
-        const adjustedStart = isWeekendOrHoliday(step.start, holidays)
-          ? nextNonHolidayBusinessDay(step.start, holidays)
-          : step.start;
-        let adjustedEnd = isWeekendOrHoliday(step.end, holidays)
-          ? nextNonHolidayBusinessDay(step.end, holidays)
-          : step.end;
+        const adjustedStart = isWeekendOrHoliday(s.start, holidays)
+          ? nextNonHolidayBusinessDay(s.start, holidays)
+          : s.start;
+        let adjustedEnd = isWeekendOrHoliday(s.end, holidays)
+          ? nextNonHolidayBusinessDay(s.end, holidays)
+          : s.end;
 
-        if (adjustedEnd < adjustedStart) {
-          adjustedEnd = adjustedStart;
-        }
+        if (adjustedEnd < adjustedStart) adjustedEnd = adjustedStart;
 
-        return { ...step, start: adjustedStart, end: adjustedEnd };
+        return { ...s, start: adjustedStart, end: adjustedEnd };
       }),
     };
 

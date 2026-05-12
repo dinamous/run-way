@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { Task, Step, StepType } from '@/lib/steps'
+import type { Task, Subtask, SubtaskStatus } from '@/lib/steps'
 import type { Member } from '@/hooks/infra/useSupabase'
 import type { DbTaskRow } from '@/types/db'
 import { DbTaskRowSchema } from '@/lib/validators'
@@ -17,16 +17,17 @@ export const queryKeys = {
 
 function dbRowToTask(row: DbTaskRow): Task {
   const parsed = DbTaskRowSchema.parse(row)
-  const steps: Step[] = parsed.task_steps
-    .sort((a, b) => a.step_order - b.step_order)
+  const subtasks: Subtask[] = parsed.task_subtasks
+    .sort((a, b) => a.subtask_order - b.subtask_order)
     .map(s => ({
       id: s.id,
-      type: s.type as StepType,
-      order: s.step_order,
+      title: s.title,
+      status: s.status as SubtaskStatus,
+      order: s.subtask_order,
       active: s.active,
       start: s.start_date ?? '',
       end: s.end_date ?? '',
-      assignees: s.step_assignees.map(a => a.member_id),
+      assignees: s.subtask_assignees.map(a => a.member_id),
     }))
 
   return {
@@ -41,15 +42,15 @@ function dbRowToTask(row: DbTaskRow): Task {
     createdAt: parsed.created_at,
     concludedAt: parsed.concluded_at ?? undefined,
     concludedBy: parsed.concluded_by ?? undefined,
-    steps,
+    subtasks,
   }
 }
 
 const TASK_SELECT = `
   id, title, clickup_link, blocked, blocked_at, created_at, client_id, concluded_at, concluded_by,
-  task_steps (
-    id, type, step_order, active, start_date, end_date,
-    step_assignees ( member_id )
+  task_subtasks (
+    id, title, status, subtask_order, active, start_date, end_date,
+    subtask_assignees ( member_id )
   )
 ` as const
 

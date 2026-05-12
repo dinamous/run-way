@@ -2,18 +2,19 @@ import { z } from 'zod'
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
 
-export const DbStepAssigneeSchema = z.object({
+export const DbSubtaskAssigneeSchema = z.object({
   member_id: z.string(),
 })
 
-export const DbStepRowSchema = z.object({
+export const DbSubtaskRowSchema = z.object({
   id: z.string().min(1),
-  type: z.string().min(1),
-  step_order: z.number().int().nonnegative(),
+  title: z.string(),
+  status: z.string().min(1),
+  subtask_order: z.number().int().nonnegative(),
   active: z.boolean(),
   start_date: z.string().nullable(),
   end_date: z.string().nullable(),
-  step_assignees: z.array(DbStepAssigneeSchema).default([]),
+  subtask_assignees: z.array(DbSubtaskAssigneeSchema).default([]),
 })
 
 export const DbTaskRowSchema = z.object({
@@ -26,7 +27,7 @@ export const DbTaskRowSchema = z.object({
   concluded_at: z.string().nullable(),
   concluded_by: z.string().nullable(),
   client_id: z.string().nullable(),
-  task_steps: z.array(DbStepRowSchema).default([]),
+  task_subtasks: z.array(DbSubtaskRowSchema).default([]),
 })
 
 export type ValidatedDbTaskRow = z.infer<typeof DbTaskRowSchema>

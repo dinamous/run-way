@@ -9,17 +9,25 @@ export const STEP_TYPES_ORDER = [
   'publicacao',
 ] as const;
 
-export type StepType = typeof STEP_TYPES_ORDER[number];
+/** Status possíveis de uma subtask (ex-StepType) */
+export type SubtaskStatus = typeof STEP_TYPES_ORDER[number];
 
-export interface Step {
+/** @deprecated use SubtaskStatus */
+export type StepType = SubtaskStatus;
+
+export interface Subtask {
   id: string;
-  type: StepType;
-  start: string;   // YYYY-MM-DD, empty if not set
-  end: string;     // YYYY-MM-DD, empty if not set
+  title: string;          // nome livre obrigatório
+  status: SubtaskStatus;  // ex-type
+  start: string;          // YYYY-MM-DD, empty if not set
+  end: string;            // YYYY-MM-DD, empty if not set
   assignees: string[];
   active: boolean;
   order: number;
 }
+
+/** @deprecated use Subtask */
+export type Step = Subtask & { type: SubtaskStatus };
 
 export interface TaskStatus {
   blocked: boolean;
@@ -32,13 +40,13 @@ export interface Task {
   clickupLink?: string;
   clientId?: string;
   status: TaskStatus;
-  steps: Step[];
+  subtasks: Subtask[];
   createdAt: string;
   concludedAt?: string;
   concludedBy?: string;
 }
 
-export const STEP_META: Record<StepType, {
+export const STEP_META: Record<SubtaskStatus, {
   label: string;
   tag: string;
   color: string;      // card bg/text/border in modal
@@ -130,61 +138,48 @@ export const STEP_META: Record<StepType, {
   },
 };
 
-/** Returns the step that should be highlighted as "current" based on today's date */
-export function getCurrentStep(steps: Step[], today: string): Step | null {
-  const active = steps.filter(s => s.active && s.start && s.end);
+/** Returns the subtask that should be highlighted as "current" based on today's date */
+export function getCurrentSubtask(subtasks: Subtask[], today: string): Subtask | null {
+  const active = subtasks.filter(s => s.active && s.start && s.end);
   if (active.length === 0) return null;
 
-  // Step whose range includes today
   const current = active.find(s => s.start <= today && s.end >= today);
   if (current) return current;
 
-  // Next upcoming step
   const upcoming = active.filter(s => s.start > today).sort((a, b) => a.start.localeCompare(b.start));
   if (upcoming.length > 0) return upcoming[0];
 
-  // All steps in the past — return the last one
   return active.sort((a, b) => b.end.localeCompare(a.end))[0];
 }
 
+/** @deprecated use getCurrentSubtask */
+export function getCurrentStep(subtasks: Subtask[], today: string): Subtask | null {
+  return getCurrentSubtask(subtasks, today);
+}
+
 /** Returns label like "Em Design · Bloqueado" or "Análise UX · Em andamento" */
-export function getStatusLabel(task: { status: TaskStatus; steps: Step[] }, today: string): string {
-  const step = getCurrentStep(task.steps, today);
-  const stepLabel = step ? (STEP_META[step.type]?.label ?? step.type) : 'Sem steps';
+export function getStatusLabel(task: { status: TaskStatus; subtasks: Subtask[] }, today: string): string {
+  const subtask = getCurrentSubtask(task.subtasks, today);
+  const stepLabel = subtask ? (STEP_META[subtask.status]?.label ?? subtask.status) : 'Sem subtasks';
   const stateLabel = task.status.blocked ? 'Bloqueado' : 'Em andamento';
   return `${stepLabel} · ${stateLabel}`;
 }
 
-/** Returns true if a given step bar should be shown as blocked (red) */
+/** Returns true if a given subtask bar should be shown as blocked (red) */
 export function isStepBlocked(task: { status: TaskStatus }, stepStart: string): boolean {
   if (!task.status.blocked || !task.status.blockedAt) return false;
   return stepStart >= task.status.blockedAt;
 }
 
-/** Creates default steps array for a new task */
-export function createDefaultSteps(): Step[] {
-  return STEP_TYPES_ORDER.map((type, order) => ({
-    id: '',
-    type,
-    start: '',
-    end: '',
-    assignees: [],
-    active: false,
-    order,
-  }));
-}
-
 /**
  * Formato legado de tarefa (localStorage / Google Drive antigo).
- * Pode conter `steps` já migrados ou apenas `phases` + `assignee`.
+ * Pode conter `steps`/`subtasks` já migrados ou apenas `phases` + `assignee`.
  */
 export interface LegacyTask {
   id?: string;
   title?: string;
   clickupLink?: string;
-  /** Assignee global, usado quando não há `phaseAssignees`. */
   assignee?: string;
-  /** Status como string ('bloqueado', 'em andamento', …) ou objeto moderno. */
   status?: string | TaskStatus;
   createdAt?: string;
   phases?: {
@@ -194,12 +189,22 @@ export interface LegacyTask {
     qa?: { start: string; end: string };
   };
   phaseAssignees?: Record<string, string>;
-  /** Presença de `steps` indica tarefa já no formato moderno. */
-  steps?: Step[];
+  /** Suporte a ambos os formatos durante a transição */
+  steps?: Array<{ type?: string; status?: string; title?: string; id?: string; start?: string; end?: string; assignees?: string[]; active?: boolean; order?: number }>;
+  subtasks?: Subtask[];
 }
 
-/** Migrates a legacy task (with phases/assignee) to the new steps format */
-export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; steps: Step[] } {
+/** Migrates a legacy task to the subtasks format */
+export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; subtasks: Subtask[] } {
+  if (task.subtasks) {
+    const existingStatus = task.status;
+    const status: TaskStatus =
+      existingStatus && typeof existingStatus === 'object'
+        ? existingStatus
+        : { blocked: false };
+    return { status, subtasks: task.subtasks };
+  }
+
   if (task.steps) {
     const existingStatus = task.status;
     const status: TaskStatus =
@@ -207,51 +212,43 @@ export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; steps
         ? existingStatus
         : { blocked: false };
 
-    const stepByType = new Map(task.steps.map(step => [step.type, step]));
-    const steps = STEP_TYPES_ORDER.map((type, order) => {
-      const existing = stepByType.get(type);
-      if (existing) {
-        return {
-          ...existing,
-          order,
-        };
-      }
+    const subtasks: Subtask[] = task.steps.map((s, i) => ({
+      id: s.id ?? '',
+      title: s.title ?? s.type ?? s.status ?? '',
+      status: (s.status ?? s.type ?? 'design') as SubtaskStatus,
+      start: s.start ?? '',
+      end: s.end ?? '',
+      assignees: s.assignees ?? [],
+      active: s.active ?? false,
+      order: s.order ?? i,
+    }));
 
-      return {
-        id: '',
-        type,
-        start: '',
-        end: '',
-        assignees: [],
-        active: false,
-        order,
-      };
-    });
-
-    return { status, steps };
+    return { status, subtasks };
   }
 
-  const legacyMap: Partial<Record<string, StepType>> = {
+  const legacyMap: Partial<Record<string, SubtaskStatus>> = {
     design: 'design',
     approval: 'aprovacao-design',
     dev: 'desenvolvimento',
     qa: 'qa',
   };
 
-  const steps: Step[] = STEP_TYPES_ORDER.map((type, order) => {
-    const legacyKey = Object.entries(legacyMap).find(([, v]) => v === type)?.[0];
-    const legacyPhase = legacyKey ? task.phases?.[legacyKey as keyof NonNullable<LegacyTask['phases']>] : null;
-    const legacyAssignee = legacyKey ? (task.phaseAssignees?.[legacyKey] || task.assignee) : null;
-    return {
+  const subtasks: Subtask[] = Object.entries(legacyMap).reduce<Subtask[]>((acc, [legacyKey, statusVal], i) => {
+    const legacyPhase = task.phases?.[legacyKey as keyof NonNullable<LegacyTask['phases']>];
+    if (!legacyPhase) return acc;
+    const legacyAssignee = task.phaseAssignees?.[legacyKey] || task.assignee;
+    acc.push({
       id: '',
-      type,
-      start: legacyPhase?.start || '',
-      end: legacyPhase?.end || '',
+      title: statusVal,
+      status: statusVal,
+      start: legacyPhase.start,
+      end: legacyPhase.end,
       assignees: legacyAssignee ? [legacyAssignee] : [],
-      active: !!legacyPhase,
-      order,
-    };
-  });
+      active: true,
+      order: i,
+    });
+    return acc;
+  }, []);
 
   const oldStatus = typeof task.status === 'string' ? task.status : undefined;
   const blocked = oldStatus === 'bloqueado';
@@ -260,5 +257,5 @@ export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; steps
     blockedAt: blocked ? (task.createdAt?.split('T')[0] ?? undefined) : undefined,
   };
 
-  return { status, steps };
+  return { status, subtasks };
 }
