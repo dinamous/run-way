@@ -13,12 +13,10 @@ interface TaskListProps {
   onEdit: (task: Task) => void;
 }
 
-const SubtaskChip = memo(function SubtaskChip({ subtask, task, members, onToggleBlock, onConclude, onEdit }: {
+const SubtaskChip = memo(function SubtaskChip({ subtask, task, members, onEdit }: {
   subtask: Task['subtasks'][number];
   task: Task;
   members: Member[];
-  onToggleBlock: (task: Task) => void;
-  onConclude: (task: Task) => void;
   onEdit: (task: Task) => void;
 }) {
   const meta = STEP_META[subtask.status];
@@ -163,8 +161,6 @@ export const TaskList = memo(function TaskList({ tasks, members, onToggleBlock, 
                       subtask={subtask}
                       task={task}
                       members={members}
-                      onToggleBlock={onToggleBlock}
-                      onConclude={onConclude}
                       onEdit={onEdit}
                     />
                   ))}

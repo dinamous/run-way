@@ -81,6 +81,7 @@ function didTaskFieldsChange(prevTask: Task | undefined, nextTask: Task, resolve
   return (
     prevTask.title !== nextTask.title
     || (prevTask.clickupLink ?? null) !== (nextTask.clickupLink ?? null)
+    || prevTask.priorityOrder !== nextTask.priorityOrder
     || prevTask.status.blocked !== nextTask.status.blocked
     || (prevTask.status.blockedAt ?? null) !== (nextTask.status.blockedAt ?? null)
     || (prevTask.concludedAt ?? null) !== (nextTask.concludedAt ?? null)
@@ -98,15 +99,27 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     queryClient.invalidateQueries({ queryKey: queryKeys.tasks(clientId ?? null, isAdmin ?? false) })
   }, [queryClient, clientId, isAdmin])
 
-  const createTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt'>): Promise<boolean> => {
+  const createTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt' | 'priorityOrder'>): Promise<boolean> => {
     const resolvedClientId = taskData.clientId ?? clientId ?? null
     devLog('[createTask] iniciando criação, clientId:', resolvedClientId, 'title:', taskData.title)
+
+    const priorityQuery = supabase
+      .from('tasks')
+      .select('priority_order')
+      .order('priority_order', { ascending: false })
+      .limit(1)
+
+    const { data: lastTask } = resolvedClientId === null
+      ? await priorityQuery.is('client_id', null)
+      : await priorityQuery.eq('client_id', resolvedClientId)
+    const priorityOrder = (lastTask?.[0]?.priority_order ?? -1) + 1
 
     const { data: taskRow, error: taskErr } = await supabase
       .from('tasks')
       .insert({
         title: taskData.title,
         clickup_link: taskData.clickupLink ?? null,
+        priority_order: priorityOrder,
         blocked: taskData.status.blocked,
         blocked_at: taskData.status.blockedAt ?? null,
         client_id: resolvedClientId,
@@ -175,6 +188,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         .update({
           title: taskData.title,
           clickup_link: taskData.clickupLink ?? null,
+          priority_order: taskData.priorityOrder,
           blocked: taskData.status.blocked,
           blocked_at: taskData.status.blockedAt ?? null,
           concluded_at: taskData.concludedAt ?? null,

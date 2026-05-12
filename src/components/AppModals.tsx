@@ -4,12 +4,13 @@ import { ClientTransitionOverlay } from "@/components/ClientTransitionOverlay";
 import type { Task } from "@/types/task";
 import type { Member } from "@/types/member";
 import type { Holiday } from "@/utils/holidayUtils";
+import type { TaskModalPayload } from "@/types/props";
 
 interface TaskModalState {
   isOpen: boolean;
   editingTask: Task | null;
   onClose: () => void;
-  onSave: (taskData: Omit<Task, "id" | "createdAt">) => Promise<void>;
+  onSave: (taskData: TaskModalPayload) => Promise<void>;
   onDelete: (id: string) => void;
 }
 

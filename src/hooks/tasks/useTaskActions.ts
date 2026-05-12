@@ -2,9 +2,10 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { useUIStore } from "@/store/useUIStore";
 import type { Task } from "@/lib/steps";
+import type { TaskModalPayload } from "@/types/props";
 
 interface UseTaskActionsParams {
-  createTask: (data: Omit<Task, "id" | "createdAt">) => Promise<boolean>;
+  createTask: (data: Omit<Task, "id" | "createdAt" | "priorityOrder">) => Promise<boolean>;
   updateTask: (task: Task) => Promise<boolean>;
   deleteTask: (id: string) => Promise<boolean>;
   effectiveClientId: string | null | undefined;
@@ -65,7 +66,7 @@ export function useTaskActions({
     if (shouldCloseModal) closeTaskModal();
   }, [pendingDeleteTaskId, closeModalOnDelete, deleteTask, closeTaskModal]);
 
-  const saveTask = useCallback(async (taskData: Omit<Task, "id" | "createdAt">) => {
+  const saveTask = useCallback(async (taskData: TaskModalPayload) => {
     let ok: boolean;
 
     if (editingTask) {

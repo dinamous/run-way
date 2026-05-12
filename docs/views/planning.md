@@ -101,6 +101,7 @@ Ambos fecham ao clicar fora ou pressionar `Escape` (hook `usePopover`). Renderiz
 
 **Comportamentos:**
 - Tasks expandidas por padrão quando há filtros ativos
+- Reordenação manual das linhas-pai por drag-and-drop quando não há filtros ativos; a ordem persiste em `tasks.priority_order`
 - Tasks bloqueadas: fundo vermelho sutil em task e subtasks
 - Tasks concluídas: opacidade reduzida, título riscado
 - Subtasks sem datas mostram `—` no campo Período

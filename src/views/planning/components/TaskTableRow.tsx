@@ -1,7 +1,8 @@
 import { memo, useState } from 'react';
-import { ChevronDown, ChevronRight, Link2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Link2, AlertCircle, CheckCircle2, GripVertical } from 'lucide-react';
 import { STEP_META, type Task, type SubtaskStatus } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { formatDueDate } from '../utils';
 import { ActionMenu } from './ActionMenu';
 import { MemberAvatars } from './MemberAvatars';
@@ -13,7 +14,16 @@ interface TaskTableRowProps {
   onToggleBlock: (task: Task) => void;
   onConclude: (task: Task) => void;
   onEdit: (task: Task) => void;
+  selected: boolean;
+  onSelect: (taskId: string, selected: boolean) => void;
   defaultExpanded: boolean;
+  draggable?: boolean;
+  dragging?: boolean;
+  dragOver?: boolean;
+  onDragStart?: () => void;
+  onDragOver?: () => void;
+  onDrop?: () => void;
+  onDragEnd?: () => void;
   onUpdateSubtaskAssignees?: (task: Task, subtaskId: string, assignees: string[]) => Promise<boolean>;
   onUpdateSubtaskDates?: (task: Task, subtaskId: string, start: string, end: string) => Promise<boolean>;
 }
@@ -24,7 +34,16 @@ export const TaskTableRow = memo(function TaskTableRow({
   onToggleBlock,
   onConclude,
   onEdit,
+  selected,
+  onSelect,
   defaultExpanded,
+  draggable = false,
+  dragging = false,
+  dragOver = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
   onUpdateSubtaskAssignees,
   onUpdateSubtaskDates,
 }: TaskTableRowProps) {
@@ -43,12 +62,24 @@ export const TaskTableRow = memo(function TaskTableRow({
   return (
     <div
       className={`rounded-xl border overflow-hidden transition-colors
+        ${dragging ? 'opacity-60' : ''}
+        ${dragOver ? 'ring-2 ring-primary/40 border-primary/60' : ''}
         ${isConcluded
           ? 'border-border/30 bg-muted/5'
           : isBlocked
             ? 'border-red-300/70 dark:border-red-700/50'
             : 'border-border/60 bg-card'
-        }`}
+      }`}
+      onDragOver={e => {
+        if (!draggable) return;
+        e.preventDefault();
+        onDragOver?.();
+      }}
+      onDrop={e => {
+        if (!draggable) return;
+        e.preventDefault();
+        onDrop?.();
+      }}
     >
       <div
         className={`flex items-center gap-0 cursor-pointer transition-colors group/row
@@ -63,6 +94,34 @@ export const TaskTableRow = memo(function TaskTableRow({
         <div className={`w-1 self-stretch shrink-0 ${
           isBlocked ? 'bg-red-500' : isConcluded ? 'bg-muted-foreground/25' : activeSubtask ? STEP_META[activeSubtask.status as SubtaskStatus].handle : 'bg-muted-foreground/30'
         }`} />
+
+        <button
+          type="button"
+          draggable={draggable}
+          aria-label={`Reordenar demanda ${task.title}`}
+          title={draggable ? 'Arraste para reordenar prioridade' : undefined}
+          className="px-2 py-3 text-muted-foreground/45 hover:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-30 cursor-grab active:cursor-grabbing shrink-0"
+          disabled={!draggable}
+          onClick={e => e.stopPropagation()}
+          onDragStart={e => {
+            e.stopPropagation();
+            onDragStart?.();
+          }}
+          onDragEnd={e => {
+            e.stopPropagation();
+            onDragEnd?.();
+          }}
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </button>
+
+        <div className="pl-3 pr-1 shrink-0" onClick={e => e.stopPropagation()}>
+          <Checkbox
+            checked={selected}
+            aria-label={`Selecionar demanda ${task.title}`}
+            onCheckedChange={checked => onSelect(task.id, checked === true)}
+          />
+        </div>
 
         <button
           className="px-2 py-3 text-muted-foreground/60 hover:text-muted-foreground shrink-0"
@@ -184,5 +243,9 @@ export const TaskTableRow = memo(function TaskTableRow({
 }, (prev, next) =>
   prev.task === next.task &&
   prev.members === next.members &&
-  prev.defaultExpanded === next.defaultExpanded
+  prev.selected === next.selected &&
+  prev.defaultExpanded === next.defaultExpanded &&
+  prev.draggable === next.draggable &&
+  prev.dragging === next.dragging &&
+  prev.dragOver === next.dragOver
 );

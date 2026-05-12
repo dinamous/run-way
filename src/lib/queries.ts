@@ -35,6 +35,7 @@ function dbRowToTask(row: DbTaskRow): Task {
     title: parsed.title,
     clickupLink: parsed.clickup_link ?? undefined,
     clientId: parsed.client_id ?? undefined,
+    priorityOrder: parsed.priority_order,
     status: {
       blocked: parsed.blocked,
       blockedAt: parsed.blocked_at ?? undefined,
@@ -47,7 +48,7 @@ function dbRowToTask(row: DbTaskRow): Task {
 }
 
 const TASK_SELECT = `
-  id, title, clickup_link, blocked, blocked_at, created_at, client_id, concluded_at, concluded_by,
+  id, title, clickup_link, priority_order, blocked, blocked_at, created_at, client_id, concluded_at, concluded_by,
   task_subtasks (
     id, title, status, subtask_order, active, start_date, end_date,
     subtask_assignees ( member_id )
@@ -63,6 +64,7 @@ export async function fetchTasksFromDb(
     const { data, error } = await supabase
       .from('tasks')
       .select(TASK_SELECT)
+      .order('priority_order', { ascending: true })
       .order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
     return (data ?? []).map(dbRowToTask)
@@ -72,6 +74,7 @@ export async function fetchTasksFromDb(
     .from('tasks')
     .select(TASK_SELECT)
     .eq('client_id', clientId)
+    .order('priority_order', { ascending: true })
     .order('created_at', { ascending: false })
 
   if (error) throw new Error(error.message)

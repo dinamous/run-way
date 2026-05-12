@@ -10,6 +10,8 @@ import type { Member } from '@/hooks/infra/useSupabase';
 import type { Holiday } from '../utils/holidayUtils';
 import type { CalendarViewMode } from '../utils/dashboardUtils';
 
+export type TaskModalPayload = Omit<Task, 'id' | 'createdAt' | 'priorityOrder'> & Partial<Pick<Task, 'priorityOrder'>>;
+
 // ─── TaskModal ────────────────────────────────────────────────────────────────
 
 export interface TaskModalProps {
@@ -18,7 +20,7 @@ export interface TaskModalProps {
   members: Member[];
   onClose: () => void;
   /** Chamado com os dados prontos a guardar (sem `id` / `createdAt` se nova). */
-  onSave: (taskData: Omit<Task, 'id' | 'createdAt'>) => Promise<void>;
+  onSave: (taskData: TaskModalPayload) => Promise<void>;
   /** Chamado com o id da tarefa a eliminar; omitido no modal de criação. */
   onDelete?: (id: string) => void;
   holidays: Holiday[];

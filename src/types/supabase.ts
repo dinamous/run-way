@@ -269,6 +269,7 @@ export type Database = {
           concluded_by: string | null
           created_at: string
           id: string
+          priority_order: number
           title: string
         }
         Insert: {
@@ -280,6 +281,7 @@ export type Database = {
           concluded_by?: string | null
           created_at?: string
           id?: string
+          priority_order?: number
           title: string
         }
         Update: {
@@ -291,6 +293,7 @@ export type Database = {
           concluded_by?: string | null
           created_at?: string
           id?: string
+          priority_order?: number
           title?: string
         }
         Relationships: [

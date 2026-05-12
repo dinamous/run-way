@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { useTasksQuery } from '@/hooks/tasks/useTasksQuery';
 import { useMembersQuery } from '@/hooks/members/useMembersQuery';
@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useClients } from '@/hooks/clients/useClients';
 import { useTaskQuickActions } from '@/hooks/tasks/useTaskQuickActions';
+import { useTaskPriorityOrder } from '@/hooks/tasks/useTaskPriorityOrder';
 import { useSubtaskQuickEdit } from '@/hooks/tasks/useSubtaskQuickEdit';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
@@ -21,6 +22,7 @@ import { ViewState } from '@/components/ViewState';
 import { CalendarX2, DatabaseZap, FilterX, Search, Plus } from 'lucide-react';
 import { Skeleton } from 'boneyard-js/react';
 import { Button } from '@/components/ui/Button';
+import { toast } from 'sonner';
 
 const PLANNING_BONES = {
   name: 'planning-view',
@@ -68,7 +70,11 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
   const tasksError = tasksErr?.message ?? null;
   const membersError = membersErr?.message ?? null;
 
-  const { concludeTask, toggleBlock } = useTaskQuickActions(member?.auth_user_id);
+  const { concludeTask, toggleBlock, concludeTasks, blockTasks } = useTaskQuickActions(member?.auth_user_id);
+  const updateTaskPriorityOrder = useTaskPriorityOrder({
+    clientId: effectiveClientId,
+    isAdmin,
+  });
   const { updateSubtaskAssignees, updateSubtaskDates } = useSubtaskQuickEdit({
     clientId: effectiveClientId,
     isAdmin,
@@ -86,6 +92,28 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
   } = useTaskFilters(tasks ?? [], subview === 'timeline', dashboardRedirect?.assigneeId ?? '');
 
   const [demandasFilters, setDemandasFilters] = useState<FiltersState>(EMPTY_FILTERS);
+
+  const handleBulkAssign = useCallback(async (selectedTasks: typeof tasks, memberId: string) => {
+    const tasksWithActiveSubtask = selectedTasks
+      .map(task => ({ task, subtask: task.subtasks.find(subtask => subtask.active) ?? task.subtasks[0] }))
+      .filter(({ subtask }) => !!subtask);
+
+    if (tasksWithActiveSubtask.length === 0) {
+      toast.info('As demandas selecionadas não têm etapas para atribuir');
+      return false;
+    }
+
+    for (const { task, subtask } of tasksWithActiveSubtask) {
+      const nextAssignees = subtask.assignees.includes(memberId)
+        ? subtask.assignees
+        : [...subtask.assignees, memberId];
+      const success = await updateSubtaskAssignees(task, subtask.id, nextAssignees);
+      if (!success) return false;
+    }
+
+    toast.success(`${tasksWithActiveSubtask.length} demanda${tasksWithActiveSubtask.length !== 1 ? 's' : ''} atribuída${tasksWithActiveSubtask.length !== 1 ? 's' : ''}`);
+    return true;
+  }, [updateSubtaskAssignees]);
 
   useEffect(() => {
     if (!dashboardRedirect) return;
@@ -263,6 +291,10 @@ const hasDemandasActiveFilters =
               onToggleBlock={toggleBlock}
               onConclude={concludeTask}
               onEdit={onEdit}
+              onReorder={!hasDemandasActiveFilters ? updateTaskPriorityOrder : undefined}
+              onBulkAssign={handleBulkAssign}
+              onBulkBlock={blockTasks}
+              onBulkConclude={concludeTasks}
               onUpdateSubtaskAssignees={updateSubtaskAssignees}
               onUpdateSubtaskDates={updateSubtaskDates}
             />

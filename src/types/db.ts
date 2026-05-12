@@ -57,6 +57,7 @@ export interface DbTaskRow {
   id: string;
   title: string;
   clickup_link: string | null;
+  priority_order: number;
   blocked: boolean;
   blocked_at: string | null;
   created_at: string;

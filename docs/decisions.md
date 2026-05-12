@@ -171,5 +171,13 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 **Status:** Aceito (Mai 2026)
 **Decisão:** o modelo de `Step` (8 tipos fixos por task, identidade = tipo) foi substituído por `Subtask` (N subtasks livres por task, identidade = `id`, tipo expresso como campo `status`). Tabelas: `task_subtasks` + `subtask_assignees` (substituem `task_steps` + `step_assignees`). Tipo domínio: `Subtask` com campos `id, title, status: SubtaskStatus, start, end, assignees, active, order`. `StepType` passou a ser alias de `SubtaskStatus` para compatibilidade temporária.
 **Racional:** o modelo fixo de 8 steps impedia nomear etapas de forma contextual (ex: "Homepage — Design" vs "Design"); uma demanda pode ter múltiplas subtasks do mesmo tipo em paralelo; a flexibilidade de N subtasks livres é mais adequada a diferentes tipos de projeto
-**Consequências:** nova task nasce sem subtasks — usuário adiciona livremente via TaskModal; dados existentes migrados automaticamente (`title = type`, `status = type`); `Planning View` exibe a demanda em todos os grupos onde tiver subtask ativa (não apenas o grupo "atual"); drag/drop no Calendar e Timeline indexado por `subtaskId` em vez de `stepType`; `task_steps` e `step_assignees` mantidas no banco para rollback até a migration de drop (`20260512000001`)
+**Consequências:** nova task nasce sem subtasks — usuário adiciona livremente via TaskModal; dados existentes migrados automaticamente (`title = type`, `status = type`); `Planning View` exibe a demanda em todos os grupos onde tiver subtask ativa (não apenas o grupo "atual"); drag/drop no Calendar e Timeline indexado por `subtaskId` em vez de `stepType`; `task_steps` e `step_assignees` mantidas no banco para rollback até uma migration de drop futura
 
+---
+
+## ADR-020: Prioridade manual das demandas-pai
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** demandas têm `priority_order` persistido na tabela `tasks`; a subview `Demandas` ordena por esse campo e permite reordenar linhas-pai via drag-and-drop quando não há filtros ativos.
+**Racional:** prioridade manual é uma decisão de planejamento da lista, não derivada apenas do prazo da subtask ativa; persistir a ordem no banco garante consistência entre sessões e usuários.
+**Consequências:** novas demandas entram no fim da fila do cliente; reordenação aplica update otimista no cache TanStack Query e grava os novos índices no Supabase; filtros desativam o drag para evitar gravar uma ordem parcial acidental.
