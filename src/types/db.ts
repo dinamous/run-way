@@ -46,6 +46,7 @@ export interface DbSubtaskRow {
   id: string;
   title: string;
   status: string;
+  progress_status: string;
   subtask_order: number;
   active: boolean;
   start_date: string | null;

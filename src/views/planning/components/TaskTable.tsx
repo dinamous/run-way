@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import { Ban, CheckCircle2, UserPlus, X } from 'lucide-react';
-import type { Task } from '@/lib/steps';
+import type { SubtaskProgressStatus, Task } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
 import { Button } from '@/components/ui/Button';
 import { TaskTableRow } from './TaskTableRow';
@@ -17,6 +17,7 @@ interface TaskTableProps {
   onReorder?: (tasks: Task[]) => Promise<boolean>;
   onUpdateSubtaskAssignees?: (task: Task, subtaskId: string, assignees: string[]) => Promise<boolean>;
   onUpdateSubtaskDates?: (task: Task, subtaskId: string, start: string, end: string) => Promise<boolean>;
+  onUpdateSubtaskProgressStatus?: (task: Task, subtaskId: string, status: SubtaskProgressStatus) => Promise<boolean>;
 }
 
 export const TaskTable = memo(function TaskTable({
@@ -31,6 +32,7 @@ export const TaskTable = memo(function TaskTable({
   onReorder,
   onUpdateSubtaskAssignees,
   onUpdateSubtaskDates,
+  onUpdateSubtaskProgressStatus,
 }: TaskTableProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -118,6 +120,7 @@ export const TaskTable = memo(function TaskTable({
           onDragEnd={() => { setDragTaskId(null); setDragOverTaskId(null); }}
           onUpdateSubtaskAssignees={onUpdateSubtaskAssignees}
           onUpdateSubtaskDates={onUpdateSubtaskDates}
+          onUpdateSubtaskProgressStatus={onUpdateSubtaskProgressStatus}
         />
       ))}
 

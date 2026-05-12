@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { TaskTable } from '../TaskTable'
-import type { Task } from '@/lib/steps'
+import type { SubtaskProgressStatus, Task } from '@/lib/steps'
 
 const baseTask: Omit<Task, 'id' | 'title' | 'priorityOrder'> = {
   clickupLink: undefined,
@@ -19,6 +19,23 @@ function makeTask(id: string, title: string, priorityOrder: number): Task {
     id,
     title,
     priorityOrder,
+  }
+}
+
+function makeTaskWithSubtask(progressStatus: SubtaskProgressStatus = 'todo'): Task {
+  return {
+    ...makeTask('task-1', 'Demanda A', 0),
+    subtasks: [{
+      id: 'subtask-1',
+      title: 'Subtask A',
+      status: 'design',
+      progressStatus,
+      start: '2026-05-12',
+      end: '2026-05-15',
+      assignees: [],
+      active: true,
+      order: 0,
+    }],
   }
 }
 
@@ -52,5 +69,30 @@ describe('TaskTable', () => {
       'task-1',
       'task-2',
     ])
+  })
+
+  it('atualiza o status de andamento da subtask pelo popover', async () => {
+    const task = makeTaskWithSubtask('todo')
+    const onUpdateSubtaskProgressStatus = vi.fn().mockResolvedValue(true)
+
+    render(
+      <TaskTable
+        tasks={[task]}
+        members={[]}
+        onToggleBlock={vi.fn()}
+        onConclude={vi.fn()}
+        onEdit={vi.fn()}
+        onUpdateSubtaskProgressStatus={onUpdateSubtaskProgressStatus}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'A fazer' }))
+    fireEvent.click(screen.getByRole('button', { name: /Em andamento/ }))
+
+    await waitFor(() => expect(onUpdateSubtaskProgressStatus).toHaveBeenCalledWith(
+      task,
+      'subtask-1',
+      'in-progress',
+    ))
   })
 })

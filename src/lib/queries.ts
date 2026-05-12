@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { Task, Subtask, SubtaskStatus } from '@/lib/steps'
+import type { SubtaskProgressStatus, Task, Subtask, SubtaskStatus } from '@/lib/steps'
 import type { Member } from '@/hooks/infra/useSupabase'
 import type { DbTaskRow } from '@/types/db'
 import { DbTaskRowSchema } from '@/lib/validators'
@@ -23,6 +23,7 @@ function dbRowToTask(row: DbTaskRow): Task {
       id: s.id,
       title: s.title,
       status: s.status as SubtaskStatus,
+      progressStatus: s.progress_status as SubtaskProgressStatus,
       order: s.subtask_order,
       active: s.active,
       start: s.start_date ?? '',
@@ -50,7 +51,7 @@ function dbRowToTask(row: DbTaskRow): Task {
 const TASK_SELECT = `
   id, title, clickup_link, priority_order, blocked, blocked_at, created_at, client_id, concluded_at, concluded_by,
   task_subtasks (
-    id, title, status, subtask_order, active, start_date, end_date,
+    id, title, status, progress_status, subtask_order, active, start_date, end_date,
     subtask_assignees ( member_id )
   )
 ` as const

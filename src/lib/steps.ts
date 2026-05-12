@@ -12,6 +12,21 @@ export const STEP_TYPES_ORDER = [
 /** Status possíveis de uma subtask (ex-StepType) */
 export type SubtaskStatus = typeof STEP_TYPES_ORDER[number];
 
+export const SUBTASK_PROGRESS_STATUS_ORDER = [
+  'todo',
+  'ready',
+  'in-progress',
+  'in-review',
+  'waiting',
+  'blocked',
+  'needs-changes',
+  'paused',
+  'done',
+  'canceled',
+] as const;
+
+export type SubtaskProgressStatus = typeof SUBTASK_PROGRESS_STATUS_ORDER[number];
+
 /** @deprecated use SubtaskStatus */
 export type StepType = SubtaskStatus;
 
@@ -19,6 +34,7 @@ export interface Subtask {
   id: string;
   title: string;          // nome livre obrigatório
   status: SubtaskStatus;  // ex-type
+  progressStatus: SubtaskProgressStatus;
   start: string;          // YYYY-MM-DD, empty if not set
   end: string;            // YYYY-MM-DD, empty if not set
   assignees: string[];
@@ -139,6 +155,63 @@ export const STEP_META: Record<SubtaskStatus, {
   },
 };
 
+export const SUBTASK_PROGRESS_META: Record<SubtaskProgressStatus, {
+  label: string;
+  description: string;
+  className: string;
+}> = {
+  todo: {
+    label: 'A fazer',
+    description: 'Ainda nao iniciada',
+    className: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700',
+  },
+  ready: {
+    label: 'Pronta',
+    description: 'Liberada para começar',
+    className: 'bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800',
+  },
+  'in-progress': {
+    label: 'Em andamento',
+    description: 'Trabalho ativo',
+    className: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800',
+  },
+  'in-review': {
+    label: 'Em revisão',
+    description: 'Aguardando validação interna',
+    className: 'bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800',
+  },
+  waiting: {
+    label: 'Aguardando',
+    description: 'Dependência externa ou retorno',
+    className: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
+  },
+  blocked: {
+    label: 'Bloqueada',
+    description: 'Impeditivo claro',
+    className: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800',
+  },
+  'needs-changes': {
+    label: 'Precisa de ajustes',
+    description: 'Retornou com correções',
+    className: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800',
+  },
+  paused: {
+    label: 'Pausada',
+    description: 'Interrompida temporariamente',
+    className: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700',
+  },
+  done: {
+    label: 'Concluída',
+    description: 'Finalizada',
+    className: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800',
+  },
+  canceled: {
+    label: 'Cancelada',
+    description: 'Não será executada',
+    className: 'bg-neutral-100 text-neutral-600 border-neutral-200 line-through dark:bg-neutral-900 dark:text-neutral-400 dark:border-neutral-700',
+  },
+};
+
 /** Returns the subtask that should be highlighted as "current" based on today's date */
 export function getCurrentSubtask(subtasks: Subtask[], today: string): Subtask | null {
   const active = subtasks.filter(s => s.active && s.start && s.end);
@@ -191,7 +264,7 @@ export interface LegacyTask {
   };
   phaseAssignees?: Record<string, string>;
   /** Suporte a ambos os formatos durante a transição */
-  steps?: Array<{ type?: string; status?: string; title?: string; id?: string; start?: string; end?: string; assignees?: string[]; active?: boolean; order?: number }>;
+  steps?: Array<{ type?: string; status?: string; progressStatus?: SubtaskProgressStatus; title?: string; id?: string; start?: string; end?: string; assignees?: string[]; active?: boolean; order?: number }>;
   subtasks?: Subtask[];
 }
 
@@ -203,7 +276,13 @@ export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; subta
       existingStatus && typeof existingStatus === 'object'
         ? existingStatus
         : { blocked: false };
-    return { status, subtasks: task.subtasks };
+    return {
+      status,
+      subtasks: task.subtasks.map(s => ({
+        ...s,
+        progressStatus: s.progressStatus ?? 'todo',
+      })),
+    };
   }
 
   if (task.steps) {
@@ -217,6 +296,7 @@ export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; subta
       id: s.id ?? '',
       title: s.title ?? s.type ?? s.status ?? '',
       status: (s.status ?? s.type ?? 'design') as SubtaskStatus,
+      progressStatus: s.progressStatus ?? 'todo',
       start: s.start ?? '',
       end: s.end ?? '',
       assignees: s.assignees ?? [],
@@ -242,6 +322,7 @@ export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; subta
       id: '',
       title: statusVal,
       status: statusVal,
+      progressStatus: 'todo',
       start: legacyPhase.start,
       end: legacyPhase.end,
       assignees: legacyAssignee ? [legacyAssignee] : [],

@@ -1,10 +1,11 @@
 import { memo } from 'react';
-import { AlertCircle, Circle, CheckCircle2, PlayCircle, AlertTriangle } from 'lucide-react';
-import { STEP_META, type Task, type SubtaskStatus } from '@/lib/steps';
+import { AlertCircle, Circle, CheckCircle2, PlayCircle, AlertTriangle, PauseCircle, XCircle } from 'lucide-react';
+import { STEP_META, type SubtaskProgressStatus, type Task, type SubtaskStatus } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
 import { formatDueDate } from '../utils';
 import { DatesPopover } from './DatesPopover';
 import { AssigneesPopover } from './AssigneesPopover';
+import { SubtaskProgressStatusPopover } from './SubtaskProgressStatusPopover';
 
 function SubtaskStatusIcon({ subtask, isConcluded, isBlocked }: {
   subtask: Task['subtasks'][number];
@@ -12,6 +13,10 @@ function SubtaskStatusIcon({ subtask, isConcluded, isBlocked }: {
   isBlocked: boolean;
 }) {
   if (isConcluded) return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
+  if (subtask.progressStatus === 'done') return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
+  if (subtask.progressStatus === 'canceled') return <XCircle className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />;
+  if (subtask.progressStatus === 'paused' || subtask.progressStatus === 'waiting') return <PauseCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
+  if (subtask.progressStatus === 'blocked') return <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />;
   if (isBlocked && subtask.active) return <AlertTriangle className="w-3.5 h-3.5 text-orange-500 shrink-0" />;
   if (subtask.active) {
     const timeStatus = formatDueDate(subtask.end);
@@ -29,6 +34,7 @@ interface SubtaskRowProps {
   onEdit: (task: Task) => void;
   onUpdateSubtaskAssignees?: (task: Task, subtaskId: string, assignees: string[]) => Promise<boolean>;
   onUpdateSubtaskDates?: (task: Task, subtaskId: string, start: string, end: string) => Promise<boolean>;
+  onUpdateSubtaskProgressStatus?: (task: Task, subtaskId: string, status: SubtaskProgressStatus) => Promise<boolean>;
 }
 
 export const SubtaskRow = memo(function SubtaskRow({
@@ -39,6 +45,7 @@ export const SubtaskRow = memo(function SubtaskRow({
   onEdit,
   onUpdateSubtaskAssignees,
   onUpdateSubtaskDates,
+  onUpdateSubtaskProgressStatus,
 }: SubtaskRowProps) {
   const meta = STEP_META[subtask.status as SubtaskStatus];
   const timeStatus = formatDueDate(subtask.end);
@@ -47,7 +54,7 @@ export const SubtaskRow = memo(function SubtaskRow({
 
   return (
     <div
-      className={`relative grid grid-cols-[180px_1fr_110px_90px_auto] items-center gap-0 pl-10 pr-3 min-h-[38px] cursor-pointer transition-colors group/sub
+      className={`relative grid grid-cols-[180px_150px_1fr_110px_90px_auto] items-center gap-0 pl-10 pr-3 min-h-[38px] cursor-pointer transition-colors group/sub
         ${!isLast ? 'border-b border-border/40' : ''}
         ${isBlocked && subtask.active
           ? 'hover:bg-red-50/60 dark:hover:bg-red-950/20'
@@ -64,6 +71,14 @@ export const SubtaskRow = memo(function SubtaskRow({
         <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-sm leading-none whitespace-nowrap ${meta.tagBg}`}>
           {meta.label}
         </span>
+      </div>
+
+      <div className="py-2.5 pr-3" onClick={e => e.stopPropagation()}>
+        <SubtaskProgressStatusPopover
+          subtask={subtask}
+          task={task}
+          onUpdate={onUpdateSubtaskProgressStatus}
+        />
       </div>
 
       <span className="text-xs text-muted-foreground truncate py-2.5 pr-4">

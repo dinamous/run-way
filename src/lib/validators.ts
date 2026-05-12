@@ -10,6 +10,7 @@ export const DbSubtaskRowSchema = z.object({
   id: z.string().min(1),
   title: z.string(),
   status: z.string().min(1),
+  progress_status: z.string().min(1).default('todo'),
   subtask_order: z.number().int().nonnegative(),
   active: z.boolean(),
   start_date: z.string().nullable(),

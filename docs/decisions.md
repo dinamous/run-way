@@ -181,3 +181,12 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 **Decisão:** demandas têm `priority_order` persistido na tabela `tasks`; a subview `Demandas` ordena por esse campo e permite reordenar linhas-pai via drag-and-drop quando não há filtros ativos.
 **Racional:** prioridade manual é uma decisão de planejamento da lista, não derivada apenas do prazo da subtask ativa; persistir a ordem no banco garante consistência entre sessões e usuários.
 **Consequências:** novas demandas entram no fim da fila do cliente; reordenação aplica update otimista no cache TanStack Query e grava os novos índices no Supabase; filtros desativam o drag para evitar gravar uma ordem parcial acidental.
+
+---
+
+## ADR-021: Status de andamento separado da etapa da subtask
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** `task_subtasks` passa a ter `progress_status`, separado de `status` (que continua representando a etapa/tipo: Design, QA, Publicação etc.). O domínio expõe `Subtask.progressStatus` com os valores `todo`, `ready`, `in-progress`, `in-review`, `waiting`, `blocked`, `needs-changes`, `paused`, `done` e `canceled`.
+**Racional:** o campo `status` já era usado como categoria visual e filtro de etapa; reaproveitá-lo para andamento quebraria calendário, timeline e legenda. Separar andamento permite gerir subtasks esquecidas, bloqueadas ou concluídas sem perder a fase de entrega.
+**Consequências:** a tabela de demandas ganhou uma coluna "Status" com popover de edição inline; o modal de demanda também salva o andamento; o progresso da demanda agora considera subtasks `done` e ignora subtasks `canceled`.

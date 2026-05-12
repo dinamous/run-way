@@ -75,7 +75,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
     clientId: effectiveClientId,
     isAdmin,
   });
-  const { updateSubtaskAssignees, updateSubtaskDates } = useSubtaskQuickEdit({
+  const { updateSubtaskAssignees, updateSubtaskDates, updateSubtaskProgressStatus } = useSubtaskQuickEdit({
     clientId: effectiveClientId,
     isAdmin,
   });
@@ -297,6 +297,7 @@ const hasDemandasActiveFilters =
               onBulkConclude={concludeTasks}
               onUpdateSubtaskAssignees={updateSubtaskAssignees}
               onUpdateSubtaskDates={updateSubtaskDates}
+              onUpdateSubtaskProgressStatus={updateSubtaskProgressStatus}
             />
           )}
         </div>

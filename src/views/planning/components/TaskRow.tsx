@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Link2, AlertCircle, Clock } from 'lucide-react';
 import { STEP_META, type Task, type SubtaskStatus } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
-import { formatDueDate } from '../utils';
+import { formatDueDate, getTaskRenderSignature } from '../utils';
 import { ActionMenu } from './ActionMenu';
 
 interface TaskRowProps {
@@ -136,10 +136,7 @@ export const TaskRow = memo(function TaskRow({ task, stepType, members, onToggle
     </div>
   );
 }, (prev, next) =>
-  prev.task.id === next.task.id &&
-  prev.task.status?.blocked === next.task.status?.blocked &&
-  prev.task.concludedAt === next.task.concludedAt &&
+  getTaskRenderSignature(prev.task) === getTaskRenderSignature(next.task) &&
   prev.stepType === next.stepType &&
-  prev.task.subtasks?.length === next.task.subtasks?.length &&
-  prev.members.length === next.members.length
+  prev.members === next.members
 );

@@ -6,8 +6,11 @@ import { Save, ExternalLink, Trash2, Users, AlertCircle, CheckCircle2, Plus, Gri
 import {
   STEP_META,
   STEP_TYPES_ORDER,
+  SUBTASK_PROGRESS_META,
+  SUBTASK_PROGRESS_STATUS_ORDER,
   migrateLegacyTask,
   type Subtask,
+  type SubtaskProgressStatus,
   type SubtaskStatus,
   type TaskStatus,
 } from '../lib/steps';
@@ -33,6 +36,7 @@ function newDraft(order: number): SubtaskDraft {
     id: '',
     title: '',
     status: 'design' as SubtaskStatus,
+    progressStatus: 'todo',
     start: '',
     end: '',
     assignees: [],
@@ -99,6 +103,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
       id: s.id,
       title: s.title,
       status: s.status,
+      progressStatus: s.progressStatus,
       start: s.start,
       end: s.end,
       assignees: s.assignees,
@@ -374,6 +379,17 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
                           >
                             {STEP_TYPES_ORDER.map(s => (
                               <option key={s} value={s}>{STEP_META[s].label}</option>
+                            ))}
+                          </select>
+
+                          <select
+                            value={subtask.progressStatus}
+                            onChange={e => updateSubtask(subtask._tempId, 'progressStatus', e.target.value as SubtaskProgressStatus)}
+                            className="text-[10px] bg-white/40 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-md px-1.5 py-0.5 outline-none cursor-pointer shrink-0 max-w-32"
+                            title="Status da subtask"
+                          >
+                            {SUBTASK_PROGRESS_STATUS_ORDER.map(status => (
+                              <option key={status} value={status}>{SUBTASK_PROGRESS_META[status].label}</option>
                             ))}
                           </select>
 

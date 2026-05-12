@@ -31,10 +31,11 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, etapa, responsável, período, bloqueadas, concluídas) |
 | `src/views/planning/components/TaskTable.tsx` | Componente raiz da tabela — itera tasks e delega para `TaskTableRow` |
 | `src/views/planning/components/TaskTableRow.tsx` | Linha-pai colapsável de uma task com progresso, prazo, avatares e painel de subtasks |
-| `src/views/planning/components/SubtaskRow.tsx` | Linha-filho de uma subtask com ícone de status, badge de etapa, `DatesPopover` e `AssigneesPopover` |
+| `src/views/planning/components/SubtaskRow.tsx` | Linha-filho de uma subtask com ícone de status, badge de etapa, popover de andamento, `DatesPopover` e `AssigneesPopover` |
 | `src/views/planning/components/MemberAvatars.tsx` | Avatares empilhados de membros (tamanhos `sm`/`xs`); placeholder `?` quando sem responsável |
 | `src/views/planning/components/AssigneesPopover.tsx` | Popover de atribuição de responsáveis — renderizado via `createPortal` no `document.body` |
 | `src/views/planning/components/DatesPopover.tsx` | Popover de edição de período (start/end) — renderizado via `createPortal` no `document.body` |
+| `src/views/planning/components/SubtaskProgressStatusPopover.tsx` | Popover de edição do andamento da subtask (`progressStatus`) |
 | `src/views/planning/components/usePopover.ts` | Hook de controle de popover: open/close, posicionamento via `getBoundingClientRect`, fechar ao clicar fora ou `Escape` |
 | `src/views/planning/components/StepGroup.tsx` | **Legado** — grupo colapsável por etapa (substituído por `TaskTable`) |
 | `src/views/planning/components/TaskRow.tsx` | **Legado** — linha de demanda no modo "Por etapa" (substituído por `TaskTable`) |
@@ -71,11 +72,12 @@ Componente principal do subview `demandas`. Cada **task** é uma linha-pai colap
 - Contador de etapas, badge de prazo (da subtask ativa), avatares de todos os responsáveis
 - `ActionMenu` com `stopPropagation`
 
-**Painel expandido das subtasks:** header interno alinhado ao grid + linha vertical da árvore (`absolute left-[18px]`) com traço horizontal em cada subtask. Grid fixo `grid-cols-[180px_1fr_110px_90px_auto]`.
+**Painel expandido das subtasks:** header interno alinhado ao grid + linha vertical da árvore (`absolute left-[18px]`) com traço horizontal em cada subtask. Grid fixo `grid-cols-[180px_150px_1fr_110px_90px_auto]`.
 
 | Coluna | Conteúdo |
 |---|---|
 | Etapa | Ícone de status contextual + pill colorida com `STEP_META.label` |
+| Status | Pill clicável com `Subtask.progressStatus`; abre popover para alterar andamento inline |
 | Título | Texto livre da subtask (`subtask.title`) |
 | Período | `DD/MM → DD/MM` em `font-mono` — clicável; abre `DatesPopover` para editar start/end inline |
 | Prazo | Badge `formatDueDate` — exibido para **todas** as subtasks; `—` quando sem data |
@@ -97,7 +99,9 @@ Componente principal do subview `demandas`. Cada **task** é uma linha-pai colap
 
 `DatesPopover` — abre ao clicar no período da coluna Período. Dois `<input type="date">` (início/fim) com botões Cancelar/Salvar. Persiste via `useSubtaskQuickEdit.updateSubtaskDates` — UPDATE direto em `task_subtasks`. Fecha ao salvar com sucesso.
 
-Ambos fecham ao clicar fora ou pressionar `Escape` (hook `usePopover`). Renderizam via `createPortal` no `document.body` com `z-index: 9999` e posicionamento calculado por `getBoundingClientRect + scrollY/scrollX` — isso evita corte por `overflow:hidden` das rows da tabela. `PlanningView` instancia `useSubtaskQuickEdit` e passa `onUpdateSubtaskAssignees` e `onUpdateSubtaskDates` para `TaskTable`.
+`SubtaskProgressStatusPopover` — abre ao clicar no pill da coluna Status. Valores: A fazer, Pronta, Em andamento, Em revisão, Aguardando, Bloqueada, Precisa de ajustes, Pausada, Concluída, Cancelada. Persiste via `useSubtaskQuickEdit.updateSubtaskProgressStatus` — UPDATE direto em `task_subtasks.progress_status`. Fecha ao salvar com sucesso.
+
+Os popovers fecham ao clicar fora ou pressionar `Escape` (hook `usePopover`). Renderizam via `createPortal` no `document.body` com `z-index: 9999` e posicionamento calculado por `getBoundingClientRect + scrollY/scrollX` — isso evita corte por `overflow:hidden` das rows da tabela. `PlanningView` instancia `useSubtaskQuickEdit` e passa `onUpdateSubtaskAssignees`, `onUpdateSubtaskDates` e `onUpdateSubtaskProgressStatus` para `TaskTable`.
 
 **Comportamentos:**
 - Tasks expandidas por padrão quando há filtros ativos

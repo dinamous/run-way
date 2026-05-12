@@ -1,9 +1,9 @@
 import { memo, useState } from 'react';
 import { ChevronDown, ChevronRight, Link2, AlertCircle, CheckCircle2, GripVertical } from 'lucide-react';
-import { STEP_META, type Task, type SubtaskStatus } from '@/lib/steps';
+import { STEP_META, type SubtaskProgressStatus, type Task, type SubtaskStatus } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
 import { Checkbox } from '@/components/ui/Checkbox';
-import { formatDueDate } from '../utils';
+import { formatDueDate, getTaskRenderSignature } from '../utils';
 import { ActionMenu } from './ActionMenu';
 import { MemberAvatars } from './MemberAvatars';
 import { SubtaskRow } from './SubtaskRow';
@@ -26,6 +26,7 @@ interface TaskTableRowProps {
   onDragEnd?: () => void;
   onUpdateSubtaskAssignees?: (task: Task, subtaskId: string, assignees: string[]) => Promise<boolean>;
   onUpdateSubtaskDates?: (task: Task, subtaskId: string, start: string, end: string) => Promise<boolean>;
+  onUpdateSubtaskProgressStatus?: (task: Task, subtaskId: string, status: SubtaskProgressStatus) => Promise<boolean>;
 }
 
 export const TaskTableRow = memo(function TaskTableRow({
@@ -46,6 +47,7 @@ export const TaskTableRow = memo(function TaskTableRow({
   onDragEnd,
   onUpdateSubtaskAssignees,
   onUpdateSubtaskDates,
+  onUpdateSubtaskProgressStatus,
 }: TaskTableRowProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const isBlocked = task.status.blocked;
@@ -54,9 +56,10 @@ export const TaskTableRow = memo(function TaskTableRow({
   const activeSubtask = task.subtasks.find(s => s.active);
   const allAssigneeIds = [...new Set(task.subtasks.flatMap(s => s.assignees))];
   const taskTimeStatus = formatDueDate(activeSubtask?.end);
-  const completedCount = task.subtasks.filter(s => !s.active && s.end).length;
+  const measurableSubtasks = task.subtasks.filter(s => s.progressStatus !== 'canceled');
+  const completedCount = measurableSubtasks.filter(s => s.progressStatus === 'done').length;
   const progress = task.subtasks.length > 0
-    ? isConcluded ? 100 : Math.round((completedCount / task.subtasks.length) * 100)
+    ? isConcluded ? 100 : Math.round((completedCount / Math.max(measurableSubtasks.length, 1)) * 100)
     : 0;
 
   return (
@@ -212,9 +215,10 @@ export const TaskTableRow = memo(function TaskTableRow({
 
       {expanded && task.subtasks.length > 0 && (
         <div className="border-t border-border/40 bg-muted/5">
-          <div className="relative pl-10 pr-3 py-1.5 border-b border-border/30 grid grid-cols-[180px_1fr_110px_90px_auto]">
+          <div className="relative pl-10 pr-3 py-1.5 border-b border-border/30 grid grid-cols-[180px_150px_1fr_110px_90px_auto]">
             <div className="absolute left-[18px] top-0 bottom-0 w-px bg-border/40" />
             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40">Etapa</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40">Status</span>
             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40">Título</span>
             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40">Período</span>
             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40">Prazo</span>
@@ -233,6 +237,7 @@ export const TaskTableRow = memo(function TaskTableRow({
                 onEdit={onEdit}
                 onUpdateSubtaskAssignees={onUpdateSubtaskAssignees}
                 onUpdateSubtaskDates={onUpdateSubtaskDates}
+                onUpdateSubtaskProgressStatus={onUpdateSubtaskProgressStatus}
               />
             ))}
           </div>
@@ -241,7 +246,7 @@ export const TaskTableRow = memo(function TaskTableRow({
     </div>
   );
 }, (prev, next) =>
-  prev.task === next.task &&
+  getTaskRenderSignature(prev.task) === getTaskRenderSignature(next.task) &&
   prev.members === next.members &&
   prev.selected === next.selected &&
   prev.defaultExpanded === next.defaultExpanded &&

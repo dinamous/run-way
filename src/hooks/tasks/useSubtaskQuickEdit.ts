@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { queryKeys } from '@/lib/queries'
-import type { Task } from '@/lib/steps'
+import type { SubtaskProgressStatus, Task } from '@/lib/steps'
 
 interface UseSubtaskQuickEditOptions {
   clientId?: string | null
@@ -73,5 +73,21 @@ export function useSubtaskQuickEdit({ clientId, isAdmin }: UseSubtaskQuickEditOp
     return true
   }, [patchCache])
 
-  return { updateSubtaskAssignees, updateSubtaskDates }
+  const updateSubtaskProgressStatus = useCallback(async (
+    task: Task,
+    subtaskId: string,
+    progressStatus: SubtaskProgressStatus,
+  ): Promise<boolean> => {
+    const rollback = patchCache(task.id, subtaskId, { progressStatus })
+
+    const { error } = await supabase
+      .from('task_subtasks')
+      .update({ progress_status: progressStatus })
+      .eq('id', subtaskId)
+
+    if (error) { rollback(); toast.error('Erro ao atualizar status'); return false }
+    return true
+  }, [patchCache])
+
+  return { updateSubtaskAssignees, updateSubtaskDates, updateSubtaskProgressStatus }
 }

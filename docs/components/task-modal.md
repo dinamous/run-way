@@ -11,6 +11,7 @@ Modal de criação e edição de demandas. Gere o formulário de subtasks de for
 Cada subtask tem:
 - **title** (obrigatório) — nome livre dado pelo usuário
 - **status** (`SubtaskStatus`) — controla cor/ícone; dropdown com os 8 valores de `STEP_TYPES_ORDER`
+- **progressStatus** (`SubtaskProgressStatus`) — andamento operacional: A fazer, Pronta, Em andamento, Em revisão, Aguardando, Bloqueada, Precisa de ajustes, Pausada, Concluída ou Cancelada
 - **start / end** — datas obrigatórias quando subtask existe
 - **assignees** — opcional; toggle por membro
 - Botão de remover por subtask

@@ -43,6 +43,7 @@ async function createAllSubtasks(taskId: string, subtasks: Subtask[]): Promise<b
         task_id: taskId,
         title: s.title,
         status: s.status,
+        progress_status: s.progressStatus,
         subtask_order: s.order,
         active: s.active,
         start_date: s.start || null,
@@ -244,6 +245,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       const changed = (
         prev.title !== subtask.title
         || prev.status !== subtask.status
+        || prev.progressStatus !== subtask.progressStatus
         || prev.order !== subtask.order
         || prev.active !== subtask.active
         || (prev.start || '') !== (subtask.start || '')
@@ -256,6 +258,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
           .update({
             title: subtask.title,
             status: subtask.status,
+            progress_status: subtask.progressStatus,
             subtask_order: subtask.order,
             active: subtask.active,
             start_date: subtask.start || null,
