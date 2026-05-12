@@ -7,8 +7,10 @@ src/
 ├── App.tsx                    # Root: gates de auth + composição declarativa — ~80 linhas
 ├── main.tsx                   # Entry point
 ├── components/
-│   ├── AppRouter.tsx                  # Mapeia view → componente; guards de cliente
+│   ├── AppRouter.tsx                  # Mapeia view (lida da URL) → componente; guards de cliente
+│   ├── AppRoutes.tsx                  # Árvore de rotas React Router (declarativa, sem renderização)
 │   ├── AppLayout.tsx                  # Shell do layout: AppHeader + AppSidebar + main/AppRouter
+│   ├── ClientPickerLayout.tsx         # Layout leve para "/" sem slug: header + mini-sidebar recolhida + ClientPickerView
 │   ├── AppModals.tsx                  # TaskModal + ConfirmModal + ClientTransitionOverlay agrupados
 │   ├── TaskModal.tsx                  # Modal criar/editar demanda
 │   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
@@ -16,8 +18,11 @@ src/
 │   ├── ClientTransitionOverlay.tsx    # Overlay animado exibido ao trocar de cliente
 │   └── ui/                            # Design system (Button, Input, Label, Badge)
 ├── views/
-│   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess
-│   ├── dashboard/             # DashboardView → Calendar/Timeline
+│   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess (pós-seleção de cliente)
+│   ├── client-picker/         # ClientPickerView — boas-vindas + grid de seleção de cliente (rota "/")
+│   │   └── components/
+│   │       └── ClientCard.tsx
+│   ├── planning/              # PlanningView → Calendar/Timeline/List/Demandas
 │   ├── calendar/              # CalendarView — calendário mensal com drag-drop
 │   ├── timeline/              # TimelineView — Gantt com drag-drop por fase
 │   ├── MembersView/           # Capacidade por membro
@@ -34,14 +39,15 @@ src/
 │   ├── useTaskStore.ts        # Estado local para update otimista (applyOptimisticUpdate/clearOptimistic)
 │   └── useMemberStore.ts      # Stub de compatibilidade (sem fetch — migrado para useMembersQuery)
 ├── hooks/
-│   ├── useAppOrchestrator.ts  # Agrega toda a lógica de orquestração do App (cliente, views, notificações, task actions)
+│   ├── useAppOrchestrator.ts  # Agrega toda a lógica de orquestração do App (cliente, views, notificações, task actions); expõe cachedClient, navigateTo e navigateToClient para App.tsx coordenar redirects sem estado intermediário
+│   ├── useAppNavigation.ts    # URL ↔ ViewType: urlToView, viewToPath, taskPath; lê clientSlug via location.pathname (não useParams)
 │   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask) via TanStack Query
 │   ├── useTasksQuery.ts       # Query hook TanStack Query para tasks
 │   ├── useMembersQuery.ts     # Query hook TanStack Query para members
 │   ├── useHolidays.ts         # Feriados
 │   ├── useFormState.ts        # Estado do formulário TaskModal
 │   ├── useAppTheme.ts         # Dark mode: estado + sync com localStorage e <html>
-│   ├── useAppSidebar.ts       # Sidebar desktop (persist) e mobile open/close
+│   ├── useAppSidebar.ts       # Sidebar desktop (persist) e mobile open/close; openSidebar() força expansão
 │   ├── useTaskActions.ts      # Estado e handlers de create/update/delete de tasks
 │   └── useClientTransition.ts # Fluxo animado de troca de cliente (overlay + TanStack Query invalidate)
 ├── contexts/
@@ -52,6 +58,7 @@ src/
 │   ├── adminApi.ts            # Funções tipadas que chamam as Supabase Edge Functions admin
 │   ├── queries.ts             # fetchTasksFromDb, fetchMembersFromDb, queryKeys — valida rows com Zod antes do mapeamento
 │   ├── validators.ts          # Schemas Zod para rows do banco (DbTaskRowSchema, DbStepRowSchema, DbStepAssigneeSchema)
+│   ├── clientSlug.ts          # clientToSlug, nameToSlug, slugToClient — converte entre ClientOption e slug de URL
 │   ├── steps.ts               # Definição e lógica de steps
 │   └── utils.ts               # Utilitários gerais
 ├── types/
@@ -67,6 +74,11 @@ src/
 AuthContext (AuthProvider)
     ↓ session, member, clients (filtrado por access_role), isAdmin, refreshProfile
 App.tsx (gates de auth + composição)
+    ├── !session                       → LoginView
+    ├── !hasClients                    → OnboardingView
+    ├── !effectiveClientId (sem slug, slug inválido, /clients…) e não é /profile
+    │       ├── cachedClient válido    → useEffect: navigateTo(view, cachedClient) → redirect preservando a view (ex: /clients → /:slug/client-info); renderiza null enquanto navega
+    │       └── sem cache             → ClientPickerLayout → ClientPickerView
     └── useAppOrchestrator (toda a lógica de orquestração)
           ├── useClientStore    → selectedClientId (persist)
           ├── useMembersQuery   → members com cache TanStack Query
@@ -109,13 +121,17 @@ openTaskModal() / closeTaskModal()
 Cliente selecionado. **Persiste no localStorage** (`client-store`). Não persiste `undefined`.
 ```ts
 selectedClientId: string | null | undefined
-setClient(id)
+selectedAt: number | null   // timestamp (ms) da última seleção
+setClient(id)               // grava id + selectedAt = Date.now()
+isClientBuffValid()         // true se selectedAt < 4h atrás
 ```
-| Valor | Significado |
+| Valor de `selectedClientId` | Significado |
 |---|---|
 | `undefined` | Não inicializado — aguarda resolução da auth |
 | `null` | Admin vê todos os clientes (sem filtro no fetch) |
 | `string` | Cliente específico selecionado |
+
+O "buff" de 4h (`CLIENT_BUFF_MS = 4 * 60 * 60 * 1000`) é verificado em `useAppOrchestrator` antes de restaurar o cliente automaticamente. Após expirar, o usuário vê o `ClientPickerView` independentemente do valor persistido.
 
 ### `useTaskStore`
 Estado local mínimo para suporte a **update otimista**. O fetch de tasks foi migrado para `useTasksQuery` (TanStack Query).
@@ -188,20 +204,35 @@ Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de aut
 
 **Chave:** `App.tsx` usa `AuthContext.clients` diretamente (não `useUserClients`). `useUserClients` existe apenas em `UserClientsView` para `linkToClient`/`unlinkFromClient`.
 
+## Leitura do clientSlug na URL
+
+`useAppNavigation` deriva `currentSlug` diretamente de `location.pathname` em vez de `useParams`. O motivo: `App.tsx` está montado diretamente dentro de `<BrowserRouter>` sem nenhum `<Route path="/:clientSlug">` como ancestral — logo `useParams()` retorna sempre `{}`. A extração manual lê o primeiro segmento do pathname e descarta rotas globais conhecidas (`profile`, `clients`, `""`). Nota: `admin` **não** é uma rota global — sua URL é `/:clientSlug/admin` e `currentSlug` é derivado normalmente.
+
+`urlTaskId` é derivado da mesma forma: busca o segmento `"id"` no pathname e retorna o próximo segmento.
+
+## Persistência e Restauração do Cliente Selecionado
+
+`useAppOrchestrator` integra `useClientStore` para dois comportamentos:
+
+1. **Persistência:** sempre que `effectiveClientId` muda (URL com slug válido), grava o ID na `useClientStore` (localStorage via zustand/persist) junto com `selectedAt` (timestamp da seleção).
+2. **Restauração com TTL de 4h ("buff"):** ao cair em `/` sem slug (ex: pós-login), redireciona automaticamente para `/:slug` **somente se** `storedClientId` existir, corresponder a um cliente válido do usuário, **e** a seleção tiver menos de 4 horas (`isClientBuffValid()`). Após expirar, o usuário vê o `ClientPickerView` normalmente.
+
+Usuários com apenas 1 cliente já tinham redirect automático no `ClientPickerView`. Este mecanismo cobre usuários com múltiplos clientes que já fizeram uma escolha anterior, com expiração automática para forçar re-seleção após uma sessão longa.
+
 ## Troca de Cliente
 
 A troca de cliente exibe um overlay de transição animado antes de efetivar a mudança:
 
 ```
-handleSelectClient(newId)
-  → setTransitionClient({ id, name })   ← exibe ClientTransitionOverlay (~3.2s)
-  → após 650ms: setClient(newId)        ← persiste no localStorage
-               queryClient.invalidateQueries(['tasks'])   ← TanStack Query refetch automático
+selectClient(clientId)
+  → sidebar.openSidebar()               ← garante sidebar expandida ao chegar na HomeView
+  → setTransitionTarget({ id, name })   ← exibe ClientTransitionOverlay (~3.2s)
+  → após 650ms: queryClient.invalidateQueries(['tasks'])   ← TanStack Query refetch automático
                queryClient.invalidateQueries(['members']) ← TanStack Query refetch automático
-               setView("home")
+               navigateToClient(client) → navigate('/:slug') → view="home"
       ↓ onComplete (após fade-out do overlay)
   → toast cinza "Trocado para <Cliente>" (sonner, 3s)
-  → setTransitionClient(null)
+  → setTransitionTarget(null)
 ```
 
 > O TanStack Query revalida automaticamente ao mudar as queries keys (clientId muda) — o `invalidateQueries` força refetch imediato mesmo que ainda esteja dentro do `staleTime`.

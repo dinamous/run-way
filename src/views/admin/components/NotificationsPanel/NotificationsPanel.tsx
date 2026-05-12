@@ -1,4 +1,4 @@
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import type { Client } from '@/types/db'
 import { useNotificationsPanel } from './useNotificationsPanel'
 import { NotificationForm } from './NotificationForm'

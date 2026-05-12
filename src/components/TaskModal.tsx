@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useMembersQuery } from '@/hooks/useMembersQuery';
-import { useClients } from '@/hooks/useClients';
+import { useMembersQuery } from '@/hooks/members/useMembersQuery';
+import { useClients } from '@/hooks/clients/useClients';
 import { Input, Label, Button, ConfirmModal } from './ui';
 import { Save, ExternalLink, Trash2, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
 import {
@@ -12,7 +12,7 @@ import {
   type TaskStatus,
 } from '../lib/steps';
 import type { TaskModalProps } from '../types/props';
-import { useFormState } from '../hooks/useFormState';
+import { useFormState } from '@/hooks/ui/useFormState';
 import { isWeekendOrHoliday, getHolidayName, nextNonHolidayBusinessDay } from '../utils/holidayUtils';
 
 const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClose, onSave, onDelete, holidays }) => {

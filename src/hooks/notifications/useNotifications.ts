@@ -9,12 +9,29 @@ import {
 import type { Notification, DbNotificationRow } from '@/types/notification'
 import { toast } from 'sonner'
 
+const RECENT_DAYS = 7
+const OLDER_PAGE_SIZE = 20
+
+function getRecentAfterIso() {
+  const d = new Date()
+  d.setDate(d.getDate() - RECENT_DAYS)
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString()
+}
+
 export function useNotifications(userId?: string | null, clientIds?: string[]) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+
   const loadedRef = useRef(false)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  // Notificações antigas carregadas via "Ver anteriores" (persistem entre reloads)
+  const olderNotificationsRef = useRef<Notification[]>([])
+  // Limite de data para o próximo fetch de antigas (cursor)
+  const nextBeforeRef = useRef<string | null>(null)
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
@@ -25,8 +42,13 @@ export function useNotifications(userId?: string | null, clientIds?: string[]) {
     setError(null)
 
     try {
-      const data = await fetchNotifications(userId, clientIds)
-      setNotifications(data)
+      const after = getRecentAfterIso()
+      // Inicializa o cursor na primeira carga
+      if (nextBeforeRef.current === null) {
+        nextBeforeRef.current = after
+      }
+      const data = await fetchNotifications(userId, clientIds, { after })
+      setNotifications([...data, ...olderNotificationsRef.current])
       loadedRef.current = true
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao buscar')
@@ -34,6 +56,34 @@ export function useNotifications(userId?: string | null, clientIds?: string[]) {
       setLoading(false)
     }
   }, [userId, clientIds?.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadOlder = useCallback(async () => {
+    if (!userId || !hasMore || loadingOlder) return
+    const before = nextBeforeRef.current
+    if (!before) return
+
+    setLoadingOlder(true)
+    try {
+      const data = await fetchNotifications(userId, clientIds, {
+        before,
+        limit: OLDER_PAGE_SIZE,
+      })
+
+      if (data.length === 0) {
+        setHasMore(false)
+      } else {
+        if (data.length < OLDER_PAGE_SIZE) setHasMore(false)
+        // Cursor avança para a data da notificação mais antiga retornada
+        nextBeforeRef.current = data[data.length - 1].created_at
+        olderNotificationsRef.current = [...olderNotificationsRef.current, ...data]
+        setNotifications((prev) => [...prev, ...data])
+      }
+    } catch {
+      // falha silenciosa — botão permanece visível para tentar novamente
+    } finally {
+      setLoadingOlder(false)
+    }
+  }, [userId, clientIds?.join(','), hasMore, loadingOlder])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!userId) {
@@ -53,9 +103,7 @@ export function useNotifications(userId?: string | null, clientIds?: string[]) {
     const handleInsert = (payload: { new: DbNotificationRow }) => {
       const newNotif = payload.new
 
-      // Notificação direta para este usuário — sempre aceita
       const isForUser = newNotif.user_id === userId
-      // Broadcast para cliente — aceita se for de qualquer cliente que o usuário acessa
       const isForClient =
         newNotif.user_id === null &&
         newNotif.client_id !== null &&
@@ -156,7 +204,10 @@ export function useNotifications(userId?: string | null, clientIds?: string[]) {
     unreadCount,
     loading,
     error,
+    hasMore,
+    loadingOlder,
     reload: load,
+    loadOlder,
     markAsRead,
     markAllAsRead,
     createNotification,

@@ -17,6 +17,9 @@ interface HeaderCtx {
   onMarkAllNotificationsAsRead: () => Promise<void>
   onNotificationClick: (notification: Notification) => void
   onReloadNotifications: () => Promise<void>
+  onLoadOlderNotifications: () => Promise<void>
+  hasMoreNotifications: boolean
+  loadingOlderNotifications: boolean
 }
 
 interface SidebarCtx {
@@ -51,6 +54,9 @@ interface RouterCtx {
   onOpenNewTask: () => void
   onDeleteTask: (id: string) => void
   onUpdateTask: (task: Task) => Promise<boolean>
+  urlTaskId: string | null
+  onOpenTask: (taskId: string, subview?: "calendar" | "timeline" | "list") => void
+  onCloseTask: () => void
 }
 
 interface LayoutCtx {

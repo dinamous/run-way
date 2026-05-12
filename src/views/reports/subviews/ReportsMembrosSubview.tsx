@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useTasksQuery } from '@/hooks/useTasksQuery';
-import { useMembersQuery } from '@/hooks/useMembersQuery';
+import { useTasksQuery } from '@/hooks/tasks/useTasksQuery';
+import { useMembersQuery } from '@/hooks/members/useMembersQuery';
 import { useUIStore } from '@/store/useUIStore';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { useClients } from '@/hooks/useClients';
+import { useClients } from '@/hooks/clients/useClients';
 import { ViewState } from '@/components/ViewState';
 import { DatabaseZap, Users2 } from 'lucide-react';
 import MemberCard from '@/views/MembersView/components/MemberCard';

@@ -7,7 +7,11 @@ import {
 import { throttleAsync } from './throttle'
 import type { DbNotificationRow, Notification } from '@/types/notification'
 
-export async function fetchNotifications(userId: string, clientIds?: string[]) {
+export async function fetchNotifications(
+  userId: string,
+  clientIds?: string[],
+  options?: { after?: string; before?: string; limit?: number }
+) {
   // Notificações diretas ao usuário OU broadcasts de qualquer cliente que ele acessa
   let orFilter = `user_id.eq.${userId}`
 
@@ -18,12 +22,17 @@ export async function fetchNotifications(userId: string, clientIds?: string[]) {
     orFilter = `user_id.eq.${userId},${clientFilter}`
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('notifications')
     .select('*')
     .or(orFilter)
     .order('created_at', { ascending: false })
-    .limit(50)
+    .limit(options?.limit ?? 50)
+
+  if (options?.after) query = query.gte('created_at', options.after)
+  if (options?.before) query = query.lt('created_at', options.before)
+
+  const { data, error } = await query
 
   if (error) {
     console.error('fetchNotifications error:', error)

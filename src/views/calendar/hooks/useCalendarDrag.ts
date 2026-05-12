@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { normaliseTask, type BarItem, type DragState, type Task, type Step } from '../../../utils/dashboardUtils';
-import { usePhaseDrag } from '@/hooks/usePhaseDrag';
+import { usePhaseDrag } from '@/hooks/ui/usePhaseDrag';
 import type { Holiday } from '@/utils/holidayUtils';
 
 export function useCalendarDrag(tasks: Task[], onUpdateTask: (task: Task) => void, holidays: Holiday[] = []) {

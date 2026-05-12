@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import type { DbAuditLogRow } from '@/types/db'
 import type { DbClientRow } from '@/types/db'
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import type { AuditFilters } from '../hooks/useAdminData'
 
 interface AuditLogsPanelProps {

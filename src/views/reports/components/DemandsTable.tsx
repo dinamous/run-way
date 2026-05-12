@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { formatDateToBR } from '@/lib/utils';
 import { STEP_META } from '@/lib/steps';
 import type { StepType } from '@/lib/steps';
-import type { Member } from '@/hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 import type { EnrichedTask } from '../utils';
 import RiskBadge from './RiskBadge';
 

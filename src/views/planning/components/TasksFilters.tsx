@@ -3,7 +3,7 @@ import { Search, User, Calendar, AlertCircle, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { STEP_META, STEP_TYPES_ORDER, type StepType } from '@/lib/steps';
-import type { Member } from '@/hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 
 const PERIOD_TABS = [
   { value: '', label: 'Todos' },
@@ -112,7 +112,6 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
 
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 rounded-lg border border-border bg-muted/20">
-      {/* Search — grows to fill available space */}
       <div className="relative min-w-0 flex-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <Input
@@ -124,9 +123,7 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
         />
       </div>
 
-      {/* Controls — fixed, won't collapse or shift */}
       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-        {/* Etapa — checkbox dropdown */}
         <CheckboxDropdown
           label="Todas as etapas"
           options={STEP_TYPES_ORDER.map(s => ({ value: s, label: STEP_META[s].label }))}
@@ -134,7 +131,6 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
           onToggle={v => toggleStep(v as StepType)}
         />
 
-        {/* Responsável — checkbox dropdown */}
         <CheckboxDropdown
           label="Todos responsáveis"
           icon={<User className="w-4 h-4 shrink-0" />}
@@ -143,7 +139,6 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
           onToggle={toggleMember}
         />
 
-        {/* Período (prazo) */}
         <div className="flex items-center gap-1 border border-input bg-background rounded-md px-2 py-1">
           <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
           {PERIOD_TABS.map(tab => (
@@ -161,7 +156,6 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
           ))}
         </div>
 
-        {/* Bloqueadas toggle */}
         <button
           onClick={() => onChange({ showOnlyBlocked: !showOnlyBlocked })}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md border transition-colors whitespace-nowrap ${
@@ -174,7 +168,6 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
           Bloqueadas
         </button>
 
-        {/* Limpar — reserva espaço fixo para evitar layout shift */}
         <div className="w-[68px]">
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={onClear} className="w-full">

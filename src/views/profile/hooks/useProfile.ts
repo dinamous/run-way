@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { DbUserPreferencesSchema } from '@/lib/validators'
-import { useThrottledMutation } from '@/hooks/useThrottledMutation'
+import { useThrottledMutation } from '@/hooks/infra/useThrottledMutation'
 
 export interface UserPreferences {
   id: string

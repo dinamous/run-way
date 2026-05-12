@@ -24,7 +24,7 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 
 ## ADR-003: Roteamento manual sem React Router
 
-**Status:** Aceito (Abr 2026)
+**Status:** Substituído por ADR-016 (Abr 2026)
 **Decisão:** Roteamento implementado via `useUIStore` (view string enum) + renderização condicional em `App.tsx`
 **Racional:** a aplicação é um SPA com estados bem definidos (loading → não autenticado → onboarding → app); o grafo de navegação é simples e não se beneficia de URLs parametrizadas ou lazy-loading por rota
 **Consequências:** sem URLs navegáveis por deep link; adicionar URL-based routing no futuro exigiria refatoração da orquestração em `App.tsx`
@@ -136,3 +136,30 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 **Decisão:** a policy de leitura de `members` usa `USING (true)` para qualquer usuário autenticado — sem filtro por cliente
 **Racional:** todas as abordagens tentadas para restringir visibilidade por cliente (subquery em `members`, `SECURITY DEFINER`, tabela auxiliar `member_roles`) resultaram em `infinite recursion` no Supabase; a visibilidade plana é aceitável dado que a aplicação é interna
 **Consequências:** qualquer usuário autenticado vê todos os membros; filtro por cliente é feito no cliente via `user_clients` (com policy `user_read_same_client_user_clients` que não causa recursão)
+
+---
+
+## ADR-016: Roteamento via React Router DOM com slugs de cliente
+
+**Status:** Aceito (Abr 2026)
+**Decisão:** React Router DOM v6 substituiu o roteamento manual (ADR-003); cada view tem uma URL própria baseada no slug do cliente; `useAppNavigation` encapsula URL ↔ ViewType; `BrowserRouter` wraps o `App` no `main.tsx`
+**Racional:** deep linking (compartilhar link de uma task, de uma view específica), navegação pelo browser (botões voltar/avançar), abertura de tasks por URL (`/:clientSlug/tasks/:subview/id/:taskId`) — todos impossíveis sem URL-based routing; o crescimento da app tornou a manutenção do roteamento manual custosa
+**Consequências:** slug do cliente é lido do campo `slug` da tabela `clients` (já existente); `useUIStore.view` e `useClientStore` são mantidos para compatibilidade com código legado mas a source of truth é a URL; fechar o modal de task limpa o segmento `/id/:taskId` da URL; `vercel.json` já possuía rewrite `/*` → `/` (sem mudança necessária)
+
+---
+
+## ADR-017: ClientPickerView como tela obrigatória de seleção de cliente
+
+**Status:** Aceito (Abr 2026)
+**Decisão:** qualquer rota sem `effectiveClientId` válido (sem slug, slug inválido, `/clients`, etc.) exibe `ClientPickerView` com cards dos clientes disponíveis — exceto `/profile`, que é genuinamente global; se houver um cliente válido em cache (`cachedClient` de `useClientStore`), o redirect ocorre automaticamente sem exibir a tela de seleção; `App.tsx` renderiza `ClientPickerLayout` quando `!effectiveClientId && !isProfileView`
+**Racional:** o guard anterior (`!clientSlug`) só cobria ausência de slug, deixando rotas como `/clients` ou slugs inválidos caírem no `AppLayout` sem cliente, causando estado ambíguo; expandir o guard para `!effectiveClientId` cobre todos os casos estruturalmente; o redirect via `cachedClient` preserva a experiência de retorno sem fricção
+**Consequências:** `/clients` não é mais uma rota global tratada separadamente — redireciona para o cliente em cache preservando a view (ex: `/clients` → `/:slug/client-info`) ou exibe a tela de seleção; `useAppOrchestrator` expõe `cachedClient`, `navigateTo` e `navigateToClient`; o redirect usa `useEffect` para evitar loop de re-render (`selectClient` durante render causava "Too many re-renders"); `isGlobalView` foi simplificado para `isProfileView` em `App.tsx`
+
+---
+
+## ADR-018: AdminView com rota escopada por cliente (`/:clientSlug/admin`)
+
+**Status:** Aceito (Abr 2026)
+**Decisão:** a `AdminView` passa a ser acessada via `/:clientSlug/admin` em vez de `/admin` (rota global sem slug); `admin` foi removido de `GLOBAL_ROUTES` em `useAppNavigation`; a regra em `accessControl.ts` passou a ter `requiresClient: true`
+**Racional:** admin gerencia dados (clientes, membros, notificações) que pertencem a uma empresa específica; ter o `clientSlug` na URL mantém consistência com o restante da aplicação, permite deep links contextuais e prepara a estrutura para um futuro multi-tenant onde cada empresa terá seu próprio escopo de admin
+**Consequências:** a URL `/admin` deixa de existir (redireciona para `/` via wildcard); é necessário ter um cliente selecionado para acessar admin; `isGlobalView` em `App.tsx` não inclui mais `"admin"`, logo admin usa o `AppLayout` normal com sidebar

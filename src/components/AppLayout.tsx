@@ -22,6 +22,9 @@ interface AppLayoutProps {
   onMarkAllNotificationsAsRead: () => Promise<void>
   onNotificationClick: (notification: Notification) => void
   onReloadNotifications: () => Promise<void>
+  onLoadOlderNotifications: () => Promise<void>
+  hasMoreNotifications: boolean
+  loadingOlderNotifications: boolean
   sidebarOpen: boolean
   mobileSidebarOpen: boolean
   onToggleSidebar: () => void
@@ -44,6 +47,9 @@ interface AppLayoutProps {
   onOpenNewTask: () => void
   onDeleteTask: (id: string) => void
   onUpdateTask: (task: Task) => Promise<boolean>
+  urlTaskId: string | null
+  onOpenTask: (taskId: string, subview?: "calendar" | "timeline" | "list") => void
+  onCloseTask: () => void
 }
 
 export function AppLayout(props: AppLayoutProps) {
@@ -52,12 +58,14 @@ export function AppLayout(props: AppLayoutProps) {
     notifications, unreadCount, selectedClientId,
     onToggleMobileSidebar, onMarkNotificationAsRead, onMarkAllNotificationsAsRead,
     onNotificationClick, onReloadNotifications,
+    onLoadOlderNotifications, hasMoreNotifications, loadingOlderNotifications,
     sidebarOpen, mobileSidebarOpen, onToggleSidebar, onCloseMobileSidebar,
     view, onViewChange, hasClients, role,
     userEmail, userAvatarUrl, onSignOut,
     selectedClient, availableClients, onSelectClient, isAdmin,
     effectiveClientId, userName, holidays,
     onEditTask, onOpenNewTask, onDeleteTask, onUpdateTask,
+    urlTaskId, onOpenTask, onCloseTask,
   } = props
 
   return (
@@ -69,6 +77,7 @@ export function AppLayout(props: AppLayoutProps) {
         onToggleMobileSidebar,
         onMarkNotificationAsRead, onMarkAllNotificationsAsRead,
         onNotificationClick, onReloadNotifications,
+        onLoadOlderNotifications, hasMoreNotifications, loadingOlderNotifications,
       },
       sidebar: {
         sidebarOpen, mobileSidebarOpen, onToggleSidebar, onCloseMobileSidebar,
@@ -81,6 +90,7 @@ export function AppLayout(props: AppLayoutProps) {
         effectiveClientId, selectedClient, userName, userEmail,
         holidays, hasClients, onViewChange,
         onEditTask, onOpenNewTask, onDeleteTask, onUpdateTask,
+        urlTaskId, onOpenTask, onCloseTask,
       },
     }}>
       <div className="flex flex-col h-screen bg-background text-foreground font-sans">

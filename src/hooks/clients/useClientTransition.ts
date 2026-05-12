@@ -1,8 +1,6 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { useClientStore } from "@/store/useClientStore";
-import { useUIStore } from "@/store/useUIStore";
 import { queryKeys } from "@/lib/queries";
 import type { ClientOption } from "@/contexts/AuthContext";
 
@@ -11,34 +9,26 @@ interface TransitionTarget {
   name: string;
 }
 
-/**
- * Handles the animated client-switch flow:
- * shows `ClientTransitionOverlay`, then swaps the active client in stores.
- */
 export function useClientTransition(
   clients: ClientOption[],
-  effectiveClientId: string | null | undefined
+  effectiveClientId: string | null | undefined,
+  onNavigateToClient: (client: ClientOption) => void
 ) {
   const queryClient = useQueryClient();
-  const setClient = useClientStore((s) => s.setClient);
-  const setView = useUIStore((s) => s.setView);
-
   const [transitionTarget, setTransitionTarget] = useState<TransitionTarget | null>(null);
 
   const selectClient = useCallback((clientId: string | null | undefined) => {
     const target = clients.find((c) => c.id === clientId);
     if (!target || clientId === effectiveClientId) return;
 
-    // Show overlay first; after fade-in (~650ms) trigger the swap so data fetches happen in background
     setTransitionTarget({ id: clientId, name: target.name });
     setTimeout(() => {
-      setClient(clientId);
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks(clientId ?? null, false) });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-      setView("home");
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      onNavigateToClient(target);
     }, 650);
-  }, [clients, effectiveClientId, setClient, queryClient, setView]);
+  }, [clients, effectiveClientId, queryClient, onNavigateToClient]);
 
   const onTransitionComplete = useCallback(() => {
     if (!transitionTarget) return;

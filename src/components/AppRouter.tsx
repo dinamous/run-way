@@ -5,14 +5,13 @@ import type { ViewType } from "@/store/useUIStore";
 import type { ReportsSubview } from "@/views/reports/ReportsView";
 import { useLayoutContext } from "@/contexts/LayoutContext";
 
-const DashboardView  = lazy(() => import("@/views/dashboard").then(m => ({ default: m.DashboardView })));
+const PlanningView   = lazy(() => import("@/views/planning").then(m => ({ default: m.PlanningView })));
 const MembersView    = lazy(() => import("@/views/MembersView"));
 const ReportsView    = lazy(() => import("@/views/reports"));
 const AdminView      = lazy(() => import("@/views/admin").then(m => ({ default: m.AdminView })));
 const UserClientsView = lazy(() => import("@/views/user/UserClientsView").then(m => ({ default: m.UserClientsView })));
 const HomeView       = lazy(() => import("@/views/home").then(m => ({ default: m.HomeView })));
 const ToolsView      = lazy(() => import("@/views/tools").then(m => ({ default: m.ToolsView })));
-const TasksView      = lazy(() => import("@/views/tasks"));
 const ProfileView    = lazy(() => import("@/views/profile").then(m => ({ default: m.ProfileView })));
 
 function ViewSkeleton() {
@@ -23,11 +22,10 @@ function ViewSkeleton() {
   );
 }
 
-
-type DashboardSubview = "calendar" | "timeline" | "list";
+type PlanningSubview = "calendar" | "timeline" | "list" | "demandas";
 type ToolsSubview = Extract<ViewType, "tools-briefing-analyzer" | "tools-import" | "tools-export" | "tools-integrations">;
 
-const DASHBOARD_VIEWS = new Set<ViewType>(["calendar", "timeline", "list"]);
+const PLANNING_VIEWS = new Set<ViewType>(["calendar", "timeline", "list", "demandas"]);
 const TOOLS_VIEWS = new Set<ViewType>(["tools", "tools-briefing-analyzer", "tools-import", "tools-export", "tools-integrations"]);
 const REPORTS_VIEWS = new Set<ViewType>(["reports", "reports-fluxo", "reports-timeline", "reports-membros", "reports-alertas"]);
 
@@ -60,10 +58,6 @@ export function AppRouter() {
     return <NoClientView hasClients={false} onGoToClients={goToClients} />;
   }
 
-  if (hasClients && !effectiveClientId && view !== "clients") {
-    return <NoClientView hasClients={true} onGoToClients={goToClients} />;
-  }
-
   return (
     <Suspense fallback={<ViewSkeleton />}>
       {view === "home" && (
@@ -77,11 +71,11 @@ export function AppRouter() {
 
       {view === "admin" && <RequireAdmin><AdminView /></RequireAdmin>}
 
-      {view === "clients" && <UserClientsView client={selectedClient ?? null} />}
+      {(view === "clients") && <UserClientsView client={selectedClient ?? null} />}
 
-      {DASHBOARD_VIEWS.has(view) && (
-        <DashboardView
-          subview={view as DashboardSubview}
+      {PLANNING_VIEWS.has(view) && (
+        <PlanningView
+          subview={view as PlanningSubview}
           onEdit={onEditTask}
           onDelete={onDeleteTask}
           onUpdateTask={onUpdateTask}
@@ -90,8 +84,6 @@ export function AppRouter() {
           holidays={holidays}
         />
       )}
-
-      {view === "demandas" && <TasksView onEdit={onEditTask} onOpenNew={onOpenNewTask} />}
 
       {view === "profile" && <ProfileView />}
 

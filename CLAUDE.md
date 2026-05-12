@@ -63,8 +63,7 @@ npm run lint      # ESLint
 | Quando precisar de... | Ler |
 |---|---|
 | Estrutura, fluxo de dados, decisões | [docs/architecture.md](docs/architecture.md) |
-| DashboardView, Calendar, Timeline, drag-drop | [docs/views/dashboard.md](docs/views/dashboard.md) |
-| TasksView, filtros, badge de prazo, ActionMenu | [docs/views/tasks.md](docs/views/tasks.md) |
+| PlanningView, Calendar, Timeline, Demandas, drag-drop | [docs/views/planning.md](docs/views/planning.md) |
 | MembersView, capacidade | [docs/views/members.md](docs/views/members.md) |
 | AdminView, UsersPanel, useAdminData, useAdminStore | [docs/views/admin.md](docs/views/admin.md) |
 | ProfileView, useProfile, user_preferences | [docs/views/profile.md](docs/views/profile.md) |

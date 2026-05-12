@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
-import { useThrottledMutation } from '@/hooks/useThrottledMutation'
+import { useThrottledMutation } from '@/hooks/infra/useThrottledMutation'
 import type { Task } from '@/lib/steps'
 
 const THROTTLE_MS = 500

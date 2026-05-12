@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { DbClientRow, DbAuditLogRow } from '@/types/db'
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import {
   adminFetchClients,
   adminFetchMembers,

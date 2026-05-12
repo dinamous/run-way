@@ -1,4 +1,4 @@
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import type { ViewType } from '@/store/useUIStore'
 
 export type AccessRole = 'admin' | 'user'
@@ -64,8 +64,15 @@ const VIEW_RULES: Record<ViewType, ViewRule> = {
 }
 
 export function resolveAccessRole(member: Member | null): AccessRole | null {
-  if (!member?.access_role) return null
-  return member.access_role === 'admin' ? 'admin' : 'user'
+  if (!member) return null
+  const explicitAccessRole = member.access_role?.trim().toLowerCase()
+  if (explicitAccessRole === 'admin' || explicitAccessRole === 'user') return explicitAccessRole
+
+  const legacyRole = member.role?.trim().toLowerCase() ?? ''
+  if (legacyRole === 'admin' || legacyRole === 'user') return legacyRole
+  if (legacyRole.includes('admin')) return 'admin'
+
+  return 'user'
 }
 
 export function hasRolePermission(role: AccessRole | null, permission: AppPermission): boolean {

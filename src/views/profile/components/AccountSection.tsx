@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { User, Mail, Shield, Calendar } from 'lucide-react'
 import { Button, Input, Label, Badge } from '@/components/ui'
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import type { ProfileFormData } from '../hooks/useProfile'
 
 interface AccountSectionProps {

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/Drawer'
 import { toast } from 'sonner'
 import type { DbClientRow } from '@/types/db'
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import { Plus, Trash2, Users, Search, ChevronLeft, ChevronRight, Clock, Building } from 'lucide-react'
 
 interface ClientsPanelProps {

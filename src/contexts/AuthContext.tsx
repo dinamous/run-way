@@ -1,12 +1,13 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { Member } from '@/hooks/useSupabase'
+import type { Member } from '@/hooks/infra/useSupabase'
 import { toSafeUiErrorMessage } from '@/lib/errorSanitizer'
 import { DbMemberRowSchema, DbClientRowSchema, DbUserClientRowSchema } from '@/lib/validators'
 import { getSafeRedirectUrl } from '@/lib/securityRedirect'
 import { toast } from 'sonner'
 import { useClientStore } from '@/store/useClientStore'
+import { resolveAccessRole } from '@/lib/accessControl'
 
 export interface ClientOption {
   id: string
@@ -112,7 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const allClients = (rawClients ?? []).map(c => DbClientRowSchema.parse(c))
 
-      if (memberData.access_role !== 'admin') {
+      const accessRole = resolveAccessRole(memberData as Member)
+
+      if (accessRole !== 'admin') {
         const { data: uc } = await supabase
           .from('user_clients')
           .select('client_id')
@@ -161,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const currentMember = memberRef.current
-    if (!currentMember || currentMember.access_role === 'admin') return
+    if (!currentMember || resolveAccessRole(currentMember) === 'admin') return
 
     const channel = supabase
       .channel(`user_clients:${currentMember.id}`)
@@ -308,7 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       session, user, member, clients,
-      isAdmin: member?.access_role === 'admin',
+      isAdmin: resolveAccessRole(member) === 'admin',
       impersonatedClientId, setImpersonatedClientId,
       signIn, signOut, authError, loading, refreshProfile,
     }}>

@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Link2, AlertCircle, Clock } from 'lucide-react';
 import { STEP_META, type Task, type StepType } from '@/lib/steps';
-import type { Member } from '@/hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 import { formatDueDate } from '../utils';
 import { ActionMenu } from './ActionMenu';
 

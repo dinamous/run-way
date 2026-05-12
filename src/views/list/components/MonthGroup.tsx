@@ -1,5 +1,5 @@
 import type { Task } from '@/lib/steps';
-import type { Member } from '@/hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 import type { NormalisedTask } from '../hooks/useListFilters';
 import { DemandRow } from './DemandRow';
 

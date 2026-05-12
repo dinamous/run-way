@@ -23,7 +23,10 @@ useNotifications(userId?: string | null, clientIds?: string[])
   unreadCount: number
   loading: boolean
   error: string | null
+  hasMore: boolean
+  loadingOlder: boolean
   reload: () => Promise<void>
+  loadOlder: () => Promise<void>
   markAsRead: (id: string) => Promise<void>
   markAllAsRead: () => Promise<void>
   createNotification: (title, message, type?, metadata?) => Promise<void>
@@ -33,7 +36,10 @@ useNotifications(userId?: string | null, clientIds?: string[])
 ## Comportamento
 
 ### Fetch inicial
-Chama `fetchNotifications(userId, clientIds)` na montagem. Evita refetch desnecessário com `loadedRef`.
+Busca apenas os **últimos 7 dias** de notificações (`created_at >= hoje - 7d`). Evita refetch desnecessário com `loadedRef`.
+
+### Paginação para notificações antigas
+`loadOlder` busca a página anterior ao cursor (`nextBeforeRef`), trazendo até 20 itens por chamada. O cursor avança para o `created_at` da notificação mais antiga retornada. Quando o retorno vier com menos de 20 itens ou vazio, `hasMore` passa a `false`. Notificações antigas ficam em `olderNotificationsRef` e sobrevivem a reloads de polling.
 
 ### Realtime
 Escuta `INSERT` na tabela `notifications` via Supabase channel. Aceita a notificação se:
@@ -58,14 +64,18 @@ const { notifications, unreadCount, ... } = useNotifications(member?.id, allClie
 # fetchNotifications
 
 ```ts
-fetchNotifications(userId: string, clientIds?: string[]): Promise<Notification[]>
+fetchNotifications(
+  userId: string,
+  clientIds?: string[],
+  options?: { after?: string; before?: string; limit?: number }
+): Promise<Notification[]>
 ```
 
-Busca as últimas 50 notificações relevantes para o usuário:
+Busca notificações relevantes para o usuário:
 - `user_id = userId` — notificações pessoais
 - `user_id IS NULL AND client_id IN (clientIds)` — broadcasts dos clientes do usuário
 
-Ordena por `created_at DESC`.
+Aceita filtros de data (`after` / `before` em ISO 8601) e `limit` (padrão 50). Ordena por `created_at DESC`.
 
 ---
 
@@ -93,12 +103,19 @@ Componente de sino com dropdown. Recebe notificações já carregadas via props 
 | `onMarkAllAsRead` | `() => void` | Marca todas como lidas |
 | `onNotificationClick` | `(n) => void` | Ação ao clicar — navega dentro do cliente atual, não troca de cliente |
 | `reload` | `() => void` | Callback de reload (usado pelo polling) |
+| `onLoadOlder` | `() => void` | Carrega a próxima página de notificações antigas |
+| `hasMore` | `boolean` | Se ainda há notificações mais antigas a buscar |
+| `loadingOlder` | `boolean` | Estado de loading do `onLoadOlder` |
 | `selectedClientId` | `string \| null` | Cliente ativo — usado apenas para filtrar a aba "Cliente atual" |
 
 ## Tabs
 
-- **Todas** — todas as notificações do usuário
+- **Todas** — notificações dos últimos 7 dias + antigas carregadas via "Ver anteriores"
 - **Cliente atual** — filtra por `client_id === selectedClientId`
+
+## Paginação
+
+O botão **"Ver anteriores"** aparece no rodapé da aba "Todas" enquanto `hasMore = true`. Cada clique chama `onLoadOlder`, que busca a próxima página (até 20 itens) anterior ao cursor atual. O botão some quando não há mais páginas disponíveis.
 
 ---
 

@@ -6,7 +6,7 @@
  */
 
 import type { Task } from '../lib/steps';
-import type { Member } from '../hooks/useSupabase';
+import type { Member } from '@/hooks/infra/useSupabase';
 import type { Holiday } from '../utils/holidayUtils';
 import type { CalendarViewMode } from '../utils/dashboardUtils';
 
@@ -24,10 +24,10 @@ export interface TaskModalProps {
   holidays: Holiday[];
 }
 
-// ─── DashboardView ────────────────────────────────────────────────────────────
+// ─── PlanningView ─────────────────────────────────────────────────────────────
 
-export interface DashboardViewProps {
-  subview: 'calendar' | 'timeline' | 'list';
+export interface PlanningViewProps {
+  subview: 'calendar' | 'timeline' | 'list' | 'demandas';
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
