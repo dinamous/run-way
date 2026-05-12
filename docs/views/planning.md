@@ -28,7 +28,7 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | `src/views/planning/components/FilterBar.tsx` | Barra de filtros usada por calendar e timeline |
 | `src/views/planning/components/MetricsBar.tsx` | Cards de métricas (saúde operacional, em andamento, bloqueadas) |
 | `src/views/planning/components/StepsLegend.tsx` | Legenda de cores das fases |
-| `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, etapa, responsável, período, bloqueadas) |
+| `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, etapa, responsável, período, bloqueadas, concluídas) |
 | `src/views/planning/components/StepGroup.tsx` | Grupo colapsável de tasks por etapa (usado em `demandas`) |
 | `src/views/planning/components/TaskRow.tsx` | Linha de uma demanda no subview `demandas` |
 | `src/views/planning/components/ActionMenu.tsx` | Dropdown de ações rápidas (abrir, ClickUp, concluir, bloquear) |
@@ -81,6 +81,7 @@ Barra de filtros com `CheckboxDropdown` customizado para etapa e responsável. F
 | Responsável | `selectedMemberIds: string[]` — qualquer assignee de qualquer step |
 | Período (prazo) | Tabs "Todos / 7d / 15d / 30d" — compara `currentStep.end` com `today + N dias` |
 | Bloqueadas | Toggle — filtra `task.status.blocked === true` |
+| Concluídas | Toggle — mostra tarefas com `task.concludedAt` preenchido (default: ocultas) |
 
 ### Ordenação dentro dos grupos
 Tasks ordenadas por `end` do step correspondente — da mais atrasada para a mais recente. Sem data ficam no final.

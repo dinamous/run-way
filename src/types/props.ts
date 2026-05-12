@@ -28,6 +28,7 @@ export interface TaskModalProps {
 
 export interface PlanningViewProps {
   subview: 'calendar' | 'timeline' | 'list' | 'demandas';
+  onViewChange: (view: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;

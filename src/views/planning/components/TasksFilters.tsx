@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, User, Calendar, AlertCircle, ChevronDown } from 'lucide-react';
+import { Search, User, Calendar, AlertCircle, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { STEP_META, STEP_TYPES_ORDER, type StepType } from '@/lib/steps';
@@ -18,6 +18,7 @@ export interface FiltersState {
   selectedMemberIds: string[];
   selectedPeriod: string;
   showOnlyBlocked: boolean;
+  showConcluded: boolean;
 }
 
 interface TasksFiltersProps {
@@ -93,8 +94,8 @@ function CheckboxDropdown({
 }
 
 export function TasksFilters({ filters, members, onChange, onClear }: TasksFiltersProps) {
-  const { searchTerm, selectedSteps, selectedMemberIds, selectedPeriod, showOnlyBlocked } = filters;
-  const hasActiveFilters = searchTerm !== '' || selectedSteps.length > 0 || selectedMemberIds.length > 0 || selectedPeriod !== '' || showOnlyBlocked;
+  const { searchTerm, selectedSteps, selectedMemberIds, selectedPeriod, showOnlyBlocked, showConcluded } = filters;
+  const hasActiveFilters = searchTerm !== '' || selectedSteps.length > 0 || selectedMemberIds.length > 0 || selectedPeriod !== '' || showOnlyBlocked || showConcluded;
 
   function toggleStep(step: StepType) {
     const next = selectedSteps.includes(step)
@@ -166,6 +167,18 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
         >
           <AlertCircle className="w-3.5 h-3.5" />
           Bloqueadas
+        </button>
+
+        <button
+          onClick={() => onChange({ showConcluded: !showConcluded })}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md border transition-colors whitespace-nowrap ${
+            showConcluded
+              ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800'
+              : 'bg-background text-muted-foreground border-input hover:bg-muted'
+          }`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          Concluídas
         </button>
 
         <div className="w-[68px]">

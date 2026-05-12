@@ -96,6 +96,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
 
   const createTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt'>): Promise<boolean> => {
     const resolvedClientId = taskData.clientId ?? clientId ?? null
+    devLog('[createTask] iniciando criação, clientId:', resolvedClientId, 'title:', taskData.title)
 
     const { data: taskRow, error: taskErr } = await supabase
       .from('tasks')
@@ -109,6 +110,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       .select('id')
       .single()
 
+    devLog('[createTask] insert tasks respondeu, taskRow:', taskRow, 'taskErr:', taskErr)
     if (taskErr || !taskRow) {
       toast.error(toSafeUiErrorMessage(taskErr?.message))
       return false

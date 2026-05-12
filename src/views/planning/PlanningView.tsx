@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useUIStore } from '@/store/useUIStore';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { useTasksQuery } from '@/hooks/tasks/useTasksQuery';
 import { useMembersQuery } from '@/hooks/members/useMembersQuery';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import { StepsLegend } from './components/StepsLegend';
 import { TasksFilters, type FiltersState } from './components/TasksFilters';
 import { StepGroup } from './components/StepGroup';
 import type { PlanningViewProps } from '@/types/props';
+import { useUIStore } from '@/store/useUIStore';
 import { ViewState } from '@/components/ViewState';
 import { CalendarX2, DatabaseZap, FilterX, Search, Plus } from 'lucide-react';
 import { Skeleton } from 'boneyard-js/react';
@@ -40,6 +41,7 @@ const EMPTY_FILTERS: FiltersState = {
   selectedMemberIds: [],
   selectedPeriod: '',
   showOnlyBlocked: false,
+  showConcluded: false,
 };
 
 const VIEW_TITLES: Record<string, { title: string; description: string }> = {
@@ -49,7 +51,13 @@ const VIEW_TITLES: Record<string, { title: string; description: string }> = {
   demandas: { title: 'Demandas', description: 'Visualize todas as demandas por etapa atual.' },
 };
 
-const PlanningView: React.FC<PlanningViewProps> = ({ subview, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
+const DEMAND_TABS = [
+  { value: 'demandas', label: 'Todas as Demandas' },
+  { value: 'calendar', label: 'Calendário' },
+  { value: 'timeline', label: 'Linha do Tempo' },
+] as const;
+
+const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
   const { isAdmin, member } = useAuthContext();
   const { effectiveClientId } = useClients();
   const queryClient = useQueryClient();
@@ -91,8 +99,11 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onEdit, onDelete, 
 
   const filteredDemandasTasks = useMemo(() => {
     if (subview !== 'demandas') return [];
-    const { searchTerm, selectedSteps, selectedMemberIds, showOnlyBlocked, selectedPeriod } = demandasFilters;
+    const { searchTerm, selectedSteps, selectedMemberIds, showOnlyBlocked, selectedPeriod, showConcluded } = demandasFilters;
     return tasks.filter(task => {
+      const isConcluded = !!task.concludedAt;
+      if (!showConcluded && isConcluded) return false;
+
       const matchSearch =
         task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.id.toLowerCase().includes(searchTerm.toLowerCase());
@@ -190,6 +201,16 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onEdit, onDelete, 
 
   const content = (
     <div className="space-y-5">
+      <Tabs value={subview} onValueChange={(v) => onViewChange(v)}>
+        <TabsList variant="underline" className="w-full justify-end gap-0">
+          {DEMAND_TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value} variant="underline">
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
       <div>
         <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
         <p className="text-muted-foreground text-sm">{description}</p>

@@ -76,6 +76,7 @@ export function AppRouter() {
       {PLANNING_VIEWS.has(view) && (
         <PlanningView
           subview={view as PlanningSubview}
+          onViewChange={onViewChange}
           onEdit={onEditTask}
           onDelete={onDeleteTask}
           onUpdateTask={onUpdateTask}
