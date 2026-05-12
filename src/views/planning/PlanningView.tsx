@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useClients } from '@/hooks/clients/useClients';
 import { useTaskQuickActions } from '@/hooks/tasks/useTaskQuickActions';
+import { useSubtaskQuickEdit } from '@/hooks/tasks/useSubtaskQuickEdit';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
 import { ListView } from '@/views/list';
@@ -68,6 +69,10 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
   const membersError = membersErr?.message ?? null;
 
   const { concludeTask, toggleBlock } = useTaskQuickActions(member?.auth_user_id);
+  const { updateSubtaskAssignees, updateSubtaskDates } = useSubtaskQuickEdit({
+    clientId: effectiveClientId,
+    isAdmin,
+  });
 
   const {
     filterAssignee, setFilterAssignee,
@@ -258,6 +263,8 @@ const hasDemandasActiveFilters =
               onToggleBlock={toggleBlock}
               onConclude={concludeTask}
               onEdit={onEdit}
+              onUpdateSubtaskAssignees={updateSubtaskAssignees}
+              onUpdateSubtaskDates={updateSubtaskDates}
             />
           )}
         </div>

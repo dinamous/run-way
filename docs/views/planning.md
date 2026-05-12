@@ -29,7 +29,13 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | `src/views/planning/components/MetricsBar.tsx` | Cards de métricas (saúde operacional, em andamento, bloqueadas) |
 | `src/views/planning/components/StepsLegend.tsx` | Legenda de cores das fases |
 | `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, etapa, responsável, período, bloqueadas, concluídas) |
-| `src/views/planning/components/TaskTable.tsx` | Tabela hierárquica: task como linha-pai colapsável, subtasks como linhas-filho com colunas (etapa, título, período, prazo, responsáveis) |
+| `src/views/planning/components/TaskTable.tsx` | Componente raiz da tabela — itera tasks e delega para `TaskTableRow` |
+| `src/views/planning/components/TaskTableRow.tsx` | Linha-pai colapsável de uma task com progresso, prazo, avatares e painel de subtasks |
+| `src/views/planning/components/SubtaskRow.tsx` | Linha-filho de uma subtask com ícone de status, badge de etapa, `DatesPopover` e `AssigneesPopover` |
+| `src/views/planning/components/MemberAvatars.tsx` | Avatares empilhados de membros (tamanhos `sm`/`xs`); placeholder `?` quando sem responsável |
+| `src/views/planning/components/AssigneesPopover.tsx` | Popover de atribuição de responsáveis — renderizado via `createPortal` no `document.body` |
+| `src/views/planning/components/DatesPopover.tsx` | Popover de edição de período (start/end) — renderizado via `createPortal` no `document.body` |
+| `src/views/planning/components/usePopover.ts` | Hook de controle de popover: open/close, posicionamento via `getBoundingClientRect`, fechar ao clicar fora ou `Escape` |
 | `src/views/planning/components/StepGroup.tsx` | **Legado** — grupo colapsável por etapa (substituído por `TaskTable`) |
 | `src/views/planning/components/TaskRow.tsx` | **Legado** — linha de demanda no modo "Por etapa" (substituído por `TaskTable`) |
 | `src/views/planning/components/TaskList.tsx` | **Legado** — lista de demandas com subtasks expandidas (substituído por `TaskTable`) |
@@ -61,22 +67,40 @@ Componente principal do subview `demandas`. Cada **task** é uma linha-pai colap
 - Título clicável (`onEdit`) com risco se bloqueada ou concluída
 - Badges "Bloqueada" e "Concluída"
 - Ícone `Link2` inline para ClickUp
+- **Barra de progresso** (visível em `md+`): percentual de subtasks concluídas; verde em 100%, cor primária caso contrário
 - Contador de etapas, badge de prazo (da subtask ativa), avatares de todos os responsáveis
 - `ActionMenu` com `stopPropagation`
 
-**Linhas das subtasks (filhas):** colunas alinhadas com cabeçalho visual:
+**Painel expandido das subtasks:** header interno alinhado ao grid + linha vertical da árvore (`absolute left-[18px]`) com traço horizontal em cada subtask. Grid fixo `grid-cols-[180px_1fr_110px_90px_auto]`.
 
 | Coluna | Conteúdo |
 |---|---|
-| Etapa | Pill colorida com `STEP_META.label` + indicador "ativa" em verde |
+| Etapa | Ícone de status contextual + pill colorida com `STEP_META.label` |
 | Título | Texto livre da subtask (`subtask.title`) |
-| Período | `DD/MM → DD/MM` (start e end) |
-| Prazo | Badge `formatDueDate` — exibido apenas na subtask ativa |
-| Resp. | Avatares dos responsáveis da subtask |
+| Período | `DD/MM → DD/MM` em `font-mono` — clicável; abre `DatesPopover` para editar start/end inline |
+| Prazo | Badge `formatDueDate` — exibido para **todas** as subtasks; `—` quando sem data |
+| Resp. | Avatares dos responsáveis; botão `+` dashed quando sem responsável — clicável; abre `AssigneesPopover` para atribuir/remover membros inline |
+
+**Ícones de status da subtask (`SubtaskStatusIcon`):**
+
+| Estado | Ícone |
+|---|---|
+| Concluída (task) | `CheckCircle2` verde |
+| Ativa + bloqueada | `AlertTriangle` laranja |
+| Ativa + atrasada | `AlertCircle` vermelho |
+| Ativa normal | `PlayCircle` azul |
+| Pendente | `Circle` pequeno em muted |
+
+**Edição inline de subtasks:**
+
+`AssigneesPopover` — abre ao clicar no avatar ou no botão `+` da coluna Resp. Lista todos os membros com toggle (checkbox visual). Persiste via `useSubtaskQuickEdit.updateSubtaskAssignees` — diff de adds/removes direto em `subtask_assignees`. Update otimista no cache TanStack Query.
+
+`DatesPopover` — abre ao clicar no período da coluna Período. Dois `<input type="date">` (início/fim) com botões Cancelar/Salvar. Persiste via `useSubtaskQuickEdit.updateSubtaskDates` — UPDATE direto em `task_subtasks`. Fecha ao salvar com sucesso.
+
+Ambos fecham ao clicar fora ou pressionar `Escape` (hook `usePopover`). Renderizam via `createPortal` no `document.body` com `z-index: 9999` e posicionamento calculado por `getBoundingClientRect + scrollY/scrollX` — isso evita corte por `overflow:hidden` das rows da tabela. `PlanningView` instancia `useSubtaskQuickEdit` e passa `onUpdateSubtaskAssignees` e `onUpdateSubtaskDates` para `TaskTable`.
 
 **Comportamentos:**
 - Tasks expandidas por padrão quando há filtros ativos
-- Subtask ativa destacada com indicador `● ativa` em emerald
 - Tasks bloqueadas: fundo vermelho sutil em task e subtasks
 - Tasks concluídas: opacidade reduzida, título riscado
 - Subtasks sem datas mostram `—` no campo Período

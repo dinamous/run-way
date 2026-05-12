@@ -28,6 +28,12 @@ Aplicado em: `useSupabase` (500ms), `useTaskQuickActions` (500ms), `useUserClien
 
 `useTaskQuickActions` (`src/hooks/useTaskQuickActions.ts`) centraliza os toggles rápidos de bloqueio e conclusão, usados por `ListView` e `TasksView` — elimina código duplicado e garante throttle consistente.
 
+`useSubtaskQuickEdit` (`src/hooks/tasks/useSubtaskQuickEdit.ts`) — mutations granulares de subtask sem passar pela modal. Expõe:
+- `updateSubtaskAssignees(task, subtaskId, assignees[])` — diff de adds/removes em `subtask_assignees` com update otimista no cache
+- `updateSubtaskDates(task, subtaskId, start, end)` — UPDATE direto em `task_subtasks.start_date / end_date` com update otimista no cache
+
+Usado por `PlanningView` (subview `demandas`) para alimentar os popovers inline de `TaskTable`.
+
 ## Update otimista (`updateTask`)
 
 ```
