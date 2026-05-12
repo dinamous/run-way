@@ -54,18 +54,18 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
         }
         if (filterAssignee) {
           const norm = normaliseTask(task);
-          const anyStepHas = norm.steps.some(s => s.assignees.includes(filterAssignee));
+          const anyStepHas = norm.subtasks.some(s => s.assignees.includes(filterAssignee));
           if (!anyStepHas) return false;
         }
         if (filterSteps.length > 0) {
           const norm = normaliseTask(task);
-          const activeTypes = norm.steps.filter(s => s.active).map(s => s.type);
+          const activeTypes = norm.subtasks.filter(s => s.active).map(s => s.status);
           if (!filterSteps.some(ft => activeTypes.includes(ft))) return false;
         }
 
         if (enablePeriodFilter) {
           const norm = normaliseTask(task);
-          const intersectsPeriod = norm.steps.some(step => {
+          const intersectsPeriod = norm.subtasks.some(step => {
             if (!step.active || !step.start || !step.end) return false;
             const stepStart = new Date(step.start + 'T00:00:00');
             const stepEnd = new Date(step.end + 'T00:00:00');
@@ -80,14 +80,14 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
       })
       .map(task => {
         const norm = normaliseTask(task);
-        let steps = norm.steps;
+        let subtasks = norm.subtasks;
         if (filterSteps.length > 0) {
-          steps = steps.filter(s => filterSteps.includes(s.type));
+          subtasks = subtasks.filter(s => filterSteps.includes(s.status));
         }
         if (filterAssignee) {
-          steps = steps.filter(s => s.assignees.includes(filterAssignee));
+          subtasks = subtasks.filter(s => s.assignees.includes(filterAssignee));
         }
-        return { ...norm, steps };
+        return { ...norm, subtasks };
       });
   }, [tasks, filterAssignee, filterStatus, filterSteps, enablePeriodFilter, periodStart, periodEnd]);
 
@@ -104,7 +104,7 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
     return tasks.filter(t => {
       const norm = normaliseTask(t);
       if (norm.concludedAt) return false;
-      const step = getCurrentStep(norm.steps ?? [], today);
+      const step = getCurrentStep(norm.subtasks ?? [], today);
       return step && step.start <= today && step.end >= today;
     }).length;
   }, [tasks]);

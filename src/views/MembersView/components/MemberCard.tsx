@@ -9,7 +9,7 @@ import { ArrowUpRight, CalendarDays } from 'lucide-react';
 import MemberTaskItem from './MemberTaskItem';
 
 function normalizeTask(task: Task | LegacyTask): Task {
-  if ((task as Task).steps && typeof (task as Task).status === 'object') return task as Task;
+  if ((task as Task).subtasks && typeof (task as Task).status === 'object') return task as Task;
   const migrated = migrateLegacyTask(task as LegacyTask);
   return { ...(task as object), ...migrated } as Task;
 }
@@ -32,7 +32,7 @@ const MemberCard: React.FC<MemberCardProps> = React.memo(({ member, tasks, today
   const memberSteps: { task: Task; step: Step }[] = [];
   for (const task of tasks) {
     const norm = normalizeTask(task);
-    const visibleSteps = (norm.steps as Step[]).filter(
+    const visibleSteps = (norm.subtasks as Step[]).filter(
       s => s.active && s.start && s.end && s.assignees.includes(member.id)
     );
     for (const step of visibleSteps) {
@@ -107,7 +107,7 @@ const MemberCard: React.FC<MemberCardProps> = React.memo(({ member, tasks, today
           <div className="rounded-lg border border-border bg-muted/30 px-2.5 py-2 text-xs">
             {nextDeadline ? (
               <p className="text-muted-foreground">
-                Próxima entrega <span className="font-semibold text-foreground">{formatDateLabel(nextDeadline.step.end)}</span> · {STEP_META[nextDeadline.step.type].label}
+                Próxima entrega <span className="font-semibold text-foreground">{formatDateLabel(nextDeadline.step.end)}</span> · {STEP_META[nextDeadline.step.status]?.label ?? nextDeadline.step.title}
               </p>
             ) : (
               <p className="text-muted-foreground">Sem etapas futuras atribuídas.</p>

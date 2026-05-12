@@ -48,7 +48,7 @@ Substituímos o foco exclusivo em "médias" por métricas estatísticas mais rob
 * **Interpretação:** Se a vazão média é de 20 tasks/semana, mas a *Timeline* prevê 40 entregas para a próxima semana, o atraso já é garantido matematicamente.
 
 ### D. Heatmap de Risco vs. Capacidade
-* **Fonte de Dados:** `members` x `tasks.steps` x `Lead Time` histórico.
+* **Fonte de Dados:** `members` x `tasks.subtasks` x `Lead Time` histórico.
 * **Visualização:** Matriz (Membros no Eixo Y, Tipos de Step no Eixo X). Cores de verde a vermelho baseadas no tempo médio que cada membro leva para cada tipo de task.
 * **Interpretação:** Identifica se um membro está aparentemente livre, mas alocado em uma atividade onde historicamente tem baixa performance (gargalo de senioridade).
 

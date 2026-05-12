@@ -47,7 +47,7 @@ const TaskCalendarRows: React.FC<TaskCalendarRowsProps> = ({ task, days, daysRan
         />
       ) : visibleSteps.map((step) => (
         <StepRow
-          key={step.type}
+          key={step.id}
           step={step}
           days={days}
           daysRange={daysRange}

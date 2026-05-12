@@ -66,9 +66,9 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onD
                           .join(', ');
 
                         return (
-                          <div key={step.type} className="rounded-lg border border-border bg-muted/30 px-2 py-1.5">
+                          <div key={step.id} className="rounded-lg border border-border bg-muted/30 px-2 py-1.5">
                             <div className="flex items-center justify-between gap-2">
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${STEP_META[step.type].tagBg}`}>{STEP_META[step.type].tag}</span>
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${STEP_META[step.status]?.tagBg}`}>{STEP_META[step.status]?.tag ?? step.title}</span>
                               <span className="text-[11px] text-muted-foreground">{formatStepRange(step.start, step.end)}</span>
                             </div>
                             {assignees && <div className="text-[11px] text-muted-foreground mt-1 truncate">{assignees}</div>}

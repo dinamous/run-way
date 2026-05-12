@@ -15,7 +15,7 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | `calendar` | Calendário mensal com drag-drop |
 | `timeline` | Gantt/linha do tempo |
 | `list` | Tabela de demandas (ListView) |
-| `demandas` | Lista de demandas agrupadas por etapa atual |
+| `demandas` | Tabela hierárquica de demandas com subtasks como linhas-filho |
 
 `PlanningView` recebe `subview: 'calendar' | 'timeline' | 'list' | 'demandas'` e renderiza o modo correspondente.
 
@@ -24,13 +24,15 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | Ficheiro | Responsabilidade |
 |---|---|
 | `src/views/planning/PlanningView.tsx` | Orquestra dados, filtros e renderiza a subview correta |
-| `src/views/planning/hooks/useTaskFilters.ts` | Filtros de assignee, status, steps, período para calendar/timeline |
+| `src/views/planning/hooks/useTaskFilters.ts` | Filtros de assignee, status, subtasks, período para calendar/timeline |
 | `src/views/planning/components/FilterBar.tsx` | Barra de filtros usada por calendar e timeline |
 | `src/views/planning/components/MetricsBar.tsx` | Cards de métricas (saúde operacional, em andamento, bloqueadas) |
 | `src/views/planning/components/StepsLegend.tsx` | Legenda de cores das fases |
 | `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, etapa, responsável, período, bloqueadas, concluídas) |
-| `src/views/planning/components/StepGroup.tsx` | Grupo colapsável de tasks por etapa (usado em `demandas`) |
-| `src/views/planning/components/TaskRow.tsx` | Linha de uma demanda no subview `demandas` |
+| `src/views/planning/components/TaskTable.tsx` | Tabela hierárquica: task como linha-pai colapsável, subtasks como linhas-filho com colunas (etapa, título, período, prazo, responsáveis) |
+| `src/views/planning/components/StepGroup.tsx` | **Legado** — grupo colapsável por etapa (substituído por `TaskTable`) |
+| `src/views/planning/components/TaskRow.tsx` | **Legado** — linha de demanda no modo "Por etapa" (substituído por `TaskTable`) |
+| `src/views/planning/components/TaskList.tsx` | **Legado** — lista de demandas com subtasks expandidas (substituído por `TaskTable`) |
 | `src/views/planning/components/ActionMenu.tsx` | Dropdown de ações rápidas (abrir, ClickUp, concluir, bloquear) |
 | `src/views/planning/utils.ts` | `formatDueDate` — badge de prazo relativo |
 | `src/views/CalendarView.tsx` | Calendário mensal com drag-drop e slots |
@@ -48,30 +50,36 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 
 ## Subview: Demandas
 
-Lista todas as demandas agrupadas por **subtask status**. Focada em acompanhamento operacional.
+Lista todas as demandas em **tabela hierárquica** estilo ClickUp. Não há mais toggle de modo — um único layout unifica a visão por task e por subtask.
 
-### StepGroup
-Agrupa tasks por `SubtaskStatus` (8 grupos fixos). Colapsa/expande via `ChevronDown`/`ChevronRight`.
+### TaskTable
+Componente principal do subview `demandas`. Cada **task** é uma linha-pai colapsável; cada **subtask** é uma linha-filho exibida quando a task está expandida.
 
-Uma demanda aparece em **todos os grupos** onde tiver subtask ativa (`active: true`) — não apenas no grupo da "subtask atual". Com filtro por membro, aparece nos grupos das subtasks onde o membro está atribuído.
+**Linha da task (pai):**
+- Borda lateral colorida pela fase ativa (ou vermelha se bloqueada)
+- Botão `▾`/`▸` para expandir/colapsar subtasks
+- Título clicável (`onEdit`) com risco se bloqueada ou concluída
+- Badges "Bloqueada" e "Concluída"
+- Ícone `Link2` inline para ClickUp
+- Contador de etapas, badge de prazo (da subtask ativa), avatares de todos os responsáveis
+- `ActionMenu` com `stopPropagation`
 
-Recebe `hasActiveFilters?: boolean`. Comportamento por estado:
-- **Com tasks:** expansível normalmente, cabeçalho com contador colorido
-- **Vazio + filtros ativos:** cabeçalho apagado (contador `0`), mensagem de filtro em itálico
-- **Vazio sem filtros:** renderizado normalmente com contador `0`
+**Linhas das subtasks (filhas):** colunas alinhadas com cabeçalho visual:
 
-**Virtualização (`react-window`):** quando um grupo tem mais de 50 tasks, usa `FixedSizeList` (altura de item `52px`, altura máxima `600px`). Abaixo do threshold usa `.map()` normal.
+| Coluna | Conteúdo |
+|---|---|
+| Etapa | Pill colorida com `STEP_META.label` + indicador "ativa" em verde |
+| Título | Texto livre da subtask (`subtask.title`) |
+| Período | `DD/MM → DD/MM` (start e end) |
+| Prazo | Badge `formatDueDate` — exibido apenas na subtask ativa |
+| Resp. | Avatares dos responsáveis da subtask |
 
-### TaskRow
-Linha de uma demanda. A div inteira é clicável (`onEdit`) — `ActionMenu` tem `stopPropagation`.
-
-Exibe:
-- Título com risco (`line-through`) quando bloqueada
-- Ícone `Link2` inline para abrir o ClickUp diretamente
-- Badge "Bloqueada" (vermelho) — fundo da linha fica vermelho sutil
-- Badge "Concluída" (muted) — linha com opacidade reduzida
-- Badge de prazo dinâmico baseado no `end` da subtask ativa do grupo (`formatDueDate`)
-- Avatares dos responsáveis da subtask correspondente ao grupo
+**Comportamentos:**
+- Tasks expandidas por padrão quando há filtros ativos
+- Subtask ativa destacada com indicador `● ativa` em emerald
+- Tasks bloqueadas: fundo vermelho sutil em task e subtasks
+- Tasks concluídas: opacidade reduzida, título riscado
+- Subtasks sem datas mostram `—` no campo Período
 
 ### TasksFilters
 Barra de filtros com `CheckboxDropdown` customizado para etapa e responsável. Filtros:

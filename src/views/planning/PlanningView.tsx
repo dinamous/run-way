@@ -13,13 +13,12 @@ import { useTaskFilters } from './hooks/useTaskFilters';
 import { FilterBar } from './components/FilterBar';
 import { StepsLegend } from './components/StepsLegend';
 import { TasksFilters, type FiltersState } from './components/TasksFilters';
-import { StepGroup } from './components/StepGroup';
+import { TaskTable } from './components/TaskTable';
 import type { PlanningViewProps } from '@/types/props';
 import { useUIStore } from '@/store/useUIStore';
 import { ViewState } from '@/components/ViewState';
 import { CalendarX2, DatabaseZap, FilterX, Search, Plus } from 'lucide-react';
 import { Skeleton } from 'boneyard-js/react';
-import { STEP_TYPES_ORDER, type SubtaskStatus, type Task } from '@/lib/steps';
 import { Button } from '@/components/ui/Button';
 
 const PLANNING_BONES = {
@@ -129,45 +128,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
     });
   }, [tasks, demandasFilters, subview]);
 
-  const groupedDemandasTasks = useMemo(() => {
-    const { selectedMemberIds } = demandasFilters;
-    const groups = new Map<SubtaskStatus, Task[]>();
-    STEP_TYPES_ORDER.forEach(s => groups.set(s, []));
-    filteredDemandasTasks.forEach(task => {
-      let subtasksToUse = task.subtasks.filter(s => s.active);
-      if (subtasksToUse.length === 0) subtasksToUse = task.subtasks.slice(0, 1);
-
-      if (selectedMemberIds.length > 0) {
-        const memberSubtasks = task.subtasks.filter(s =>
-          s.assignees.some(a => selectedMemberIds.includes(a))
-        );
-        if (memberSubtasks.length > 0) subtasksToUse = memberSubtasks;
-      }
-
-      const seenStatuses = new Set<SubtaskStatus>();
-      subtasksToUse.forEach(subtask => {
-        if (seenStatuses.has(subtask.status)) return;
-        seenStatuses.add(subtask.status);
-        const bucket = groups.get(subtask.status);
-        if (bucket) bucket.push(task);
-      });
-    });
-
-    groups.forEach((bucket, status) => {
-      bucket.sort((a, b) => {
-        const endA = a.subtasks.find(s => s.status === status && s.active)?.end;
-        const endB = b.subtasks.find(s => s.status === status && s.active)?.end;
-        if (!endA && !endB) return 0;
-        if (!endA) return 1;
-        if (!endB) return -1;
-        return endA < endB ? -1 : endA > endB ? 1 : 0;
-      });
-    });
-
-    return groups;
-  }, [filteredDemandasTasks, demandasFilters]);
-
-  const hasDemandasActiveFilters =
+const hasDemandasActiveFilters =
     demandasFilters.searchTerm !== '' ||
     demandasFilters.selectedSteps.length > 0 ||
     demandasFilters.selectedMemberIds.length > 0 ||
@@ -259,14 +220,14 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
         <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
       ) : subview === 'demandas' ? (
         <div className="space-y-5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <TasksFilters
               filters={demandasFilters}
               members={members}
               onChange={next => setDemandasFilters(prev => ({ ...prev, ...next }))}
               onClear={() => setDemandasFilters(EMPTY_FILTERS)}
             />
-            <Button onClick={onOpenNew} className="ml-3 shrink-0">
+            <Button onClick={onOpenNew} className="shrink-0">
               <Plus className="w-4 h-4" />
               Nova Demanda
             </Button>
@@ -280,36 +241,24 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
                 Criar primeira demanda
               </button>
             </div>
-          ) : (
-            <div className="space-y-3 pb-16">
-              {([...groupedDemandasTasks.entries()] as [SubtaskStatus, Task[]][])
-                .filter(([stepType]) =>
-                  demandasFilters.selectedSteps.length === 0 || demandasFilters.selectedSteps.includes(stepType)
-                )
-                .map(([stepType, stepTasks]) => (
-                  <StepGroup
-                    key={stepType}
-                    stepType={stepType}
-                    tasks={stepTasks}
-                    members={members}
-                    onToggleBlock={toggleBlock}
-                    onConclude={concludeTask}
-                    onEdit={onEdit}
-                    hasActiveFilters={hasDemandasActiveFilters}
-                  />
-                ))}
-              {filteredDemandasTasks.length === 0 && hasDemandasActiveFilters && (
-                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <p className="text-sm">Nenhuma demanda encontrada com os filtros atuais.</p>
-                  <button
-                    onClick={() => setDemandasFilters(EMPTY_FILTERS)}
-                    className="mt-2 text-xs text-primary hover:underline"
-                  >
-                    Limpar filtros
-                  </button>
-                </div>
-              )}
+          ) : filteredDemandasTasks.length === 0 && hasDemandasActiveFilters ? (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <p className="text-sm">Nenhuma demanda encontrada com os filtros atuais.</p>
+              <button
+                onClick={() => setDemandasFilters(EMPTY_FILTERS)}
+                className="mt-2 text-xs text-primary hover:underline"
+              >
+                Limpar filtros
+              </button>
             </div>
+          ) : (
+            <TaskTable
+              tasks={filteredDemandasTasks}
+              members={members}
+              onToggleBlock={toggleBlock}
+              onConclude={concludeTask}
+              onEdit={onEdit}
+            />
           )}
         </div>
       ) : null}

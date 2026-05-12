@@ -1,0 +1,179 @@
+import { memo } from 'react';
+import { Link2, AlertCircle, Clock } from 'lucide-react';
+import { STEP_META, type Task } from '@/lib/steps';
+import type { Member } from '@/hooks/infra/useSupabase';
+import { formatDueDate } from '../utils';
+import { ActionMenu } from './ActionMenu';
+
+interface TaskListProps {
+  tasks: Task[];
+  members: Member[];
+  onToggleBlock: (task: Task) => void;
+  onConclude: (task: Task) => void;
+  onEdit: (task: Task) => void;
+}
+
+const SubtaskChip = memo(function SubtaskChip({ subtask, task, members, onToggleBlock, onConclude, onEdit }: {
+  subtask: Task['subtasks'][number];
+  task: Task;
+  members: Member[];
+  onToggleBlock: (task: Task) => void;
+  onConclude: (task: Task) => void;
+  onEdit: (task: Task) => void;
+}) {
+  const meta = STEP_META[subtask.status];
+  const timeStatus = formatDueDate(subtask.end);
+  const assigneeMembers = subtask.assignees
+    .map(id => members.find(m => m.id === id))
+    .filter((m): m is Member => m !== undefined);
+  const isBlocked = task.status.blocked;
+
+  return (
+    <div
+      className={`group flex items-stretch gap-0 rounded-lg border overflow-hidden transition-all cursor-pointer
+        ${isBlocked
+          ? 'border-red-300/70 dark:border-red-700/60 hover:border-red-400'
+          : 'border-border/50 hover:border-border hover:shadow-sm'
+        }`}
+      onClick={() => onEdit(task)}
+    >
+      <div className={`w-1 shrink-0 ${isBlocked ? 'bg-red-500' : meta.handle}`} />
+
+      <div className={`flex flex-1 items-center gap-3 px-3 py-2 min-w-0
+        ${isBlocked
+          ? 'bg-red-50/50 dark:bg-red-950/20 group-hover:bg-red-50/80'
+          : 'bg-background group-hover:bg-muted/30'
+        }`}
+      >
+        {/* subtask label + task name */}
+        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded leading-none ${meta.tagBg}`}>
+              {meta.label}
+            </span>
+            {subtask.active && (
+              <span className="text-[10px] text-muted-foreground font-medium">ativa</span>
+            )}
+          </div>
+          <span className="text-xs text-muted-foreground truncate">{subtask.title}</span>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {timeStatus && (
+            <div className={`hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${timeStatus.className}`}>
+              <Clock className="w-3 h-3" />
+              {timeStatus.label}
+            </div>
+          )}
+
+          <div className="flex -space-x-1.5">
+            {assigneeMembers.length === 0 ? (
+              <div
+                className="w-5 h-5 rounded-full border border-dashed border-muted-foreground/30 bg-muted/60 flex items-center justify-center text-[9px] text-muted-foreground/50"
+                title="Sem responsável"
+              >?</div>
+            ) : (
+              assigneeMembers.slice(0, 3).map(m => (
+                <div
+                  key={m.id}
+                  title={m.name}
+                  className="w-5 h-5 rounded-full ring-2 ring-background bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center overflow-hidden"
+                >
+                  {m.avatar_url
+                    ? <img src={m.avatar_url} alt={m.name} className="w-full h-full object-cover" />
+                    : m.name.slice(0, 2).toUpperCase()
+                  }
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+export const TaskList = memo(function TaskList({ tasks, members, onToggleBlock, onConclude, onEdit }: TaskListProps) {
+  if (tasks.length === 0) return null;
+
+  return (
+    <div className="space-y-4 pb-16">
+      {tasks.map(task => {
+        const isBlocked = task.status.blocked;
+        const isConcluded = !!task.concludedAt;
+
+        return (
+          <div
+            key={task.id}
+            className={`rounded-xl border overflow-hidden transition-colors
+              ${isConcluded ? 'border-border/40 bg-muted/5 opacity-60' : isBlocked ? 'border-red-300/70 dark:border-red-700/60 bg-red-50/30 dark:bg-red-950/10' : 'border-border bg-card'}
+            `}
+          >
+            {/* Header da task */}
+            <div className="flex items-center gap-2 px-4 py-3">
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <span
+                  className={`text-sm font-semibold truncate cursor-pointer hover:underline ${
+                    isConcluded ? 'line-through text-muted-foreground/70' : 'text-foreground'
+                  }`}
+                  onClick={() => onEdit(task)}
+                >
+                  {task.title}
+                </span>
+
+                {task.clickupLink && (
+                  <a
+                    href={task.clickupLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    title="Abrir no ClickUp"
+                    className="text-muted-foreground hover:text-primary transition-colors shrink-0"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                  </a>
+                )}
+
+                {isBlocked && (
+                  <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800">
+                    <AlertCircle className="w-3 h-3" />
+                    Bloqueada
+                  </span>
+                )}
+                {isConcluded && (
+                  <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted/80 text-muted-foreground border border-border/60">
+                    Concluída
+                  </span>
+                )}
+              </div>
+
+              <div onClick={e => e.stopPropagation()}>
+                <ActionMenu task={task} onToggleBlock={onToggleBlock} onConclude={onConclude} onEdit={onEdit} />
+              </div>
+            </div>
+
+            {/* Subtasks */}
+            {task.subtasks.length > 0 && (
+              <>
+                <div className="h-px bg-border/60 mx-4" />
+                <div className="p-3 space-y-1.5">
+                  {task.subtasks.map(subtask => (
+                    <SubtaskChip
+                      key={subtask.id}
+                      subtask={subtask}
+                      task={task}
+                      members={members}
+                      onToggleBlock={onToggleBlock}
+                      onConclude={onConclude}
+                      onEdit={onEdit}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+});

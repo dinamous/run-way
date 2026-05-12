@@ -138,7 +138,7 @@ export function useReportsData(): ReportsData {
       if (t.risk === 'concluido') continue;
       for (const step of t.visibleSteps) {
         if (step.start <= today && step.end >= today) {
-          counts[step.type as StepType] = (counts[step.type as StepType] ?? 0) + 1;
+          counts[step.status as StepType] = (counts[step.status as StepType] ?? 0) + 1;
         }
       }
     }
@@ -188,12 +188,12 @@ export function useReportsData(): ReportsData {
         totalDays += days;
         
         for (const step of t.visibleSteps) {
-          if (!byStepCounts[step.type]) {
-            byStepCounts[step.type] = { total: 0, count: 0 };
+          if (!byStepCounts[step.status]) {
+            byStepCounts[step.status] = { total: 0, count: 0 };
           }
           const stepDays = calDaysBetween(step.start, step.end) + 1;
-          byStepCounts[step.type].total += stepDays;
-          byStepCounts[step.type].count += 1;
+          byStepCounts[step.status].total += stepDays;
+          byStepCounts[step.status].count += 1;
         }
       }
     }
@@ -234,12 +234,12 @@ export function useReportsData(): ReportsData {
     const stepStats: Record<string, { avgDuration: number; totalTasks: number; delays: number }> = {};
     for (const t of filteredEnriched) {
       for (const step of t.visibleSteps) {
-        if (!stepStats[step.type]) {
-          stepStats[step.type] = { avgDuration: 0, totalTasks: 0, delays: 0 };
+        if (!stepStats[step.status]) {
+          stepStats[step.status] = { avgDuration: 0, totalTasks: 0, delays: 0 };
         }
-        stepStats[step.type].totalTasks++;
+        stepStats[step.status].totalTasks++;
         const duration = calDaysBetween(step.start, step.end) + 1;
-        stepStats[step.type].avgDuration = Math.round(((stepStats[step.type].avgDuration * (stepStats[step.type].totalTasks - 1)) + duration) / stepStats[step.type].totalTasks);
+        stepStats[step.status].avgDuration = Math.round(((stepStats[step.status].avgDuration * (stepStats[step.status].totalTasks - 1)) + duration) / stepStats[step.status].totalTasks);
       }
     }
     return Object.entries(stepStats)
@@ -272,7 +272,7 @@ export function useReportsData(): ReportsData {
         scatterData.push({
           date: t.lastDeadline,
           duration: t.leadTime,
-          stepType: t.currentStep?.type ?? 'desenvolvimento',
+          stepType: t.currentStep?.status ?? 'desenvolvimento',
           title: t.title,
         });
       }
@@ -282,8 +282,8 @@ export function useReportsData(): ReportsData {
     const stepDurations: Record<string, number[]> = {};
     for (const t of completedTasks) {
       for (const step of t.visibleSteps) {
-        if (!stepDurations[step.type]) stepDurations[step.type] = [];
-        stepDurations[step.type].push(calDaysBetween(step.start, step.end) + 1);
+        if (!stepDurations[step.status]) stepDurations[step.status] = [];
+        stepDurations[step.status].push(calDaysBetween(step.start, step.end) + 1);
       }
     }
     for (const [type, durations] of Object.entries(stepDurations)) {
@@ -301,7 +301,7 @@ export function useReportsData(): ReportsData {
         let count = 0;
         for (const t of filteredEnriched) {
           for (const step of t.visibleSteps) {
-            if (step.assignees.includes(m.id) && step.type === stepType) {
+            if (step.assignees.includes(m.id) && step.status === stepType) {
               totalDays += calDaysBetween(step.start, step.end) + 1;
               count++;
             }

@@ -8,7 +8,7 @@ export interface NormalisedTask {
 }
 
 function getReferenceDate(task: Task): string {
-  const activeEnds = task.steps
+  const activeEnds = task.subtasks
     .filter(s => s.active && s.end)
     .map(s => s.end)
     .sort();
@@ -41,7 +41,7 @@ export function useListFilters(tasks: Task[], _members: Member[]) {
       .filter(({ referenceDate }) => referenceDate >= rangeStart && referenceDate <= rangeEnd)
       .filter(({ task }) => {
         if (filterAssignee) {
-          const allAssignees = task.steps.flatMap(s => s.assignees);
+          const allAssignees = task.subtasks.flatMap(s => s.assignees);
           if (!allAssignees.includes(filterAssignee)) return false;
         }
         if (filterStatus) {
