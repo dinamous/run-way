@@ -4,6 +4,12 @@
 
 `PlanningView` é o container de todas as visualizações de planejamento de demandas. Substitui a antiga `DashboardView` e absorveu a `TasksView` como subview `demandas`.
 
+**Arquitetura de filtros:** `PlanningView` gerencia dois conjuntos de filtros independentes, ambos como `FiltersState` local:
+- `demandasFilters` — filtros do subview `demandas`
+- `calendarFilters` — filtros dos subviews `calendar` e `timeline`
+
+Ambos são renderizados pelo `PlanningViewHeader` via `TasksFilters` (o componente de filtros unificado). `PlanningView` aplica `calendarFilters` sobre as tasks já processadas por `useTaskFilters` antes de passar `filteredTasks` para `CalendarView` e `TimelineView`. `CalendarView` e `TimelineView` não renderizam mais filtros internamente — recebem apenas tasks já filtradas. O estado de `viewMode` (step/demand) para o calendário ainda vive em `usePlanningFiltersStore`.
+
 Localização: `src/views/planning/`
 
 ## Navegação
@@ -23,9 +29,11 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 
 | Ficheiro | Responsabilidade |
 |---|---|
-| `src/views/planning/PlanningView.tsx` | Orquestra dados, filtros e renderiza a subview correta |
-| `src/views/planning/hooks/useTaskFilters.ts` | Filtros de assignee, status, subtasks, período para calendar/timeline |
-| `src/views/planning/components/FilterBar.tsx` | Barra de filtros usada por calendar e timeline |
+| `src/views/planning/PlanningView.tsx` | Orquestra dados globais (tasks, members, holidays), aplica filtros via `useTaskFilters` e passa `filteredTasks`, `members`, `onOpenNew` e `onExport` para `CalendarView` e `TimelineView` via prop |
+| `src/views/planning/components/PlanningViewHeader.tsx` | Header compartilhado: tabs de navegação, título/descrição da view e `TasksFilters` para todos os subviews (`demandas`, `calendar`, `timeline`). Recebe `demandasFilters` e `calendarFilters` como props separados. |
+| `src/store/usePlanningFiltersStore.ts` | Store Zustand com estado de `viewMode` (step/demand) e filtros legados lidos por `useTaskFilters` |
+| `src/views/planning/hooks/useTaskFilters.ts` | Lê filtros de `usePlanningFiltersStore` e aplica sobre as tasks; expõe `filteredTasks`, contadores e helpers |
+| `src/views/planning/components/FilterBar.tsx` | Barra de filtros legada — não mais usada por `CalendarView` ou `TimelineView` |
 | `src/views/planning/components/MetricsBar.tsx` | Cards de métricas (saúde operacional, em andamento, bloqueadas) |
 | `src/views/planning/components/StepsLegend.tsx` | Legenda de cores das fases |
 | `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, status de subtask, responsável com avatares, período, bloqueadas, concluídas) |
@@ -42,8 +50,8 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | `src/views/planning/components/TaskList.tsx` | **Legado** — lista de demandas com subtasks expandidas (substituído por `TaskTable`) |
 | `src/views/planning/components/ActionMenu.tsx` | Dropdown de ações rápidas (abrir, ClickUp, concluir, bloquear) |
 | `src/views/planning/utils.ts` | `formatDueDate` — badge de prazo relativo |
-| `src/views/CalendarView.tsx` | Calendário mensal com drag-drop e slots |
-| `src/views/timeline/TimelineView.tsx` | Timeline/Gantt — componente raiz |
+| `src/views/calendar/CalendarView.tsx` | Calendário mensal — recebe `tasks` (já filtradas) via prop; renderiza apenas header de navegação de mês + grade de semanas. Sem filtros internos. Props: `tasks`, `onEdit`, `onUpdateTask`, `holidays` |
+| `src/views/timeline/TimelineView.tsx` | Timeline/Gantt — recebe `tasks` (já filtradas) via prop; sem filtros internos. Props: `tasks`, `members`, `onEdit`, `onDelete`, `onUpdateTask`, `holidays` |
 | `src/views/timeline/components/TimelineHeader.tsx` | Selector de range (14/30/60/90d) |
 | `src/views/timeline/components/DayColumnHeaders.tsx` | Header de colunas de dias (mês + dia + feriados) |
 | `src/views/timeline/components/TaskCalendarRows.tsx` | Linhas de fases no calendário por tarefa |

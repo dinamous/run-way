@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { useTasksQuery } from '@/hooks/tasks/useTasksQuery';
 import { useMembersQuery } from '@/hooks/members/useMembersQuery';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,16 +11,15 @@ import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
 import { ListView } from '@/views/list';
 import { useTaskFilters } from './hooks/useTaskFilters';
-import { FilterBar } from './components/FilterBar';
+import { PlanningViewHeader } from './components/PlanningViewHeader';
 import { StepsLegend } from './components/StepsLegend';
-import { TasksFilters, type FiltersState } from './components/TasksFilters';
+import { type FiltersState } from './components/TasksFilters';
 import { TaskTable } from './components/TaskTable';
 import type { PlanningViewProps } from '@/types/props';
 import { useUIStore } from '@/store/useUIStore';
 import { ViewState } from '@/components/ViewState';
-import { CalendarX2, DatabaseZap, FilterX, Search, Plus } from 'lucide-react';
+import { CalendarX2, DatabaseZap, FilterX, Search } from 'lucide-react';
 import { Skeleton } from 'boneyard-js/react';
-import { Button } from '@/components/ui/Button';
 import { toast } from 'sonner';
 
 const PLANNING_BONES = {
@@ -81,18 +79,38 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
     isAdmin,
   });
 
-  const {
-    filterAssignee, setFilterAssignee,
-    filterStatus, setFilterStatus,
-    filterSteps,
-    filterPeriodDays, setFilterPeriodDays,
-    viewMode, setViewMode,
-    hasActiveFilters,
-    clearFilters, toggleStepFilter,
-    filteredTasks,
-  } = useTaskFilters(tasks ?? [], subview === 'timeline', dashboardRedirect?.assigneeId ?? '');
+  const { clearFilters, filteredTasks: allFilteredTasks } = useTaskFilters(tasks ?? [], subview === 'timeline', dashboardRedirect?.assigneeId ?? '');
 
   const [demandasFilters, setDemandasFilters] = useState<FiltersState>(EMPTY_FILTERS);
+  const [calendarFilters, setCalendarFilters] = useState<FiltersState>(EMPTY_FILTERS);
+
+  const filteredTasks = useMemo(() => {
+    if (subview !== 'calendar' && subview !== 'timeline') return allFilteredTasks;
+    const { searchTerm, selectedSteps, selectedProgressStatuses, selectedMemberIds, showOnlyBlocked, selectedPeriod, showConcluded } = calendarFilters;
+    return allFilteredTasks.filter(task => {
+      const isConcluded = !!task.concludedAt;
+      if (!showConcluded && isConcluded) return false;
+      const lowerSearch = searchTerm.toLowerCase();
+      if (lowerSearch && !(
+        task.title.toLowerCase().includes(lowerSearch) ||
+        task.id.toLowerCase().includes(lowerSearch) ||
+        task.subtasks.some(s => s.title.toLowerCase().includes(lowerSearch))
+      )) return false;
+      if (selectedSteps.length > 0 && !task.subtasks.some(s => selectedSteps.includes(s.status))) return false;
+      if (selectedProgressStatuses.length > 0 && !task.subtasks.some(s => selectedProgressStatuses.includes(s.progressStatus))) return false;
+      if (selectedMemberIds.length > 0 && !task.subtasks.some(s => s.assignees.some(a => selectedMemberIds.includes(a)))) return false;
+      if (showOnlyBlocked && !task.status.blocked) return false;
+      if (selectedPeriod) {
+        const currentStep = task.subtasks.find(s => s.active) ?? task.subtasks[0];
+        if (!currentStep?.end) return false;
+        const due = new Date(currentStep.end + 'T00:00:00');
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() + parseInt(selectedPeriod));
+        if (due > cutoff) return false;
+      }
+      return true;
+    });
+  }, [allFilteredTasks, calendarFilters, subview]);
 
   const handleBulkAssign = useCallback(async (selectedTasks: typeof tasks, memberId: string) => {
     const tasksWithActiveSubtask = selectedTasks
@@ -201,58 +219,22 @@ const hasDemandasActiveFilters =
     );
   }
 
-  const { title, description } = VIEW_TITLES[subview] ?? VIEW_TITLES.calendar;
-
   const showFilterBar = subview === 'calendar' || subview === 'timeline';
 
   const content = (
     <div className="space-y-5">
-      <Tabs value={subview} onValueChange={(v) => onViewChange(v)}>
-        <TabsList variant="underline" className="w-full justify-end gap-0">
-          {DEMAND_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} variant="underline">
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
-          <p className="text-muted-foreground text-sm">{description}</p>
-        </div>
-        {subview === 'demandas' && (
-          <Button onClick={onOpenNew} className="shrink-0">
-            <Plus className="w-4 h-4" />
-            Nova Demanda
-          </Button>
-        )}
-      </div>
-
-      {showFilterBar && (
-        <FilterBar
-          members={members ?? []}
-          filterAssignee={filterAssignee}
-          onChangeAssignee={setFilterAssignee}
-          filterStatus={filterStatus}
-          onChangeStatus={setFilterStatus}
-          filterSteps={filterSteps}
-          onToggleStep={toggleStepFilter}
-          showPeriodFilter={subview === 'timeline'}
-          filterPeriodDays={filterPeriodDays}
-          onChangePeriodDays={setFilterPeriodDays}
-          showViewMode={subview === 'calendar'}
-          viewMode={viewMode}
-          onChangeViewMode={setViewMode}
-          onExport={onExport}
-          onOpenNew={onOpenNew}
-          hasActiveFilters={hasActiveFilters}
-          onClear={clearFilters}
-          filteredCount={filteredTasks.length}
-          totalCount={(tasks ?? []).length}
-        />
-      )}
+      <PlanningViewHeader
+        subview={subview}
+        onViewChange={onViewChange}
+        onOpenNew={onOpenNew}
+        members={members ?? []}
+        demandasFilters={demandasFilters}
+        onChangeDemandasFilters={next => setDemandasFilters(prev => ({ ...prev, ...next }))}
+        onClearDemandasFilters={() => setDemandasFilters(EMPTY_FILTERS)}
+        calendarFilters={calendarFilters}
+        onChangeCalendarFilters={next => setCalendarFilters(prev => ({ ...prev, ...next }))}
+        onClearCalendarFilters={() => setCalendarFilters(EMPTY_FILTERS)}
+      />
 
       {showFilterBar && filteredTasks.length === 0 ? (
         <ViewState
@@ -263,20 +245,13 @@ const hasDemandasActiveFilters =
           onAction={clearFilters}
         />
       ) : subview === 'calendar' ? (
-        <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} viewMode={viewMode} />
+        <CalendarView tasks={filteredTasks} onEdit={onEdit} onUpdateTask={onUpdateTask} holidays={holidays} />
       ) : subview === 'timeline' ? (
-        <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} daysRange={filterPeriodDays} />
+        <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
       ) : subview === 'list' ? (
         <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
       ) : subview === 'demandas' ? (
         <div className="space-y-5">
-          <TasksFilters
-            filters={demandasFilters}
-            members={members}
-            onChange={next => setDemandasFilters(prev => ({ ...prev, ...next }))}
-            onClear={() => setDemandasFilters(EMPTY_FILTERS)}
-          />
-
           {tasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border border-dashed border-border rounded-xl bg-muted/10">
               <Search className="w-8 h-8 mb-3 text-muted-foreground/50" />

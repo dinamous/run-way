@@ -23,7 +23,7 @@ Todos implementados com `memo` e comparador customizado. Callbacks excluídos do
 |---|---|
 | `NotificationBell` | `unreadCount`, `notifications.length`, `selectedClientId` |
 | `WeekRow` | `tasks` (ref + length), `week[0]`, `currentMonth`, `viewMode`, `weekIndex`, `dragPreview`, `holidays.length` |
-| `StepBar` | `bar.{taskId,stepType,startCol,endCol,slot}`, `task.{concludedAt,status.blocked}`, `isFirst/LastBarOfStep`, `viewMode`, `demandColor`, `dragPreview` |
+| `StepBar` | `bar.{taskId,subtaskId,startCol,endCol,slot}`, `task.{concludedAt,status.blocked}`, `isFirst/LastBarOfStep`, `viewMode`, `demandColor`, `dragPreview` |
 | `PhaseBar` | `step.{type,start,end}`, `task.{id,concludedAt,status.blocked}`, `days.length`, `dragPreview` |
 | `MemberCard` | `member.id`, `tasks` (ref + length), `today` |
 | `TaskRow` | `task.{id,status.blocked,concludedAt}`, `stepType`, `members.length` |

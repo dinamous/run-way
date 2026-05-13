@@ -5,7 +5,7 @@ import { usePhaseDrag } from '@/hooks/ui/usePhaseDrag';
 import { useTimelineDays } from './hooks/useTimelineDays';
 import { useRowHeightSync } from './hooks/useRowHeightSync';
 import { useHeaderHeightSync } from './hooks/useHeaderHeightSync';
-import TimelineHeader from './components/TimelineHeader';
+import { usePlanningFiltersStore } from '@/store/usePlanningFiltersStore';
 import DayColumnHeaders from './components/DayColumnHeaders';
 import TaskInfoPanelWrapper from './components/TaskInfoPanelWrapper';
 import TaskCalendarRows from './components/TaskCalendarRows';
@@ -18,25 +18,25 @@ const formatStepRange = (start: string, end: string) => {
   return `${startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
 };
 
-const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onDelete, onUpdateTask, holidays, daysRange }) => {
+const TimelineView: React.FC<TimelineViewProps> = ({ tasks: filteredTasks, members, onEdit, onDelete, onUpdateTask, holidays }) => {
+  const daysRange = usePlanningFiltersStore((s) => s.filterPeriodDays);
+
   const { days, today } = useTimelineDays(daysRange);
-  const { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag, postponeDragToBusinessDay } = usePhaseDrag(tasks, onUpdateTask, holidays);
+  const { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag, postponeDragToBusinessDay } = usePhaseDrag(filteredTasks, onUpdateTask, holidays);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { setInfoRef, setCalRef } = useRowHeightSync(tasks.length);
+  const { setInfoRef, setCalRef } = useRowHeightSync(filteredTasks.length);
   const { infoHeaderRef, calHeaderRef } = useHeaderHeightSync();
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm w-full">
-      <TimelineHeader daysRange={daysRange} />
-
       <div className="md:hidden w-full">
-        {tasks.length === 0 ? (
+        {filteredTasks.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground text-sm">
             Nenhuma demanda no período selecionado.
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {tasks.map((task) => {
+            {filteredTasks.map((task) => {
               const visibleSteps = getVisibleSteps(task);
               const status = getTaskStatusDisplay(task);
 
@@ -88,10 +88,9 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onD
         {/* Fixed info column */}
         <div className="shrink-0 w-56 border-r border-border z-20 bg-card">
           <div ref={infoHeaderRef} className="border-b border-border bg-muted flex flex-col h-[41px]">
-            
             <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground flex items-center h-[22px]">Demanda</div>
           </div>
-          {tasks.length > 0 && tasks.map((task, i) => (
+          {filteredTasks.length > 0 && filteredTasks.map((task, i) => (
             <div key={task.id} className={`border-b border-border group hover:bg-muted/30 transition-colors ${i % 2 === 1 ? 'bg-muted/20' : ''}`}>
               <TaskInfoPanelWrapper
                 task={task}
@@ -111,11 +110,11 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, members, onEdit, onD
               <DayColumnHeaders days={days} today={today} containerRef={containerRef} holidays={holidays} />
             </div>
 
-            {tasks.length === 0 ? (
+            {filteredTasks.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground text-sm">
                 Nenhuma demanda. Clique em "Nova Demanda" para comecar.
               </div>
-            ) : tasks.map((task, i) => (
+            ) : filteredTasks.map((task, i) => (
               <TaskCalendarRows
                 key={task.id}
                 task={task}

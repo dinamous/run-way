@@ -1,26 +1,36 @@
 import React from 'react';
-import { MAX_SLOTS } from '../../utils/dashboardUtils';
+import { MAX_SLOTS, PT_MONTHS } from '../../utils/dashboardUtils';
 import type { CalendarViewProps } from '../../types/props';
 import { useCalendarNavigation } from './hooks/useCalendarNavigation';
 import { useCalendarDrag } from './hooks/useCalendarDrag';
-import CalendarHeader from './components/CalendarHeader';
+import { usePlanningFiltersStore } from '@/store/usePlanningFiltersStore';
 import DayHeaders from './components/DayHeaders';
 import WeekRow from './components/WeekRow';
 import { ConfirmModal } from '@/components/ui';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask, holidays, viewMode = 'step' }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ tasks: filteredTasks, onEdit, onUpdateTask, holidays }) => {
+  const viewMode = usePlanningFiltersStore((s) => s.viewMode);
+
   const { today, monthDate, weeks, prevMonth, nextMonth, goToday } = useCalendarNavigation();
-  const { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag, postponeDragToBusinessDay } = useCalendarDrag(tasks, onUpdateTask, holidays);
+  const { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag, postponeDragToBusinessDay } = useCalendarDrag(filteredTasks, onUpdateTask, holidays);
   const rowHeight = `calc(var(--cal-day-header-h) + ${MAX_SLOTS} * var(--cal-slot-height) + var(--cal-row-padding))`;
 
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      <CalendarHeader
-        monthDate={monthDate}
-        onPrevMonth={prevMonth}
-        onNextMonth={nextMonth}
-        onGoToday={goToday}
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3.5 border-b border-border bg-muted">
+        <div className="flex items-center justify-between sm:justify-start gap-3">
+          <h3 className="text-base font-semibold text-foreground">
+            {PT_MONTHS[monthDate.getMonth()]} {monthDate.getFullYear()}
+          </h3>
+          <button onClick={goToday} className="text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-card transition-colors">Hoje</button>
+        </div>
+        <div className="flex items-center justify-end gap-1">
+          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><ChevronRight className="w-4 h-4" /></button>
+        </div>
+      </div>
+
       <div
         className="overflow-x-auto overscroll-x-contain"
         style={{
@@ -36,7 +46,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEdit, onUpdateTask
               <WeekRow
                 key={wi}
                 week={week}
-                tasks={tasks}
+                tasks={filteredTasks}
                 today={today}
                 currentMonth={monthDate.getMonth()}
                 rowHeight={rowHeight}

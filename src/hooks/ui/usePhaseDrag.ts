@@ -64,7 +64,9 @@ export function usePhaseDrag(tasks: Task[], onUpdateTask: (task: Task) => void, 
         }
       }
       dragStateRef.current = null;
-      setDragPreview(null);
+      // Clear preview in the next microtask so the parent's state update (onUpdateTask)
+      // and this state update land in the same React batch, preventing a flicker frame.
+      Promise.resolve().then(() => setDragPreview(null));
       setTimeout(() => { didDragRef.current = false; }, 0);
     };
 

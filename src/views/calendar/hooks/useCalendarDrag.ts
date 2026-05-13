@@ -23,9 +23,9 @@ export function useCalendarDrag(tasks: Task[], onUpdateTask: (task: Task) => voi
     const container = (e.currentTarget as HTMLElement).closest('[data-week-row]') as HTMLElement;
     const colWidth = container ? container.getBoundingClientRect().width / 7 : 80;
     const norm = normaliseTask(task);
-    const step = (norm.subtasks as Step[]).find(s => s.status === bar.stepType);
+    const step = (norm.subtasks as Step[]).find(s => s.id === bar.subtaskId);
     if (!step) return;
-    phaseDragStart(e, bar.taskId, bar.stepType, type, step, colWidth);
+    phaseDragStart(e, bar.taskId, bar.subtaskId, type, step, colWidth);
   }, [phaseDragStart]);
 
   return { dragPreview, didDragRef, startDrag, pendingDragUpdate, confirmDrag, cancelDrag, postponeDragToBusinessDay };

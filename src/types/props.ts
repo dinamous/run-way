@@ -43,12 +43,9 @@ export interface PlanningViewProps {
 
 export interface CalendarViewProps {
   tasks: Task[];
-  members: Member[];
   onEdit: (task: Task) => void;
-  onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
   holidays: Holiday[];
-  viewMode?: CalendarViewMode;
 }
 
 // ─── TimelineView ─────────────────────────────────────────────────────────────
@@ -60,7 +57,6 @@ export interface TimelineViewProps {
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
   holidays: Holiday[];
-  daysRange: number;
 }
 
 // ─── MembersView ─────────────────────────────────────────────────────────────

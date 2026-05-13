@@ -1,17 +1,28 @@
-import { useState, useMemo } from 'react';
-import type { StepType } from '@/lib/steps';
+import { useMemo } from 'react';
 import { normaliseTask, todayStr } from '@/utils/dashboardUtils';
 import { getCurrentStep } from '@/lib/steps';
 import type { Task } from '@/types/task';
+import { usePlanningFiltersStore } from '@/store/usePlanningFiltersStore';
 
-export type CalendarViewMode = 'step' | 'demand';
+export type { CalendarViewMode } from '@/store/usePlanningFiltersStore';
 
 export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initialAssignee = '') {
-  const [filterAssignee, setFilterAssignee] = useState(() => initialAssignee);
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterSteps, setFilterSteps] = useState<StepType[]>([]);
-  const [filterPeriodDays, setFilterPeriodDays] = useState(60);
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('step');
+  const {
+    filterAssignee, setFilterAssignee,
+    filterStatus, setFilterStatus,
+    filterSteps,
+    filterPeriodDays, setFilterPeriodDays,
+    viewMode, setViewMode,
+    toggleStepFilter,
+    clearFilters,
+  } = usePlanningFiltersStore();
+
+  // seed assignee from redirect only once — store handles persistence
+  useMemo(() => {
+    if (initialAssignee && !filterAssignee) setFilterAssignee(initialAssignee);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAssignee]);
+
   const periodStart = useMemo(() => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -31,19 +42,6 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
     (enablePeriodFilter && filterPeriodDays !== 60)
   );
 
-  const clearFilters = () => {
-    setFilterAssignee('');
-    setFilterStatus('');
-    setFilterSteps([]);
-    setFilterPeriodDays(60);
-  };
-
-  const toggleStepFilter = (type: StepType) => {
-    setFilterSteps(prev =>
-      prev.includes(type) ? prev.filter(s => s !== type) : [...prev, type]
-    );
-  };
-
   const filteredTasks = useMemo(() => {
     return tasks
       .filter(task => {
@@ -62,7 +60,6 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
           const activeTypes = norm.subtasks.filter(s => s.active).map(s => s.status);
           if (!filterSteps.some(ft => activeTypes.includes(ft))) return false;
         }
-
         if (enablePeriodFilter) {
           const norm = normaliseTask(task);
           const intersectsPeriod = norm.subtasks.some(step => {
@@ -70,10 +67,8 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
             const stepStart = new Date(step.start + 'T00:00:00');
             const stepEnd = new Date(step.end + 'T00:00:00');
             if (Number.isNaN(stepStart.getTime()) || Number.isNaN(stepEnd.getTime())) return false;
-
             return stepEnd >= periodStart && stepStart <= periodEnd;
           });
-
           if (!intersectsPeriod) return false;
         }
         return true;
@@ -109,16 +104,12 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
     }).length;
   }, [tasks]);
 
-return {
-    filterAssignee,
-    setFilterAssignee,
-    filterStatus,
-    setFilterStatus,
+  return {
+    filterAssignee, setFilterAssignee,
+    filterStatus, setFilterStatus,
     filterSteps,
-    filterPeriodDays,
-    setFilterPeriodDays,
-    viewMode,
-    setViewMode,
+    filterPeriodDays, setFilterPeriodDays,
+    viewMode, setViewMode,
     hasActiveFilters,
     clearFilters,
     toggleStepFilter,

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { useMembersQuery } from '@/hooks/members/useMembersQuery';
 import { useClients } from '@/hooks/clients/useClients';
-import { Input, Label, Button, ConfirmModal } from './ui';
-import { Save, ExternalLink, Trash2, Users, AlertCircle, CheckCircle2, Plus, GripVertical, X } from 'lucide-react';
+import { Input, Button, ConfirmModal } from './ui';
+import {
+  Save, ExternalLink, Trash2, Users, AlertCircle, CheckCircle2,
+  Plus, GripVertical, X, Calendar, Link2, ChevronDown, ListTodo,
+} from 'lucide-react';
 import {
   STEP_META,
   STEP_TYPES_ORDER,
@@ -23,7 +26,6 @@ function tempId() {
   return `__new__${++_subtaskCounter}`;
 }
 
-/** Subtask com id temporário para subtasks novas (ainda não no DB) */
 type SubtaskDraft = Subtask & { _tempId: string };
 
 function draftFromSubtask(s: Subtask): SubtaskDraft {
@@ -86,7 +88,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
     const e: Record<string, string> = {};
     if (!title || title.length < 3) e.title = 'Título obrigatório (mín. 3 caracteres).';
     if (clickupLink) {
-      try { new URL(clickupLink) } catch { e.clickupLink = 'Insira um URL válido (ex: https://...).'; }
+      try { new URL(clickupLink); } catch { e.clickupLink = 'Insira um URL válido (ex: https://...).'; }
     }
     if (activeSubtasks.length === 0) e.subtasks = 'Adicione pelo menos uma subtask ativa.';
     subtasks.forEach(s => {
@@ -178,244 +180,253 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
     setSubtasks(prev => [...prev, newDraft(prev.length)]);
   };
 
-  const removeSubtask = (tempId: string) => {
-    setSubtasks(prev => prev.filter(s => s._tempId !== tempId));
+  const removeSubtask = (id: string) => {
+    setSubtasks(prev => prev.filter(s => s._tempId !== id));
   };
 
-  const updateSubtask = <K extends keyof SubtaskDraft>(tempId: string, field: K, value: SubtaskDraft[K]) => {
-    setSubtasks(prev => prev.map(s => s._tempId === tempId ? { ...s, [field]: value } : s));
+  const updateSubtask = <K extends keyof SubtaskDraft>(id: string, field: K, value: SubtaskDraft[K]) => {
+    setSubtasks(prev => prev.map(s => s._tempId === id ? { ...s, [field]: value } : s));
   };
 
-  const toggleAssignee = (tempId: string, memberId: string) => {
+  const toggleAssignee = (id: string, memberId: string) => {
     setSubtasks(prev => prev.map(s => {
-      if (s._tempId !== tempId) return s;
+      if (s._tempId !== id) return s;
       const has = s.assignees.includes(memberId);
-      return { ...s, assignees: has ? s.assignees.filter(id => id !== memberId) : [...s.assignees, memberId] };
+      return { ...s, assignees: has ? s.assignees.filter(mid => mid !== memberId) : [...s.assignees, memberId] };
     }));
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      onClick={handleRequestClose}
-    >
+    <>
+      <style>{`
+        .tm-scrollbar::-webkit-scrollbar { width: 6px; }
+        .tm-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .tm-scrollbar::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--border) 80%, transparent); border-radius: 10px; }
+        .tm-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--border); }
+      `}</style>
+
       <div
-        className="bg-card rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-hidden flex flex-col"
-        onClick={e => e.stopPropagation()}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-sm"
+        onClick={handleRequestClose}
       >
+        <div
+          className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col"
+          onClick={e => e.stopPropagation()}
+        >
 
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-5 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">
-            {task ? 'Editar Demanda' : 'Nova Demanda'}
-          </h2>
-          <button
-            onClick={handleRequestClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >✕</button>
-        </div>
+          {/* Header */}
+          <div className="flex justify-between items-center px-6 py-4 border-b border-border bg-muted/30">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-muted-foreground">
+                {task ? 'Editar Demanda' : 'Nova Demanda'}
+              </span>
+              {task && (
+                <span className="px-2 py-0.5 rounded text-[10px] bg-muted text-muted-foreground font-mono tracking-wider border border-border">
+                  #{task.id}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={handleRequestClose}
+              className="text-muted-foreground hover:text-foreground hover:bg-muted p-1.5 rounded-md transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-        <div className="px-6 py-5 overflow-y-auto flex-1 space-y-6 custom-scrollbar">
-          <form id="task-form" onSubmit={handleSubmit} noValidate>
-            <div className="space-y-6">
+          <div className="flex-1 overflow-y-auto tm-scrollbar">
+            <form id="task-form" onSubmit={handleSubmit} noValidate className="p-6 space-y-8">
 
-              {/* Título */}
-              <div className="space-y-1.5">
-                <Label htmlFor="title">Título</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  placeholder="Ex: Landing Page Black Friday"
-                />
-                {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
-              </div>
+              {/* Seção 1: Título e metadados */}
+              <div className="space-y-5">
 
-              {/* Link ClickUp */}
-              <div className="space-y-1.5">
-                <Label htmlFor="clickup" className="flex items-center gap-1">
-                  Link ClickUp
-                  <span className="text-muted-foreground font-normal text-xs">(opcional)</span>
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="clickup"
+                {/* Título grande */}
+                <div>
+                  <input
+                    id="title"
                     type="text"
-                    inputMode="url"
-                    value={clickupLink}
-                    onChange={e => setClickupLink(e.target.value)}
-                    placeholder="https://app.clickup.com/t/..."
-                    className="pr-9"
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    placeholder="Nome da Demanda..."
+                    autoFocus
+                    className="w-full bg-transparent text-3xl font-bold tracking-tight text-foreground placeholder:text-muted-foreground/40 outline-none border-b border-transparent focus:border-primary pb-1 transition-colors"
                   />
-                  {clickupLink && (
-                    <a
-                      href={clickupLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition-colors"
+                  {errors.title && <p className="text-xs text-red-500 mt-1.5">{errors.title}</p>}
+                </div>
+
+                {/* Link ClickUp + toggles Bloqueada/Concluída */}
+                <div className="flex flex-wrap items-center gap-3">
+
+                  <div className="relative flex-1 min-w-[220px] group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Link2 className="w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    </div>
+                    <Input
+                      type="text"
+                      inputMode="url"
+                      value={clickupLink}
+                      onChange={e => setClickupLink(e.target.value)}
+                      placeholder="Colar link do ClickUp..."
+                      className="pl-9 pr-8"
+                    />
+                    {clickupLink && (
+                      <a
+                        href={clickupLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-blue-500 transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    )}
+                    {errors.clickupLink && <p className="text-xs text-red-500 mt-1">{errors.clickupLink}</p>}
+                  </div>
+
+                  <div className="flex items-center gap-1 bg-muted border border-border p-1 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setBlocked(b => !b)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        blocked
+                          ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-background border border-transparent'
+                      }`}
                     >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  )}
-                </div>
-                {errors.clickupLink && <p className="text-xs text-red-500">{errors.clickupLink}</p>}
-              </div>
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      Bloqueada
+                    </button>
 
-              {/* Bloqueado */}
-              <div className={`rounded-xl border p-3 transition-colors ${blocked
-                ? 'bg-red-50 border-red-300 dark:bg-red-950/60 dark:border-red-700'
-                : 'bg-muted border-border'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className={`w-4 h-4 shrink-0 ${blocked ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`} />
-                    <div>
-                      <div className={`text-sm font-semibold ${blocked ? 'text-red-800 dark:text-red-200' : 'text-foreground'}`}>
-                        Bloqueado
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        Subtasks a partir da data de bloqueio ficam em alerta vermelho
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setConcludedAt(concludedAt ? undefined : new Date().toISOString())}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        concludedAt
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-background border border-transparent'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Concluída
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setBlocked(b => !b)}
-                    className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${blocked ? 'bg-red-500' : 'bg-muted-foreground/30'}`}
-                    aria-label="Alternar bloqueio"
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${blocked ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
                 </div>
-                {blocked && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="text-[11px] text-red-700 dark:text-red-300 font-medium shrink-0">Data do bloqueio:</span>
-                    <Input
-                      type="date"
-                      value={blockedAt}
-                      onChange={e => setBlockedAt(e.target.value)}
-                      className="h-7 text-xs w-auto flex-1 bg-white/70 dark:bg-red-900/30 border-red-300 dark:border-red-700"
-                    />
+
+                {/* Datas condicionais (bloqueio / conclusão) */}
+                {(blocked || concludedAt) && (
+                  <div className="flex flex-wrap gap-4 p-3.5 bg-muted/50 rounded-lg border border-border">
+                    {blocked && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-red-600 dark:text-red-400 shrink-0">A partir de:</span>
+                        <Input
+                          type="date"
+                          value={blockedAt}
+                          onChange={e => setBlockedAt(e.target.value)}
+                          className="h-7 text-xs w-auto border-red-300 dark:border-red-700"
+                        />
+                      </div>
+                    )}
+                    {concludedAt && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 shrink-0">Concluída em:</span>
+                        <Input
+                          type="date"
+                          value={concludedAt.split('T')[0]}
+                          onChange={e => setConcludedAt(e.target.value ? e.target.value + 'T00:00:00' : undefined)}
+                          className="h-7 text-xs w-auto border-emerald-300 dark:border-emerald-700"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Concluída */}
-              <div className={`rounded-xl border p-3 transition-colors ${concludedAt
-                ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/60 dark:border-emerald-700'
-                : 'bg-muted border-border'
-              }`}>
+              {/* Seção 2: Subtasks */}
+              <div className="space-y-4 pt-4 border-t border-border">
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className={`w-4 h-4 shrink-0 ${concludedAt ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
-                    <div>
-                      <div className={`text-sm font-semibold ${concludedAt ? 'text-emerald-800 dark:text-emerald-200' : 'text-foreground'}`}>
-                        Concluída
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        Demanda finalizada e entregue
-                      </div>
-                    </div>
+                    <span className="text-sm font-semibold text-foreground">Subtasks</span>
+                    {activeSubtasks.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-muted text-[10px] text-muted-foreground font-medium border border-border">
+                        {activeSubtasks.length} ativa{activeSubtasks.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"
-                    onClick={() => setConcludedAt(concludedAt ? undefined : new Date().toISOString())}
-                    className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${concludedAt ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`}
-                    aria-label="Alternar conclusão"
+                    onClick={addSubtask}
+                    className="flex items-center gap-1.5 text-xs font-medium text-primary hover:opacity-80 hover:bg-muted px-3 py-1.5 rounded-md transition-all"
                   >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${concludedAt ? 'translate-x-5' : 'translate-x-0'}`} />
+                    <Plus className="w-4 h-4" />
+                    Nova Subtask
                   </button>
                 </div>
-                {concludedAt && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium shrink-0">Concluída em:</span>
-                    <Input
-                      type="date"
-                      value={concludedAt.split('T')[0]}
-                      onChange={e => setConcludedAt(e.target.value ? e.target.value + 'T00:00:00' : undefined)}
-                      className="h-7 text-xs w-auto flex-1 bg-white/70 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700"
-                    />
-                  </div>
-                )}
-              </div>
 
-              {/* Subtasks */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Subtasks</Label>
-                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                    {activeSubtasks.length} ativa{activeSubtasks.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
                 {errors.subtasks && <p className="text-xs text-red-500">{errors.subtasks}</p>}
 
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {subtasks.map((subtask) => {
                     const meta = STEP_META[subtask.status];
                     return (
                       <div
                         key={subtask._tempId}
-                        className={`rounded-xl border transition-all ${meta.color}`}
+                        className={`group relative flex flex-col lg:flex-row lg:items-center gap-4 p-3.5 bg-muted/30 border ${meta.color} rounded-xl hover:bg-muted/50 transition-colors`}
                       >
-                        {/* Subtask header */}
-                        <div className="flex items-center gap-2 px-3 py-2.5">
-                          <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0 cursor-grab" />
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dot}`} />
+                        {/* Lado esquerdo: grip + título + selects */}
+                        <div className="flex flex-1 items-center gap-3 min-w-0">
+                          <GripVertical className="w-4 h-4 text-muted-foreground/40 cursor-grab hover:text-muted-foreground shrink-0" />
 
-                          {/* Título livre */}
-                          <input
-                            type="text"
-                            value={subtask.title}
-                            onChange={e => updateSubtask(subtask._tempId, 'title', e.target.value)}
-                            placeholder="Nome da subtask…"
-                            className="flex-1 bg-transparent text-xs font-semibold placeholder:text-current/40 outline-none min-w-0"
-                          />
+                          <div className="flex-1 flex flex-col gap-2 min-w-0">
+                            <input
+                              type="text"
+                              value={subtask.title}
+                              onChange={e => updateSubtask(subtask._tempId, 'title', e.target.value)}
+                              placeholder="Nome da subtask…"
+                              className="w-full bg-transparent text-sm font-semibold text-foreground placeholder:text-muted-foreground/40 outline-none border-b border-transparent focus:border-border pb-0.5 transition-colors"
+                            />
 
-                          {/* Select de status */}
-                          <select
-                            value={subtask.status}
-                            onChange={e => updateSubtask(subtask._tempId, 'status', e.target.value as SubtaskStatus)}
-                            className="text-[10px] bg-white/40 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-md px-1.5 py-0.5 outline-none cursor-pointer shrink-0"
-                          >
-                            {STEP_TYPES_ORDER.map(s => (
-                              <option key={s} value={s}>{STEP_META[s].label}</option>
-                            ))}
-                          </select>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="relative">
+                                <select
+                                  value={subtask.status}
+                                  onChange={e => updateSubtask(subtask._tempId, 'status', e.target.value as SubtaskStatus)}
+                                  className="appearance-none bg-background border border-border text-foreground text-[11px] rounded px-2.5 py-1 pr-6 outline-none focus:ring-1 focus:ring-ring cursor-pointer transition-shadow"
+                                >
+                                  {STEP_TYPES_ORDER.map(s => (
+                                    <option key={s} value={s}>{STEP_META[s].label}</option>
+                                  ))}
+                                </select>
+                                <ChevronDown className="w-3 h-3 text-muted-foreground absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              </div>
 
-                          <select
-                            value={subtask.progressStatus}
-                            onChange={e => updateSubtask(subtask._tempId, 'progressStatus', e.target.value as SubtaskProgressStatus)}
-                            className="text-[10px] bg-white/40 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-md px-1.5 py-0.5 outline-none cursor-pointer shrink-0 max-w-32"
-                            title="Status da subtask"
-                          >
-                            {SUBTASK_PROGRESS_STATUS_ORDER.map(status => (
-                              <option key={status} value={status}>{SUBTASK_PROGRESS_META[status].label}</option>
-                            ))}
-                          </select>
+                              <div className="relative">
+                                <select
+                                  value={subtask.progressStatus}
+                                  onChange={e => updateSubtask(subtask._tempId, 'progressStatus', e.target.value as SubtaskProgressStatus)}
+                                  className="appearance-none bg-background border border-border text-foreground text-[11px] rounded px-2.5 py-1 pr-6 outline-none focus:ring-1 focus:ring-ring cursor-pointer transition-shadow"
+                                  title="Status da subtask"
+                                >
+                                  {SUBTASK_PROGRESS_STATUS_ORDER.map(s => (
+                                    <option key={s} value={s}>{SUBTASK_PROGRESS_META[s].label}</option>
+                                  ))}
+                                </select>
+                                <ChevronDown className="w-3 h-3 text-muted-foreground absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              </div>
+                            </div>
 
-                          <button
-                            type="button"
-                            onClick={() => removeSubtask(subtask._tempId)}
-                            className="w-5 h-5 flex items-center justify-center rounded text-current/50 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors shrink-0"
-                            aria-label="Remover subtask"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                            {errors[`${subtask._tempId}-title`] && (
+                              <span className="text-[10px] text-red-500">{errors[`${subtask._tempId}-title`]}</span>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Subtask body — responsáveis + datas */}
-                        <div className="px-3 pb-3 space-y-3 border-t border-black/10 dark:border-white/10 pt-2.5">
-                          {errors[`${subtask._tempId}-title`] && (
-                            <p className="text-[10px] text-red-600">{errors[`${subtask._tempId}-title`]}</p>
-                          )}
+                        {/* Lado direito: responsáveis + datas + remover */}
+                        <div className="flex items-center gap-4 lg:justify-end border-t border-border lg:border-none pt-3 lg:pt-0 flex-wrap">
 
-                          {/* Responsáveis */}
-                          <div>
-                            <span className="text-[10px] opacity-70 font-medium flex items-center gap-1 mb-1.5">
-                              <Users className="w-3 h-3" /> Responsáveis
-                              <span className="opacity-60">(opcional)</span>
-                            </span>
-                            <div className="flex gap-1.5 flex-wrap">
+                          {/* Avatares / responsáveis */}
+                          <div className="flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            <div className="flex flex-wrap gap-1">
                               {resolvedMembers.map(m => {
                                 const sel = subtask.assignees.includes(m.id);
                                 return (
@@ -423,120 +434,142 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
                                     key={m.id}
                                     type="button"
                                     onClick={() => toggleAssignee(subtask._tempId, m.id)}
-                                    className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium transition-all ${
+                                    title={m.name}
+                                    className={`relative w-7 h-7 rounded-full overflow-hidden transition-all duration-150 ${
                                       sel
-                                        ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200'
-                                        : 'border-transparent bg-white/50 dark:bg-white/10 text-inherit hover:bg-white/80 dark:hover:bg-white/20'
+                                        ? 'ring-2 ring-primary ring-offset-1 ring-offset-card opacity-100 scale-110 z-10'
+                                        : 'opacity-40 grayscale hover:opacity-70 hover:grayscale-0'
                                     }`}
                                   >
-                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
-                                      sel ? 'bg-blue-500 text-white' : 'bg-black/10 dark:bg-white/20 text-inherit'
-                                    }`}>
-                                      {m.avatar}
-                                    </div>
-                                    {m.name}
+                                    {m.avatar_url ? (
+                                      <img src={m.avatar_url} alt={m.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full bg-muted border border-border flex items-center justify-center text-[10px] font-bold text-foreground">
+                                        {m.avatar}
+                                      </div>
+                                    )}
                                   </button>
                                 );
                               })}
                             </div>
                           </div>
 
-                          {/* Datas */}
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                              <span className="text-[10px] opacity-70">Início</span>
-                              <Input
+                          {/* Range de datas compacto */}
+                          <div className="flex items-center bg-background border border-border rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-ring transition-all">
+                            <div className="flex items-center px-2.5 border-r border-border">
+                              <Calendar className="w-3.5 h-3.5 text-muted-foreground mr-2 shrink-0" />
+                              <input
                                 type="date"
                                 value={subtask.start}
                                 onChange={e => updateSubtask(subtask._tempId, 'start', e.target.value)}
-                                className="h-8 text-xs bg-white/70 dark:bg-black/20 border-0 focus:ring-1"
+                                className="bg-transparent text-[11px] font-mono text-foreground py-1.5 w-[90px] outline-none"
                               />
                             </div>
-                            <div className="space-y-1">
-                              <span className="text-[10px] opacity-70">Fim</span>
-                              <Input
+                            <div className="flex items-center px-2.5">
+                              <span className="text-[10px] text-muted-foreground mr-2 font-medium">até</span>
+                              <input
                                 type="date"
                                 value={subtask.end}
                                 onChange={e => updateSubtask(subtask._tempId, 'end', e.target.value)}
-                                className="h-8 text-xs bg-white/70 dark:bg-black/20 border-0 focus:ring-1"
+                                className="bg-transparent text-[11px] font-mono text-foreground py-1.5 w-[90px] outline-none"
                               />
                             </div>
                           </div>
-                          {errors[`${subtask._tempId}-dates`] && (
-                            <p className="text-[10px] text-red-600">{errors[`${subtask._tempId}-dates`]}</p>
-                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => removeSubtask(subtask._tempId)}
+                            className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
+                            aria-label="Remover subtask"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
+
+                        {errors[`${subtask._tempId}-dates`] && (
+                          <p className="absolute -bottom-4 right-10 text-[10px] text-red-500">
+                            {errors[`${subtask._tempId}-dates`]}
+                          </p>
+                        )}
                       </div>
                     );
                   })}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={addSubtask}
-                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Adicionar subtask
-                </button>
+                {/* Empty state */}
+                {subtasks.length === 0 && (
+                  <div className="text-center py-10 bg-muted/20 rounded-xl border border-dashed border-border flex flex-col items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                      <ListTodo className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground">Nenhuma subtask definida</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                      Adicione subtasks para estruturar esta demanda, atribuir responsáveis e definir prazos de entrega.
+                    </p>
+                  </div>
+                )}
+
               </div>
-
-            </div>
-          </form>
-        </div>
-
-        {/* Footer */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-border bg-muted/50 flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-between sm:items-center">
-          <Button className="flex-1 sm:flex-none text-xs sm:text-sm" variant="outline" onClick={handleRequestClose} type="button">Cancelar</Button>
-          <div className="flex gap-2 flex-1 sm:flex-none justify-end">
-            {task && onDelete && (
-              <Button
-                className="flex-1 sm:flex-none text-xs sm:text-sm text-muted-foreground hover:text-destructive"
-                variant="ghost"
-                size="sm"
-                type="button"
-                onClick={() => onDelete(task.id)}
-              >
-                <Trash2 className="w-4 h-4 mr-1.5" />
-                <span className="sm:hidden">Apagar</span>
-                <span className="hidden sm:inline">Apagar demanda</span>
-              </Button>
-            )}
-            <Button className="flex-1 sm:flex-none text-xs sm:text-sm" type="submit" form="task-form" disabled={!isDirty || submitting}>
-              <Save className="w-4 h-4 mr-1.5" />
-              <span className="sm:hidden">{submitting ? 'A guardar…' : task ? 'Salvar' : 'Criar'}</span>
-              <span className="hidden sm:inline">{submitting ? 'A guardar…' : task ? 'Salvar Alterações' : 'Criar Demanda'}</span>
-            </Button>
+            </form>
           </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-border bg-muted/30 flex items-center justify-between">
+            <div>
+              {task && onDelete && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => onDelete(task.id)}
+                  className="text-muted-foreground hover:text-destructive flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Apagar demanda</span>
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={handleRequestClose} type="button">
+                Cancelar
+              </Button>
+              <Button type="submit" form="task-form" disabled={!isDirty || submitting} className="flex items-center gap-2">
+                <Save className="w-4 h-4" />
+                <span className="sm:hidden">{submitting ? 'A guardar…' : task ? 'Salvar' : 'Criar'}</span>
+                <span className="hidden sm:inline">{submitting ? 'A guardar…' : task ? 'Salvar Alterações' : 'Criar Demanda'}</span>
+              </Button>
+            </div>
+          </div>
+
+          {pendingSubmitData && (
+            <ConfirmModal
+              title="Datas em fim de semana ou feriado"
+              message={confirmMessage}
+              secondaryConfirmLabel="Prolongar para próximo dia útil"
+              onSecondaryConfirm={handlePostponeWeekend}
+              onConfirm={handleConfirmWeekend}
+              onCancel={handleCancelWeekend}
+            />
+          )}
+
+          {showDirtyCloseConfirm && (
+            <ConfirmModal
+              title="Descartar alterações"
+              message="Você tem alterações não guardadas. Tem certeza que quer fechar?"
+              confirmLabel="Descartar e fechar"
+              cancelLabel="Continuar editando"
+              onConfirm={() => {
+                setShowDirtyCloseConfirm(false);
+                onClose();
+              }}
+              onCancel={() => setShowDirtyCloseConfirm(false)}
+            />
+          )}
+
         </div>
-
-        {pendingSubmitData && (
-          <ConfirmModal
-            title="Datas em fim de semana ou feriado"
-            message={confirmMessage}
-            secondaryConfirmLabel="Prolongar para próximo dia útil"
-            onSecondaryConfirm={handlePostponeWeekend}
-            onConfirm={handleConfirmWeekend}
-            onCancel={handleCancelWeekend}
-          />
-        )}
-
-        {showDirtyCloseConfirm && (
-          <ConfirmModal
-            title="Descartar alterações"
-            message="Você tem alterações não guardadas. Tem certeza que quer fechar?"
-            confirmLabel="Descartar e fechar"
-            cancelLabel="Continuar editando"
-            onConfirm={() => {
-              setShowDirtyCloseConfirm(false);
-              onClose();
-            }}
-            onCancel={() => setShowDirtyCloseConfirm(false)}
-          />
-        )}
-
       </div>
-    </div>
+    </>
   );
 };
 
