@@ -20,6 +20,7 @@ export type ViewType =
   | 'tools-export'
   | 'tools-integrations'
   | 'demandas'
+  | 'kanban'
   | 'profile'
 export type DashboardMode = 'calendar' | 'timeline'
 

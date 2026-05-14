@@ -2,15 +2,16 @@ import { useState } from 'react';
 import { Search, Calendar, AlertCircle, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { ViewTabs, type ViewTab } from '@/components/ui/ViewTabs';
 import { STEP_META, STEP_TYPES_ORDER, SUBTASK_PROGRESS_META, SUBTASK_PROGRESS_STATUS_ORDER, type StepType, type SubtaskProgressStatus } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
 
-const PERIOD_TABS = [
+const PERIOD_TABS: readonly ViewTab<string>[] = [
   { value: '', label: 'Todos' },
   { value: '7', label: '7d' },
   { value: '15', label: '15d' },
   { value: '30', label: '30d' },
-] as const;
+];
 
 export interface FiltersState {
   searchTerm: string;
@@ -238,19 +239,11 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
 
         <div className="flex items-center gap-1 border border-input bg-background rounded-md px-2 py-1">
           <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
-          {PERIOD_TABS.map(tab => (
-            <button
-              key={tab.value}
-              onClick={() => onChange({ selectedPeriod: tab.value })}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap ${
-                selectedPeriod === tab.value
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          <ViewTabs
+            tabs={PERIOD_TABS}
+            value={selectedPeriod}
+            onChange={v => onChange({ selectedPeriod: v })}
+          />
         </div>
 
         <button

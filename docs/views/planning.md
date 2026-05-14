@@ -6,7 +6,7 @@
 
 **Arquitetura de filtros:** `PlanningView` gerencia dois conjuntos de filtros independentes, ambos como `FiltersState` local:
 - `demandasFilters` — filtros do subview `demandas`
-- `calendarFilters` — filtros dos subviews `calendar` e `timeline`
+- `calendarFilters` — filtros dos subviews `calendar`, `timeline` e `kanban`
 
 Ambos são renderizados pelo `PlanningViewHeader` via `TasksFilters` (o componente de filtros unificado). `PlanningView` aplica `calendarFilters` sobre as tasks já processadas por `useTaskFilters` antes de passar `filteredTasks` para `CalendarView` e `TimelineView`. `CalendarView` e `TimelineView` não renderizam mais filtros internamente — recebem apenas tasks já filtradas. O estado de `viewMode` (step/demand) para o calendário ainda vive em `usePlanningFiltersStore`.
 
@@ -22,15 +22,17 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | `timeline` | Gantt/linha do tempo |
 | `list` | Tabela de demandas (ListView) |
 | `demandas` | Tabela hierárquica de demandas com subtasks como linhas-filho |
+| `kanban` | Board Kanban com colunas de progressStatus e drag-drop nativo |
 
-`PlanningView` recebe `subview: 'calendar' | 'timeline' | 'list' | 'demandas'` e renderiza o modo correspondente.
+`PlanningView` recebe `subview: 'calendar' | 'timeline' | 'list' | 'demandas' | 'kanban'` e renderiza o modo correspondente. URL: `/:clientSlug/tasks/kanban`.
 
 ## Ficheiros
 
 | Ficheiro | Responsabilidade |
 |---|---|
 | `src/views/planning/PlanningView.tsx` | Orquestra dados globais (tasks, members, holidays), aplica filtros via `useTaskFilters` e passa `filteredTasks`, `members`, `onOpenNew` e `onExport` para `CalendarView` e `TimelineView` via prop |
-| `src/views/planning/components/PlanningViewHeader.tsx` | Header compartilhado: tabs de navegação, título/descrição da view e `TasksFilters` para todos os subviews (`demandas`, `calendar`, `timeline`). Recebe `demandasFilters` e `calendarFilters` como props separados. |
+| `src/views/planning/components/PlanningViewHeader.tsx` | Header compartilhado: tabs de navegação, título/descrição da view e `TasksFilters` para todos os subviews (`demandas`, `calendar`, `timeline`, `kanban`). Recebe `demandasFilters` e `calendarFilters` como props separados. |
+| `src/views/kanban/KanbanView.tsx` | Board Kanban com até 10 colunas cobrindo todos os valores de `SubtaskProgressStatus` (`todo`, `ready`, `in-progress`, `in-review`, `waiting`, `blocked`, `needs-changes`, `paused`, `done`, `canceled`); exibe apenas as 4 padrão + colunas que tiverem cards; demandas mãe concluídas (`concludedAt` preenchido) são excluídas; cards draggáveis com dot colorido por `STEP_META`, badge de prazo, avatares e indicador de bloqueio; ao mover um card chama `onUpdateTask` com `progressStatus` atualizado. |
 | `src/store/usePlanningFiltersStore.ts` | Store Zustand com estado de `viewMode` (step/demand) e filtros legados lidos por `useTaskFilters` |
 | `src/views/planning/hooks/useTaskFilters.ts` | Lê filtros de `usePlanningFiltersStore` e aplica sobre as tasks; expõe `filteredTasks`, contadores e helpers |
 | `src/views/planning/components/FilterBar.tsx` | Barra de filtros legada — não mais usada por `CalendarView` ou `TimelineView` |

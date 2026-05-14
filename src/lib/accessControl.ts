@@ -48,6 +48,7 @@ const VIEW_RULES: Record<ViewType, ViewRule> = {
   timeline: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
   list: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
   demandas: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
+  kanban: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
   members: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:members' },
   reports: { requiresClient: true, roles: ['admin', 'user'], permission: 'view:reports' },
   'reports-fluxo': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:reports' },

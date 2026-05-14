@@ -29,6 +29,7 @@ export function urlToView(pathname: string): ViewType {
     if (sub === "calendar") return "calendar"
     if (sub === "timeline") return "timeline"
     if (sub === "list") return "list"
+    if (sub === "kanban") return "kanban"
     return "demandas"
   }
 
@@ -75,6 +76,7 @@ export function viewToPath(view: ViewType, clientSlug: string | null): string {
     calendar: `${base}/tasks/calendar`,
     timeline: `${base}/tasks/timeline`,
     list: `${base}/tasks/list`,
+    kanban: `${base}/tasks/kanban`,
     members: `${base}/members`,
     reports: `${base}/reports`,
     "reports-fluxo": `${base}/reports/fluxo`,

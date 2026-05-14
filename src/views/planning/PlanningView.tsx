@@ -10,6 +10,7 @@ import { useSubtaskQuickEdit } from '@/hooks/tasks/useSubtaskQuickEdit';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
 import { ListView } from '@/views/list';
+import { KanbanView } from '@/views/kanban';
 import { useTaskFilters } from './hooks/useTaskFilters';
 import { PlanningViewHeader } from './components/PlanningViewHeader';
 import { StepsLegend } from './components/StepsLegend';
@@ -219,7 +220,7 @@ const hasDemandasActiveFilters =
     );
   }
 
-  const showFilterBar = subview === 'calendar' || subview === 'timeline';
+  const showFilterBar = subview === 'calendar' || subview === 'timeline' || subview === 'kanban';
 
   const content = (
     <div className="space-y-5">
@@ -248,6 +249,8 @@ const hasDemandasActiveFilters =
         <CalendarView tasks={filteredTasks} onEdit={onEdit} onUpdateTask={onUpdateTask} holidays={holidays} />
       ) : subview === 'timeline' ? (
         <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
+      ) : subview === 'kanban' ? (
+        <KanbanView tasks={filteredTasks} members={members} onEdit={onEdit} onUpdateTask={onUpdateTask} />
       ) : subview === 'list' ? (
         <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
       ) : subview === 'demandas' ? (
@@ -289,7 +292,7 @@ const hasDemandasActiveFilters =
         </div>
       ) : null}
 
-      {subview !== 'demandas' && <StepsLegend />}
+      {subview !== 'demandas' && subview !== 'kanban' && <StepsLegend />}
     </div>
   );
 

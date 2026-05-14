@@ -6,6 +6,7 @@ import type { Member } from '@/types/member';
 
 const DEMAND_TABS = [
   { value: 'demandas', label: 'Todas as Demandas' },
+  { value: 'kanban', label: 'Kanban' },
   { value: 'calendar', label: 'Calendário' },
   { value: 'timeline', label: 'Linha do Tempo' },
 ] as const;
@@ -15,6 +16,7 @@ const VIEW_TITLES: Record<string, { title: string; description: string }> = {
   timeline: { title: 'Linha do Tempo', description: 'Acompanhe as fases das demandas em Gantt.' },
   list: { title: 'Lista', description: 'Todas as demandas em formato de tabela.' },
   demandas: { title: 'Demandas', description: 'Visualize todas as demandas por etapa atual.' },
+  kanban: { title: 'Kanban', description: 'Arraste as demandas entre colunas de progresso.' },
 };
 
 interface PlanningViewHeaderProps {
@@ -46,7 +48,7 @@ export function PlanningViewHeader({
 }: PlanningViewHeaderProps) {
   const { title, description } = VIEW_TITLES[subview] ?? VIEW_TITLES.calendar;
   const showDemandasFilters = subview === 'demandas';
-  const showCalendarFilters = subview === 'calendar' || subview === 'timeline';
+  const showCalendarFilters = subview === 'calendar' || subview === 'timeline' || subview === 'kanban';
 
   return (
     <div className="space-y-5">

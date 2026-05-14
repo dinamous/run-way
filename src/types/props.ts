@@ -29,7 +29,7 @@ export interface TaskModalProps {
 // ─── PlanningView ─────────────────────────────────────────────────────────────
 
 export interface PlanningViewProps {
-  subview: 'calendar' | 'timeline' | 'list' | 'demandas';
+  subview: 'calendar' | 'timeline' | 'list' | 'demandas' | 'kanban';
   onViewChange: (view: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;

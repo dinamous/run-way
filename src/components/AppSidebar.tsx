@@ -208,7 +208,7 @@ export function AppSidebar() {
       )
     }
 
-    const PLANNING_VIEWS: ViewType[] = ["demandas", "calendar", "timeline", "list"]
+    const PLANNING_VIEWS: ViewType[] = ["demandas", "calendar", "timeline", "list", "kanban"]
     const isActive = item.view === "demandas"
       ? PLANNING_VIEWS.includes(view)
       : view === item.view
