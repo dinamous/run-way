@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Lock, GripVertical } from 'lucide-react';
+import { Calendar, Lock, GripVertical, Layers } from 'lucide-react';
 import { STEP_META } from '@/lib/steps';
 import type { Task, Subtask, SubtaskProgressStatus } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
@@ -27,16 +27,20 @@ interface KanbanCardProps {
   members: Member[];
   onEdit: (task: Task) => void;
   onDragStart: (e: React.DragEvent, taskId: string, subtaskId: string) => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
 }
 
-function KanbanCard({ item, members, onEdit, onDragStart }: KanbanCardProps) {
+function KanbanCard({ item, members, onEdit, onDragStart, onDragEnd, isDragging }: KanbanCardProps) {
   const { task, subtask } = item;
   const meta = STEP_META[subtask.status] ?? STEP_META['desenvolvimento'];
   const isBlocked = task.status?.blocked;
 
-  const cardStyle = isBlocked
-    ? 'bg-red-50 border-red-300 text-red-900 dark:bg-red-950/30 dark:border-red-800/80 dark:text-red-100'
-    : 'bg-white border-zinc-200 text-zinc-900 dark:bg-zinc-900/80 dark:border-zinc-700/50 dark:text-zinc-100';
+  const cardStyle = isDragging
+    ? 'bg-indigo-50 border-indigo-400 text-zinc-900 dark:bg-indigo-950/40 dark:border-indigo-500/70 dark:text-zinc-100 opacity-60 scale-[0.97] rotate-1 shadow-xl'
+    : isBlocked
+      ? 'bg-red-50 border-red-300 text-red-900 dark:bg-red-950/30 dark:border-red-800/80 dark:text-red-100'
+      : 'bg-white border-zinc-200 text-zinc-900 dark:bg-zinc-900/80 dark:border-zinc-700/50 dark:text-zinc-100';
 
   const assignedMembers = members.filter((m) => subtask.assignees?.includes(m.id));
 
@@ -44,11 +48,13 @@ function KanbanCard({ item, members, onEdit, onDragStart }: KanbanCardProps) {
     <div
       draggable
       onDragStart={(e) => onDragStart(e, task.id, subtask.id)}
-      onClick={() => onEdit(task)}
+      onDragEnd={onDragEnd}
+      onClick={() => !isDragging && onEdit(task)}
       className={`
         group relative flex flex-col gap-2.5 p-3.5 mb-3 rounded-xl border
-        cursor-grab active:cursor-grabbing hover:brightness-[1.03] transition-all
-        shadow-sm hover:shadow-md animate-in fade-in-0 zoom-in-95 duration-200
+        cursor-grab active:cursor-grabbing hover:brightness-[1.03] transition-all duration-150
+        shadow-sm hover:shadow-md animate-in fade-in-0 zoom-in-95
+        ${isDragging ? 'animate-[wiggle_0.6s_ease-in-out_infinite]' : 'duration-200'}
         ${cardStyle}
       `}
     >
@@ -110,6 +116,67 @@ function KanbanCard({ item, members, onEdit, onDragStart }: KanbanCardProps) {
   );
 }
 
+interface EmptyColumnsGroupProps {
+  columns: typeof COLUMNS;
+  isDragging: boolean;
+}
+
+function EmptyColumnsGroup({ columns, isDragging }: EmptyColumnsGroupProps) {
+  const isHidden = isDragging || columns.length === 0;
+
+  const CARD_W = 300;
+  const STACK_OFFSET = 12;
+  const stackWidth = CARD_W + (columns.length - 1) * STACK_OFFSET;
+
+  return (
+    <div
+      className="flex flex-col shrink-0"
+      style={{
+        width: isHidden ? '0px' : `${stackWidth}px`,
+        overflow: isHidden ? 'hidden' : 'visible',
+        opacity: isHidden ? 0 : 1,
+        pointerEvents: isHidden ? 'none' : 'auto',
+        transition: 'width 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease',
+        marginRight: isHidden ? '-20px' : '0px',
+      }}
+    >
+      <div className="flex items-center gap-2.5 mb-4 pb-2 border-b border-zinc-200 dark:border-white/5">
+        <Layers className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+        <h3 className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-300">Fases Vazias</h3>
+        <span className="text-[11px] font-medium bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-white/5">
+          {columns.length}
+        </span>
+      </div>
+
+      <div className="relative" style={{ height: '120px', width: `${stackWidth}px` }}>
+        {[...columns].reverse().map((col, revIdx) => {
+          const i = columns.length - 1 - revIdx;
+          return (
+            <div
+              key={col.id}
+              title={col.label}
+              style={{
+                position: 'absolute',
+                left: `${i * STACK_OFFSET}px`,
+                top: 0,
+                width: `${CARD_W}px`,
+                zIndex: i + 1,
+              }}
+              className="flex items-center gap-3 px-3 py-3.5 rounded-xl border border-zinc-200/80 bg-white dark:bg-zinc-900 dark:border-zinc-700/50 shadow-sm"
+            >
+              <div className={`w-2 h-2 rounded-full ${col.dot} shrink-0`} />
+              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">{col.label}</span>
+              <span className="ml-auto text-[10px] text-zinc-400 dark:text-zinc-600 uppercase tracking-wider font-semibold">
+                Vazia
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface KanbanViewProps {
   tasks: Task[];
   members: Member[];
@@ -125,15 +192,15 @@ export function KanbanView({ tasks, members, onEdit, onUpdateTask }: KanbanViewP
     setBoardTasks(tasks);
   }
 
-  // Demandas mãe concluídas ficam fora do Kanban
   const activeTasks = boardTasks.filter((t) => !t.concludedAt);
 
-  // Expande tasks em itens individuais por subtask ativa
   const allItems: KanbanItem[] = activeTasks.flatMap((task) =>
     (task.subtasks ?? [])
       .filter((s) => s.active)
       .map((subtask) => ({ task, subtask })),
   );
+
+  const handleDragEnd = () => setDragged(null);
 
   const handleDragStart = (e: React.DragEvent, taskId: string, subtaskId: string) => {
     setDragged({ taskId, subtaskId });
@@ -149,17 +216,26 @@ export function KanbanView({ tasks, members, onEdit, onUpdateTask }: KanbanViewP
     e.preventDefault();
     if (!dragged) return;
 
+    const draggedTask = boardTasks.find((t) => t.id === dragged.taskId);
+    if (!draggedTask) { setDragged(null); return; }
+
+    const draggedSubtask = draggedTask.subtasks.find((s) => s.id === dragged.subtaskId);
+    if ((draggedSubtask?.progressStatus ?? 'todo') === columnId) {
+      setDragged(null);
+      return;
+    }
+
+    const updatedTask = {
+      ...draggedTask,
+      subtasks: draggedTask.subtasks.map((s) =>
+        s.id === dragged.subtaskId ? { ...s, progressStatus: columnId } : s,
+      ),
+    };
+
     setBoardTasks((prev) =>
-      prev.map((task) => {
-        if (task.id !== dragged.taskId) return task;
-        const updatedSubtasks = task.subtasks.map((s) =>
-          s.id === dragged.subtaskId ? { ...s, progressStatus: columnId } : s,
-        );
-        const updatedTask = { ...task, subtasks: updatedSubtasks };
-        onUpdateTask(updatedTask);
-        return updatedTask;
-      }),
+      prev.map((t) => (t.id === dragged.taskId ? updatedTask : t)),
     );
+    onUpdateTask(updatedTask);
     setDragged(null);
   };
 
@@ -168,57 +244,72 @@ export function KanbanView({ tasks, members, onEdit, onUpdateTask }: KanbanViewP
     return acc;
   }, {});
 
-  const DEFAULT_VISIBLE = new Set<SubtaskProgressStatus>(['todo', 'ready', 'in-progress', 'in-review']);
-  const visibleColumns = COLUMNS.filter(
-    (col) => DEFAULT_VISIBLE.has(col.id) || (columnsData[col.id]?.length ?? 0) > 0,
-  );
+  const isDragging = dragged !== null;
+
+  const stackedColumns = isDragging ? [] : COLUMNS.filter((col) => (columnsData[col.id]?.length ?? 0) === 0);
 
   return (
-    <div className="w-full h-full min-h-[700px] overflow-x-auto bg-zinc-50 dark:bg-[#0a0a0a] p-4 rounded-2xl custom-kanban-scrollbar">
-      <div className="flex gap-5 min-w-max h-full">
-        {visibleColumns.map((col) => (
-          <div
-            key={col.id}
-            className="flex flex-col w-[300px] shrink-0"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, col.id)}
-          >
-            <div className="flex items-center gap-2.5 mb-4 pb-2 border-b border-zinc-200 dark:border-white/5">
-              <div className={`w-2 h-2 rounded-full ${col.dot}`} />
-              <h3 className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-300">{col.label}</h3>
-              <span className="text-[11px] font-medium bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-white/5">
-                {columnsData[col.id]?.length ?? 0}
-              </span>
-            </div>
-
+    <div className="w-full overflow-x-auto bg-zinc-50 dark:bg-[#0a0a0a] p-4 rounded-2xl custom-kanban-scrollbar" style={{ height: 'calc(100vh - 4rem - 4rem - 3.5rem - 1.25rem)' }}>
+      <div className="flex gap-5 min-w-max h-full items-stretch">
+        {COLUMNS.map((col) => {
+          const isEmpty = (columnsData[col.id]?.length ?? 0) === 0;
+          const isCollapsed = isEmpty && !isDragging;
+          return (
             <div
-              className={`
-                flex-1 flex flex-col p-2 rounded-2xl border transition-colors duration-300
-                ${dragged
-                  ? 'bg-zinc-100/80 border-zinc-300 border-dashed dark:bg-white/[0.02] dark:border-white/10'
-                  : 'bg-transparent border-transparent'}
-              `}
+              key={col.id}
+              className="flex flex-col shrink-0 h-full"
+              style={{
+                width: isCollapsed ? '0px' : '300px',
+                overflow: isCollapsed ? 'hidden' : 'visible',
+                opacity: isCollapsed ? 0 : 1,
+                pointerEvents: isCollapsed ? 'none' : 'auto',
+                transition: 'width 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease',
+                marginRight: isCollapsed ? '-20px' : '0px',
+              }}
             >
-              {columnsData[col.id]?.map((item) => (
-                <KanbanCard
-                  key={`${item.task.id}-${item.subtask.id}`}
-                  item={item}
-                  members={members}
-                  onEdit={onEdit}
-                  onDragStart={handleDragStart}
-                />
-              ))}
+              <div className="flex items-center gap-2.5 mb-4 pb-2 border-b border-zinc-200 dark:border-white/5">
+                <div className={`w-2 h-2 rounded-full ${col.dot}`} />
+                <h3 className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-300">{col.label}</h3>
+                <span className="text-[11px] font-medium bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-white/5">
+                  {columnsData[col.id]?.length ?? 0}
+                </span>
+              </div>
 
-              {columnsData[col.id]?.length === 0 && (
-                <div className="flex-1 min-h-[100px] flex items-center justify-center mt-2 rounded-xl border border-zinc-200 dark:border-white/5 bg-zinc-100/50 dark:bg-white/[0.01]">
-                  <span className="text-xs text-zinc-400 dark:text-zinc-600 font-medium tracking-wide">
-                    Nenhuma subtask
-                  </span>
-                </div>
-              )}
+              <div
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, col.id)}
+                className={`
+                  flex-1 min-h-0 flex flex-col p-2 rounded-2xl border transition-colors duration-300
+                  ${isDragging
+                    ? 'bg-zinc-100/80 border-zinc-300 border-dashed dark:bg-white/[0.04] dark:border-white/10'
+                    : 'bg-zinc-100/60 border-zinc-200/80 dark:bg-white/[0.025] dark:border-white/[0.06]'}
+                `}
+              >
+                {columnsData[col.id]?.map((item) => (
+                  <KanbanCard
+                    key={`${item.task.id}-${item.subtask.id}`}
+                    item={item}
+                    members={members}
+                    onEdit={onEdit}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    isDragging={dragged?.taskId === item.task.id && dragged?.subtaskId === item.subtask.id}
+                  />
+                ))}
+
+                {columnsData[col.id]?.length === 0 && (
+                  <div className="flex-1 min-h-[100px] flex items-center justify-center mt-2 rounded-xl border border-zinc-200 dark:border-white/5 bg-zinc-100/50 dark:bg-white/[0.01]">
+                    <span className="text-xs text-zinc-400 dark:text-zinc-600 font-medium tracking-wide">
+                      Nenhuma subtask
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
+
+        <EmptyColumnsGroup columns={stackedColumns} isDragging={isDragging} />
       </div>
 
       <style>{`
@@ -228,6 +319,13 @@ export function KanbanView({ tasks, members, onEdit, onUpdateTask }: KanbanViewP
         .custom-kanban-scrollbar::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
         .dark .custom-kanban-scrollbar::-webkit-scrollbar-thumb { background: #27272a; }
         .dark .custom-kanban-scrollbar::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        @keyframes wiggle {
+          0%   { transform: rotate(0deg) scale(0.97); }
+          25%  { transform: rotate(-1.5deg) scale(0.97); }
+          50%  { transform: rotate(1.5deg) scale(0.97); }
+          75%  { transform: rotate(-1deg) scale(0.97); }
+          100% { transform: rotate(1deg) scale(0.97); }
+        }
       `}</style>
     </div>
   );

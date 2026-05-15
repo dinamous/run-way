@@ -382,8 +382,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
   }, [clientId, isAdmin, memberId, queryClient])
 
   const throttledCreateTask = useThrottledMutation(createTask, MUTATION_THROTTLE_MS)
-  const throttledUpdateTask = useThrottledMutation(updateTask, MUTATION_THROTTLE_MS)
   const throttledDeleteTask = useThrottledMutation(deleteTask, MUTATION_THROTTLE_MS)
 
-  return { createTask: throttledCreateTask, updateTask: throttledUpdateTask, deleteTask: throttledDeleteTask }
+  return { createTask: throttledCreateTask, updateTask, deleteTask: throttledDeleteTask }
 }

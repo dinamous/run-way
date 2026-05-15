@@ -13,7 +13,7 @@ Hook de **mutations apenas**. Não armazena estado — após cada operação usa
 - `updateTask(data)` — update otimista no cache do TanStack Query, depois persiste no DB; reverte em caso de erro
 - `deleteTask(id)` — remove do DB e atualiza o cache local sem re-fetch
 
-As três funções são envolvidas por `useThrottledMutation` (500ms) antes de serem expostas. Chamadas mais rápidas que o intervalo são rejeitadas com toast de aviso e retornam `false`.
+`createTask` e `deleteTask` são envolvidas por `useThrottledMutation` (500ms) antes de serem expostas — chamadas mais rápidas que o intervalo são rejeitadas com toast de aviso e retornam `false`. `updateTask` é exposto sem throttle, pois é chamado de forma intencional (drag-and-drop, edição inline).
 
 ## Rate Limiting (client-side)
 
