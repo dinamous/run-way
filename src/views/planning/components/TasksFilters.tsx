@@ -1,23 +1,26 @@
 import { useState } from 'react';
-import { Search, User, Calendar, AlertCircle, ChevronDown } from 'lucide-react';
+import { Search, Calendar, AlertCircle, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { STEP_META, STEP_TYPES_ORDER, type StepType } from '@/lib/steps';
+import { ViewTabs, type ViewTab } from '@/components/ui/ViewTabs';
+import { STEP_META, STEP_TYPES_ORDER, SUBTASK_PROGRESS_META, SUBTASK_PROGRESS_STATUS_ORDER, type StepType, type SubtaskProgressStatus } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
 
-const PERIOD_TABS = [
+const PERIOD_TABS: readonly ViewTab<string>[] = [
   { value: '', label: 'Todos' },
   { value: '7', label: '7d' },
   { value: '15', label: '15d' },
   { value: '30', label: '30d' },
-] as const;
+];
 
 export interface FiltersState {
   searchTerm: string;
   selectedSteps: StepType[];
+  selectedProgressStatuses: SubtaskProgressStatus[];
   selectedMemberIds: string[];
   selectedPeriod: string;
   showOnlyBlocked: boolean;
+  showConcluded: boolean;
 }
 
 interface TasksFiltersProps {
@@ -29,13 +32,13 @@ interface TasksFiltersProps {
 
 function CheckboxDropdown({
   label,
-  icon,
+  width = 'w-44',
   options,
   selected,
   onToggle,
 }: {
   label: string;
-  icon?: React.ReactNode;
+  width?: string;
   options: { value: string; label: string }[];
   selected: string[];
   onToggle: (value: string) => void;
@@ -54,16 +57,13 @@ function CheckboxDropdown({
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-md border transition-colors whitespace-nowrap min-w-[11rem] justify-between ${
+        className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-md border transition-colors whitespace-nowrap ${width} justify-between ${
           selected.length > 0
             ? 'border-primary bg-primary/5 text-foreground'
             : 'border-input bg-background text-muted-foreground hover:bg-muted'
         }`}
       >
-        <span className="flex items-center gap-1.5 min-w-0">
-          {icon}
-          <span className="truncate">{displayLabel}</span>
-        </span>
+        <span className="truncate">{displayLabel}</span>
         <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -92,15 +92,108 @@ function CheckboxDropdown({
   );
 }
 
+function MemberAvatarPicker({
+  members,
+  selectedIds,
+  onToggle,
+}: {
+  members: Member[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-md border transition-colors whitespace-nowrap w-36 justify-between ${
+          selectedIds.length > 0
+            ? 'border-primary bg-primary/5 text-foreground'
+            : 'border-input bg-background text-muted-foreground hover:bg-muted'
+        }`}
+        title="Filtrar por responsável"
+      >
+        {selectedIds.length === 0 ? (
+          <span className="text-sm">Responsável</span>
+        ) : (
+          <span className="flex items-center gap-1">
+            {selectedIds.slice(0, 3).map(id => {
+              const m = members.find(m => m.id === id);
+              return m ? (
+                <span
+                  key={id}
+                  className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center shrink-0 ring-1 ring-background -ml-1 first:ml-0"
+                  title={m.name}
+                >
+                  {m.avatar}
+                </span>
+              ) : null;
+            })}
+            {selectedIds.length > 3 && (
+              <span className="text-xs text-muted-foreground ml-1">+{selectedIds.length - 3}</span>
+            )}
+          </span>
+        )}
+        <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ml-1 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 z-20 w-56 bg-popover border border-border rounded-md shadow-md py-1">
+            {members.map(m => {
+              const selected = selectedIds.includes(m.id);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => onToggle(m.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2 w-full text-left text-sm hover:bg-muted transition-colors ${selected ? 'bg-primary/5' : ''}`}
+                >
+                  {m.avatar_url ? (
+                    <img src={m.avatar_url} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center shrink-0">
+                      {m.avatar}
+                    </span>
+                  )}
+                  <span className="flex-1 truncate">{m.name}</span>
+                  {selected && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function TasksFilters({ filters, members, onChange, onClear }: TasksFiltersProps) {
-  const { searchTerm, selectedSteps, selectedMemberIds, selectedPeriod, showOnlyBlocked } = filters;
-  const hasActiveFilters = searchTerm !== '' || selectedSteps.length > 0 || selectedMemberIds.length > 0 || selectedPeriod !== '' || showOnlyBlocked;
+  const { searchTerm, selectedSteps, selectedProgressStatuses, selectedMemberIds, selectedPeriod, showOnlyBlocked, showConcluded } = filters;
+  const hasActiveFilters =
+    searchTerm !== '' ||
+    selectedSteps.length > 0 ||
+    selectedProgressStatuses.length > 0 ||
+    selectedMemberIds.length > 0 ||
+    selectedPeriod !== '' ||
+    showOnlyBlocked ||
+    showConcluded;
 
   function toggleStep(step: StepType) {
     const next = selectedSteps.includes(step)
       ? selectedSteps.filter(s => s !== step)
       : [...selectedSteps, step];
     onChange({ selectedSteps: next });
+  }
+
+  function toggleProgressStatus(status: SubtaskProgressStatus) {
+    const next = selectedProgressStatuses.includes(status)
+      ? selectedProgressStatuses.filter(s => s !== status)
+      : [...selectedProgressStatuses, status];
+    onChange({ selectedProgressStatuses: next });
   }
 
   function toggleMember(id: string) {
@@ -116,7 +209,7 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <Input
           type="text"
-          placeholder="Pesquisar demanda ou ID..."
+          placeholder="Pesquisar demanda, subtask ou ID..."
           value={searchTerm}
           onChange={e => onChange({ searchTerm: e.target.value })}
           className="pl-9 w-full"
@@ -125,35 +218,32 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
 
       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
         <CheckboxDropdown
-          label="Todas as etapas"
+          label="Categoria"
           options={STEP_TYPES_ORDER.map(s => ({ value: s, label: STEP_META[s].label }))}
           selected={selectedSteps}
           onToggle={v => toggleStep(v as StepType)}
         />
 
         <CheckboxDropdown
-          label="Todos responsáveis"
-          icon={<User className="w-4 h-4 shrink-0" />}
-          options={members.map(m => ({ value: m.id, label: m.name }))}
-          selected={selectedMemberIds}
+          label="Status"
+          options={SUBTASK_PROGRESS_STATUS_ORDER.map(s => ({ value: s, label: SUBTASK_PROGRESS_META[s].label }))}
+          selected={selectedProgressStatuses}
+          onToggle={v => toggleProgressStatus(v as SubtaskProgressStatus)}
+        />
+
+        <MemberAvatarPicker
+          members={members}
+          selectedIds={selectedMemberIds}
           onToggle={toggleMember}
         />
 
         <div className="flex items-center gap-1 border border-input bg-background rounded-md px-2 py-1">
           <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
-          {PERIOD_TABS.map(tab => (
-            <button
-              key={tab.value}
-              onClick={() => onChange({ selectedPeriod: tab.value })}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap ${
-                selectedPeriod === tab.value
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          <ViewTabs
+            tabs={PERIOD_TABS}
+            value={selectedPeriod}
+            onChange={v => onChange({ selectedPeriod: v })}
+          />
         </div>
 
         <button
@@ -166,6 +256,18 @@ export function TasksFilters({ filters, members, onChange, onClear }: TasksFilte
         >
           <AlertCircle className="w-3.5 h-3.5" />
           Bloqueadas
+        </button>
+
+        <button
+          onClick={() => onChange({ showConcluded: !showConcluded })}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md border transition-colors whitespace-nowrap ${
+            showConcluded
+              ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800'
+              : 'bg-background text-muted-foreground border-input hover:bg-muted'
+          }`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          Concluídas
         </button>
 
         <div className="w-[68px]">

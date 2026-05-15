@@ -45,8 +45,48 @@ export function useTaskQuickActions(memberId?: string | null) {
     return true
   }, [invalidate])
 
+  const concludeTasks = useCallback(async (tasks: Task[]) => {
+    const pendingTasks = tasks.filter(task => !task.concludedAt)
+    if (pendingTasks.length === 0) {
+      toast.info('As demandas selecionadas já estão concluídas')
+      return false
+    }
+
+    const now = new Date().toISOString()
+    const { error } = await supabase
+      .from('tasks')
+      .update({ concluded_at: now, concluded_by: memberId ?? null })
+      .in('id', pendingTasks.map(task => task.id))
+
+    if (error) { toast.error('Erro ao concluir demandas'); return false }
+    toast.success(`${pendingTasks.length} demanda${pendingTasks.length !== 1 ? 's' : ''} concluída${pendingTasks.length !== 1 ? 's' : ''}`)
+    invalidate()
+    return true
+  }, [memberId, invalidate])
+
+  const blockTasks = useCallback(async (tasks: Task[]) => {
+    const unblockedTasks = tasks.filter(task => !task.status.blocked)
+    if (unblockedTasks.length === 0) {
+      toast.info('As demandas selecionadas já estão bloqueadas')
+      return false
+    }
+
+    const now = new Date().toISOString().split('T')[0]
+    const { error } = await supabase
+      .from('tasks')
+      .update({ blocked: true, blocked_at: now })
+      .in('id', unblockedTasks.map(task => task.id))
+
+    if (error) { toast.error('Erro ao bloquear demandas'); return false }
+    toast.success(`${unblockedTasks.length} demanda${unblockedTasks.length !== 1 ? 's' : ''} bloqueada${unblockedTasks.length !== 1 ? 's' : ''}`)
+    invalidate()
+    return true
+  }, [invalidate])
+
   return {
     concludeTask: useThrottledMutation(concludeTask, THROTTLE_MS),
     toggleBlock: useThrottledMutation(toggleBlock, THROTTLE_MS),
+    concludeTasks,
+    blockTasks,
   }
 }

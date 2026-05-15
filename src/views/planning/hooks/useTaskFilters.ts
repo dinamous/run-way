@@ -1,17 +1,28 @@
-import { useState, useMemo } from 'react';
-import type { StepType } from '@/lib/steps';
+import { useMemo } from 'react';
 import { normaliseTask, todayStr } from '@/utils/dashboardUtils';
 import { getCurrentStep } from '@/lib/steps';
 import type { Task } from '@/types/task';
+import { usePlanningFiltersStore } from '@/store/usePlanningFiltersStore';
 
-export type CalendarViewMode = 'step' | 'demand';
+export type { CalendarViewMode } from '@/store/usePlanningFiltersStore';
 
 export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initialAssignee = '') {
-  const [filterAssignee, setFilterAssignee] = useState(() => initialAssignee);
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterSteps, setFilterSteps] = useState<StepType[]>([]);
-  const [filterPeriodDays, setFilterPeriodDays] = useState(60);
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('step');
+  const {
+    filterAssignee, setFilterAssignee,
+    filterStatus, setFilterStatus,
+    filterSteps,
+    filterPeriodDays, setFilterPeriodDays,
+    viewMode, setViewMode,
+    toggleStepFilter,
+    clearFilters,
+  } = usePlanningFiltersStore();
+
+  // seed assignee from redirect only once — store handles persistence
+  useMemo(() => {
+    if (initialAssignee && !filterAssignee) setFilterAssignee(initialAssignee);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAssignee]);
+
   const periodStart = useMemo(() => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -31,19 +42,6 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
     (enablePeriodFilter && filterPeriodDays !== 60)
   );
 
-  const clearFilters = () => {
-    setFilterAssignee('');
-    setFilterStatus('');
-    setFilterSteps([]);
-    setFilterPeriodDays(60);
-  };
-
-  const toggleStepFilter = (type: StepType) => {
-    setFilterSteps(prev =>
-      prev.includes(type) ? prev.filter(s => s !== type) : [...prev, type]
-    );
-  };
-
   const filteredTasks = useMemo(() => {
     return tasks
       .filter(task => {
@@ -54,40 +52,37 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
         }
         if (filterAssignee) {
           const norm = normaliseTask(task);
-          const anyStepHas = norm.steps.some(s => s.assignees.includes(filterAssignee));
+          const anyStepHas = norm.subtasks.some(s => s.assignees.includes(filterAssignee));
           if (!anyStepHas) return false;
         }
         if (filterSteps.length > 0) {
           const norm = normaliseTask(task);
-          const activeTypes = norm.steps.filter(s => s.active).map(s => s.type);
+          const activeTypes = norm.subtasks.filter(s => s.active).map(s => s.status);
           if (!filterSteps.some(ft => activeTypes.includes(ft))) return false;
         }
-
         if (enablePeriodFilter) {
           const norm = normaliseTask(task);
-          const intersectsPeriod = norm.steps.some(step => {
+          const intersectsPeriod = norm.subtasks.some(step => {
             if (!step.active || !step.start || !step.end) return false;
             const stepStart = new Date(step.start + 'T00:00:00');
             const stepEnd = new Date(step.end + 'T00:00:00');
             if (Number.isNaN(stepStart.getTime()) || Number.isNaN(stepEnd.getTime())) return false;
-
             return stepEnd >= periodStart && stepStart <= periodEnd;
           });
-
           if (!intersectsPeriod) return false;
         }
         return true;
       })
       .map(task => {
         const norm = normaliseTask(task);
-        let steps = norm.steps;
+        let subtasks = norm.subtasks;
         if (filterSteps.length > 0) {
-          steps = steps.filter(s => filterSteps.includes(s.type));
+          subtasks = subtasks.filter(s => filterSteps.includes(s.status));
         }
         if (filterAssignee) {
-          steps = steps.filter(s => s.assignees.includes(filterAssignee));
+          subtasks = subtasks.filter(s => s.assignees.includes(filterAssignee));
         }
-        return { ...norm, steps };
+        return { ...norm, subtasks };
       });
   }, [tasks, filterAssignee, filterStatus, filterSteps, enablePeriodFilter, periodStart, periodEnd]);
 
@@ -104,21 +99,17 @@ export function useTaskFilters(tasks: Task[], enablePeriodFilter = false, initia
     return tasks.filter(t => {
       const norm = normaliseTask(t);
       if (norm.concludedAt) return false;
-      const step = getCurrentStep(norm.steps ?? [], today);
+      const step = getCurrentStep(norm.subtasks ?? [], today);
       return step && step.start <= today && step.end >= today;
     }).length;
   }, [tasks]);
 
-return {
-    filterAssignee,
-    setFilterAssignee,
-    filterStatus,
-    setFilterStatus,
+  return {
+    filterAssignee, setFilterAssignee,
+    filterStatus, setFilterStatus,
     filterSteps,
-    filterPeriodDays,
-    setFilterPeriodDays,
-    viewMode,
-    setViewMode,
+    filterPeriodDays, setFilterPeriodDays,
+    viewMode, setViewMode,
     hasActiveFilters,
     clearFilters,
     toggleStepFilter,

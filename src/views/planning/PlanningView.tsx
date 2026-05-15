@@ -1,25 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useUIStore } from '@/store/useUIStore';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTasksQuery } from '@/hooks/tasks/useTasksQuery';
 import { useMembersQuery } from '@/hooks/members/useMembersQuery';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useClients } from '@/hooks/clients/useClients';
 import { useTaskQuickActions } from '@/hooks/tasks/useTaskQuickActions';
+import { useTaskPriorityOrder } from '@/hooks/tasks/useTaskPriorityOrder';
+import { useSubtaskQuickEdit } from '@/hooks/tasks/useSubtaskQuickEdit';
 import { CalendarView } from '@/views/calendar';
 import TimelineView from '@/views/timeline';
 import { ListView } from '@/views/list';
+import { KanbanView } from '@/views/kanban';
 import { useTaskFilters } from './hooks/useTaskFilters';
-import { FilterBar } from './components/FilterBar';
+import { PlanningViewHeader } from './components/PlanningViewHeader';
 import { StepsLegend } from './components/StepsLegend';
-import { TasksFilters, type FiltersState } from './components/TasksFilters';
-import { StepGroup } from './components/StepGroup';
+import { type FiltersState } from './components/TasksFilters';
+import { TaskTable } from './components/TaskTable';
 import type { PlanningViewProps } from '@/types/props';
+import { useUIStore } from '@/store/useUIStore';
 import { ViewState } from '@/components/ViewState';
-import { CalendarX2, DatabaseZap, FilterX, Search, Plus } from 'lucide-react';
+import { CalendarX2, DatabaseZap, FilterX, Search } from 'lucide-react';
 import { Skeleton } from 'boneyard-js/react';
-import { STEP_TYPES_ORDER, type StepType, type Task } from '@/lib/steps';
-import { Button } from '@/components/ui/Button';
+import { toast } from 'sonner';
 
 const PLANNING_BONES = {
   name: 'planning-view',
@@ -37,19 +39,15 @@ const PLANNING_BONES = {
 const EMPTY_FILTERS: FiltersState = {
   searchTerm: '',
   selectedSteps: [],
+  selectedProgressStatuses: [],
   selectedMemberIds: [],
   selectedPeriod: '',
   showOnlyBlocked: false,
+  showConcluded: false,
 };
 
-const VIEW_TITLES: Record<string, { title: string; description: string }> = {
-  calendar: { title: 'Calendário', description: 'Visualize as demandas em calendário mensal.' },
-  timeline: { title: 'Linha do Tempo', description: 'Acompanhe as fases das demandas em Gantt.' },
-  list: { title: 'Lista', description: 'Todas as demandas em formato de tabela.' },
-  demandas: { title: 'Demandas', description: 'Visualize todas as demandas por etapa atual.' },
-};
 
-const PlanningView: React.FC<PlanningViewProps> = ({ subview, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
+const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEdit, onDelete, onUpdateTask, onOpenNew, onExport, holidays }) => {
   const { isAdmin, member } = useAuthContext();
   const { effectiveClientId } = useClients();
   const queryClient = useQueryClient();
@@ -60,20 +58,70 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onEdit, onDelete, 
   const tasksError = tasksErr?.message ?? null;
   const membersError = membersErr?.message ?? null;
 
-  const { concludeTask, toggleBlock } = useTaskQuickActions(member?.auth_user_id);
+  const { concludeTask, toggleBlock, concludeTasks, blockTasks } = useTaskQuickActions(member?.auth_user_id);
+  const updateTaskPriorityOrder = useTaskPriorityOrder({
+    clientId: effectiveClientId,
+    isAdmin,
+  });
+  const { updateSubtaskAssignees, updateSubtaskDates, updateSubtaskProgressStatus } = useSubtaskQuickEdit({
+    clientId: effectiveClientId,
+    isAdmin,
+  });
 
-  const {
-    filterAssignee, setFilterAssignee,
-    filterStatus, setFilterStatus,
-    filterSteps,
-    filterPeriodDays, setFilterPeriodDays,
-    viewMode, setViewMode,
-    hasActiveFilters,
-    clearFilters, toggleStepFilter,
-    filteredTasks,
-  } = useTaskFilters(tasks ?? [], subview === 'timeline', dashboardRedirect?.assigneeId ?? '');
+  const { clearFilters, filteredTasks: allFilteredTasks } = useTaskFilters(tasks ?? [], subview === 'timeline', dashboardRedirect?.assigneeId ?? '');
 
   const [demandasFilters, setDemandasFilters] = useState<FiltersState>(EMPTY_FILTERS);
+  const [calendarFilters, setCalendarFilters] = useState<FiltersState>(EMPTY_FILTERS);
+
+  const filteredTasks = useMemo(() => {
+    if (subview !== 'calendar' && subview !== 'timeline') return allFilteredTasks;
+    const { searchTerm, selectedSteps, selectedProgressStatuses, selectedMemberIds, showOnlyBlocked, selectedPeriod, showConcluded } = calendarFilters;
+    return allFilteredTasks.filter(task => {
+      const isConcluded = !!task.concludedAt;
+      if (!showConcluded && isConcluded) return false;
+      const lowerSearch = searchTerm.toLowerCase();
+      if (lowerSearch && !(
+        task.title.toLowerCase().includes(lowerSearch) ||
+        task.id.toLowerCase().includes(lowerSearch) ||
+        task.subtasks.some(s => s.title.toLowerCase().includes(lowerSearch))
+      )) return false;
+      if (selectedSteps.length > 0 && !task.subtasks.some(s => selectedSteps.includes(s.status))) return false;
+      if (selectedProgressStatuses.length > 0 && !task.subtasks.some(s => selectedProgressStatuses.includes(s.progressStatus))) return false;
+      if (selectedMemberIds.length > 0 && !task.subtasks.some(s => s.assignees.some(a => selectedMemberIds.includes(a)))) return false;
+      if (showOnlyBlocked && !task.status.blocked) return false;
+      if (selectedPeriod) {
+        const currentStep = task.subtasks.find(s => s.active) ?? task.subtasks[0];
+        if (!currentStep?.end) return false;
+        const due = new Date(currentStep.end + 'T00:00:00');
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() + parseInt(selectedPeriod));
+        if (due > cutoff) return false;
+      }
+      return true;
+    });
+  }, [allFilteredTasks, calendarFilters, subview]);
+
+  const handleBulkAssign = useCallback(async (selectedTasks: typeof tasks, memberId: string) => {
+    const tasksWithActiveSubtask = selectedTasks
+      .map(task => ({ task, subtask: task.subtasks.find(subtask => subtask.active) ?? task.subtasks[0] }))
+      .filter(({ subtask }) => !!subtask);
+
+    if (tasksWithActiveSubtask.length === 0) {
+      toast.info('As demandas selecionadas não têm etapas para atribuir');
+      return false;
+    }
+
+    for (const { task, subtask } of tasksWithActiveSubtask) {
+      const nextAssignees = subtask.assignees.includes(memberId)
+        ? subtask.assignees
+        : [...subtask.assignees, memberId];
+      const success = await updateSubtaskAssignees(task, subtask.id, nextAssignees);
+      if (!success) return false;
+    }
+
+    toast.success(`${tasksWithActiveSubtask.length} demanda${tasksWithActiveSubtask.length !== 1 ? 's' : ''} atribuída${tasksWithActiveSubtask.length !== 1 ? 's' : ''}`);
+    return true;
+  }, [updateSubtaskAssignees]);
 
   useEffect(() => {
     if (!dashboardRedirect) return;
@@ -91,16 +139,26 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onEdit, onDelete, 
 
   const filteredDemandasTasks = useMemo(() => {
     if (subview !== 'demandas') return [];
-    const { searchTerm, selectedSteps, selectedMemberIds, showOnlyBlocked, selectedPeriod } = demandasFilters;
+    const { searchTerm, selectedSteps, selectedProgressStatuses, selectedMemberIds, showOnlyBlocked, selectedPeriod, showConcluded } = demandasFilters;
     return tasks.filter(task => {
-      const matchSearch =
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.id.toLowerCase().includes(searchTerm.toLowerCase());
+      const isConcluded = !!task.concludedAt;
+      if (!showConcluded && isConcluded) return false;
 
-      const currentStep = task.steps.find(s => s.active) ?? task.steps[0];
-      const matchStep = selectedSteps.length > 0 ? selectedSteps.includes(currentStep?.type) : true;
+      const lowerSearch = searchTerm.toLowerCase();
+      const matchSearch =
+        task.title.toLowerCase().includes(lowerSearch) ||
+        task.id.toLowerCase().includes(lowerSearch) ||
+        task.subtasks.some(s => s.title.toLowerCase().includes(lowerSearch));
+
+      const currentStep = task.subtasks.find(s => s.active) ?? task.subtasks[0];
+      const matchStep = selectedSteps.length > 0
+        ? task.subtasks.some(s => selectedSteps.includes(s.status))
+        : true;
+      const matchProgressStatus = selectedProgressStatuses.length > 0
+        ? task.subtasks.some(s => selectedProgressStatuses.includes(s.progressStatus))
+        : true;
       const matchMember = selectedMemberIds.length > 0
-        ? task.steps.some(s => s.assignees.some(a => selectedMemberIds.includes(a)))
+        ? task.subtasks.some(s => s.assignees.some(a => selectedMemberIds.includes(a)))
         : true;
       const matchBlocked = showOnlyBlocked ? task.status.blocked : true;
 
@@ -114,48 +172,14 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onEdit, onDelete, 
         matchPeriod = false;
       }
 
-      return matchSearch && matchStep && matchMember && matchBlocked && matchPeriod;
+      return matchSearch && matchStep && matchProgressStatus && matchMember && matchBlocked && matchPeriod;
     });
   }, [tasks, demandasFilters, subview]);
 
-  const groupedDemandasTasks = useMemo(() => {
-    const { selectedMemberIds } = demandasFilters;
-    const groups = new Map<StepType, Task[]>();
-    STEP_TYPES_ORDER.forEach(step => groups.set(step, []));
-    filteredDemandasTasks.forEach(task => {
-      let stepsToUse = task.steps.filter(s => s.active);
-      if (stepsToUse.length === 0) stepsToUse = task.steps.slice(0, 1);
-
-      if (selectedMemberIds.length > 0) {
-        const memberSteps = task.steps.filter(s =>
-          s.assignees.some(a => selectedMemberIds.includes(a))
-        );
-        if (memberSteps.length > 0) stepsToUse = memberSteps;
-      }
-
-      stepsToUse.forEach(step => {
-        const bucket = groups.get(step.type);
-        if (bucket) bucket.push(task);
-      });
-    });
-
-    groups.forEach((bucket, stepType) => {
-      bucket.sort((a, b) => {
-        const endA = a.steps.find(s => s.type === stepType)?.end;
-        const endB = b.steps.find(s => s.type === stepType)?.end;
-        if (!endA && !endB) return 0;
-        if (!endA) return 1;
-        if (!endB) return -1;
-        return endA < endB ? -1 : endA > endB ? 1 : 0;
-      });
-    });
-
-    return groups;
-  }, [filteredDemandasTasks, demandasFilters]);
-
-  const hasDemandasActiveFilters =
+const hasDemandasActiveFilters =
     demandasFilters.searchTerm !== '' ||
     demandasFilters.selectedSteps.length > 0 ||
+    demandasFilters.selectedProgressStatuses.length > 0 ||
     demandasFilters.selectedMemberIds.length > 0 ||
     demandasFilters.selectedPeriod !== '' ||
     demandasFilters.showOnlyBlocked;
@@ -184,113 +208,81 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onEdit, onDelete, 
     );
   }
 
-  const { title, description } = VIEW_TITLES[subview] ?? VIEW_TITLES.calendar;
-
-  const showFilterBar = subview === 'calendar' || subview === 'timeline';
+  const showFilterBar = subview === 'calendar' || subview === 'timeline' || subview === 'kanban';
 
   const content = (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
-        <p className="text-muted-foreground text-sm">{description}</p>
-      </div>
+      <PlanningViewHeader
+        subview={subview}
+        onViewChange={onViewChange}
+        onOpenNew={onOpenNew}
+        members={members ?? []}
+        demandasFilters={demandasFilters}
+        onChangeDemandasFilters={next => setDemandasFilters(prev => ({ ...prev, ...next }))}
+        onClearDemandasFilters={() => setDemandasFilters(EMPTY_FILTERS)}
+        calendarFilters={calendarFilters}
+        onChangeCalendarFilters={next => setCalendarFilters(prev => ({ ...prev, ...next }))}
+        onClearCalendarFilters={() => setCalendarFilters(EMPTY_FILTERS)}
+      />
 
-      {showFilterBar && (
-        <FilterBar
-          members={members ?? []}
-          filterAssignee={filterAssignee}
-          onChangeAssignee={setFilterAssignee}
-          filterStatus={filterStatus}
-          onChangeStatus={setFilterStatus}
-          filterSteps={filterSteps}
-          onToggleStep={toggleStepFilter}
-          showPeriodFilter={subview === 'timeline'}
-          filterPeriodDays={filterPeriodDays}
-          onChangePeriodDays={setFilterPeriodDays}
-          showViewMode={subview === 'calendar'}
-          viewMode={viewMode}
-          onChangeViewMode={setViewMode}
-          onExport={onExport}
-          onOpenNew={onOpenNew}
-          hasActiveFilters={hasActiveFilters}
-          onClear={clearFilters}
-          filteredCount={filteredTasks.length}
-          totalCount={(tasks ?? []).length}
-        />
-      )}
-
-      {showFilterBar && filteredTasks.length === 0 ? (
-        <ViewState
-          icon={FilterX}
-          title="Nenhuma demanda com os filtros atuais"
-          description="Limpe os filtros para voltar a ver as demandas deste cliente."
-          actionLabel="Limpar filtros"
-          onAction={clearFilters}
-        />
-      ) : subview === 'calendar' ? (
-        <CalendarView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} viewMode={viewMode} />
-      ) : subview === 'timeline' ? (
-        <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} daysRange={filterPeriodDays} />
-      ) : subview === 'list' ? (
-        <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
-      ) : subview === 'demandas' ? (
-        <div className="space-y-5">
-          <div className="flex items-center justify-between">
-            <TasksFilters
-              filters={demandasFilters}
-              members={members}
-              onChange={next => setDemandasFilters(prev => ({ ...prev, ...next }))}
-              onClear={() => setDemandasFilters(EMPTY_FILTERS)}
-            />
-            <Button onClick={onOpenNew} className="ml-3 shrink-0">
-              <Plus className="w-4 h-4" />
-              Nova Demanda
-            </Button>
+      <div key={subview} className="animate-blur-fade-in space-y-5">
+        {showFilterBar && filteredTasks.length === 0 ? (
+          <ViewState
+            icon={FilterX}
+            title="Nenhuma demanda com os filtros atuais"
+            description="Limpe os filtros para voltar a ver as demandas deste cliente."
+            actionLabel="Limpar filtros"
+            onAction={clearFilters}
+          />
+        ) : subview === 'calendar' ? (
+          <CalendarView tasks={filteredTasks} onEdit={onEdit} onUpdateTask={onUpdateTask} holidays={holidays} />
+        ) : subview === 'timeline' ? (
+          <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
+        ) : subview === 'kanban' ? (
+          <KanbanView tasks={filteredTasks} members={members} onEdit={onEdit} onUpdateTask={onUpdateTask} />
+        ) : subview === 'list' ? (
+          <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
+        ) : subview === 'demandas' ? (
+          <div className="space-y-5">
+            {tasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border border-dashed border-border rounded-xl bg-muted/10">
+                <Search className="w-8 h-8 mb-3 text-muted-foreground/50" />
+                <p className="text-sm">Nenhuma demanda cadastrada ainda.</p>
+                <button onClick={onOpenNew} className="mt-3 text-xs text-primary hover:underline">
+                  Criar primeira demanda
+                </button>
+              </div>
+            ) : filteredDemandasTasks.length === 0 && hasDemandasActiveFilters ? (
+              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                <p className="text-sm">Nenhuma demanda encontrada com os filtros atuais.</p>
+                <button
+                  onClick={() => setDemandasFilters(EMPTY_FILTERS)}
+                  className="mt-2 text-xs text-primary hover:underline"
+                >
+                  Limpar filtros
+                </button>
+              </div>
+            ) : (
+              <TaskTable
+                tasks={filteredDemandasTasks}
+                members={members}
+                onToggleBlock={toggleBlock}
+                onConclude={concludeTask}
+                onEdit={onEdit}
+                onReorder={!hasDemandasActiveFilters ? updateTaskPriorityOrder : undefined}
+                onBulkAssign={handleBulkAssign}
+                onBulkBlock={blockTasks}
+                onBulkConclude={concludeTasks}
+                onUpdateSubtaskAssignees={updateSubtaskAssignees}
+                onUpdateSubtaskDates={updateSubtaskDates}
+                onUpdateSubtaskProgressStatus={updateSubtaskProgressStatus}
+              />
+            )}
           </div>
+        ) : null}
 
-          {tasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border border-dashed border-border rounded-xl bg-muted/10">
-              <Search className="w-8 h-8 mb-3 text-muted-foreground/50" />
-              <p className="text-sm">Nenhuma demanda cadastrada ainda.</p>
-              <button onClick={onOpenNew} className="mt-3 text-xs text-primary hover:underline">
-                Criar primeira demanda
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3 pb-16">
-              {([...groupedDemandasTasks.entries()] as [StepType, Task[]][])
-                .filter(([stepType]) =>
-                  demandasFilters.selectedSteps.length === 0 || demandasFilters.selectedSteps.includes(stepType)
-                )
-                .map(([stepType, stepTasks]) => (
-                  <StepGroup
-                    key={stepType}
-                    stepType={stepType}
-                    tasks={stepTasks}
-                    members={members}
-                    onToggleBlock={toggleBlock}
-                    onConclude={concludeTask}
-                    onEdit={onEdit}
-                    hasActiveFilters={hasDemandasActiveFilters}
-                  />
-                ))}
-              {filteredDemandasTasks.length === 0 && hasDemandasActiveFilters && (
-                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <p className="text-sm">Nenhuma demanda encontrada com os filtros atuais.</p>
-                  <button
-                    onClick={() => setDemandasFilters(EMPTY_FILTERS)}
-                    className="mt-2 text-xs text-primary hover:underline"
-                  >
-                    Limpar filtros
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {subview !== 'demandas' && <StepsLegend />}
+        {subview !== 'demandas' && subview !== 'kanban' && <StepsLegend />}
+      </div>
     </div>
   );
 

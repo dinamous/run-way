@@ -22,10 +22,10 @@ function ViewSkeleton() {
   );
 }
 
-type PlanningSubview = "calendar" | "timeline" | "list" | "demandas";
+type PlanningSubview = "calendar" | "timeline" | "list" | "demandas" | "kanban";
 type ToolsSubview = Extract<ViewType, "tools-briefing-analyzer" | "tools-import" | "tools-export" | "tools-integrations">;
 
-const PLANNING_VIEWS = new Set<ViewType>(["calendar", "timeline", "list", "demandas"]);
+const PLANNING_VIEWS = new Set<ViewType>(["calendar", "timeline", "list", "demandas", "kanban"]);
 const TOOLS_VIEWS = new Set<ViewType>(["tools", "tools-briefing-analyzer", "tools-import", "tools-export", "tools-integrations"]);
 const REPORTS_VIEWS = new Set<ViewType>(["reports", "reports-fluxo", "reports-timeline", "reports-membros", "reports-alertas"]);
 
@@ -76,6 +76,7 @@ export function AppRouter() {
       {PLANNING_VIEWS.has(view) && (
         <PlanningView
           subview={view as PlanningSubview}
+          onViewChange={onViewChange}
           onEdit={onEditTask}
           onDelete={onDeleteTask}
           onUpdateTask={onUpdateTask}

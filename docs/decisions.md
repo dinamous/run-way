@@ -163,3 +163,30 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 **Decisão:** a `AdminView` passa a ser acessada via `/:clientSlug/admin` em vez de `/admin` (rota global sem slug); `admin` foi removido de `GLOBAL_ROUTES` em `useAppNavigation`; a regra em `accessControl.ts` passou a ter `requiresClient: true`
 **Racional:** admin gerencia dados (clientes, membros, notificações) que pertencem a uma empresa específica; ter o `clientSlug` na URL mantém consistência com o restante da aplicação, permite deep links contextuais e prepara a estrutura para um futuro multi-tenant onde cada empresa terá seu próprio escopo de admin
 **Consequências:** a URL `/admin` deixa de existir (redireciona para `/` via wildcard); é necessário ter um cliente selecionado para acessar admin; `isGlobalView` em `App.tsx` não inclui mais `"admin"`, logo admin usa o `AppLayout` normal com sidebar
+
+---
+
+## ADR-019: Steps → Subtasks (modelo flexível por demanda)
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** o modelo de `Step` (8 tipos fixos por task, identidade = tipo) foi substituído por `Subtask` (N subtasks livres por task, identidade = `id`, tipo expresso como campo `status`). Tabelas: `task_subtasks` + `subtask_assignees` (substituem `task_steps` + `step_assignees`). Tipo domínio: `Subtask` com campos `id, title, status: SubtaskStatus, start, end, assignees, active, order`. `StepType` passou a ser alias de `SubtaskStatus` para compatibilidade temporária.
+**Racional:** o modelo fixo de 8 steps impedia nomear etapas de forma contextual (ex: "Homepage — Design" vs "Design"); uma demanda pode ter múltiplas subtasks do mesmo tipo em paralelo; a flexibilidade de N subtasks livres é mais adequada a diferentes tipos de projeto
+**Consequências:** nova task nasce sem subtasks — usuário adiciona livremente via TaskModal; dados existentes migrados automaticamente (`title = type`, `status = type`); `Planning View` exibe a demanda em todos os grupos onde tiver subtask ativa (não apenas o grupo "atual"); drag/drop no Calendar e Timeline indexado por `subtaskId` em vez de `stepType`; `task_steps` e `step_assignees` mantidas no banco para rollback até uma migration de drop futura
+
+---
+
+## ADR-020: Prioridade manual das demandas-pai
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** demandas têm `priority_order` persistido na tabela `tasks`; a subview `Demandas` ordena por esse campo e permite reordenar linhas-pai via drag-and-drop quando não há filtros ativos.
+**Racional:** prioridade manual é uma decisão de planejamento da lista, não derivada apenas do prazo da subtask ativa; persistir a ordem no banco garante consistência entre sessões e usuários.
+**Consequências:** novas demandas entram no fim da fila do cliente; reordenação aplica update otimista no cache TanStack Query e grava os novos índices no Supabase; filtros desativam o drag para evitar gravar uma ordem parcial acidental.
+
+---
+
+## ADR-021: Status de andamento separado da etapa da subtask
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** `task_subtasks` passa a ter `progress_status`, separado de `status` (que continua representando a etapa/tipo: Design, QA, Publicação etc.). O domínio expõe `Subtask.progressStatus` com os valores `todo`, `ready`, `in-progress`, `in-review`, `waiting`, `blocked`, `needs-changes`, `paused`, `done` e `canceled`.
+**Racional:** o campo `status` já era usado como categoria visual e filtro de etapa; reaproveitá-lo para andamento quebraria calendário, timeline e legenda. Separar andamento permite gerir subtasks esquecidas, bloqueadas ou concluídas sem perder a fase de entrega.
+**Consequências:** a tabela de demandas ganhou uma coluna "Status" com popover de edição inline; o modal de demanda também salva o andamento; o progresso da demanda agora considera subtasks `done` e ignora subtasks `canceled`.

@@ -19,7 +19,7 @@ function formatDate(isoDate: string): string {
 }
 
 export const DemandRow = memo(function DemandRow({ task, referenceDate, members, onEdit, onDelete, onConclude, onToggleBlock }: DemandRowProps) {
-  const allAssigneeIds = [...new Set(task.steps.flatMap(s => s.assignees))];
+  const allAssigneeIds = [...new Set(task.subtasks.flatMap(s => s.assignees))];
   const assigneeMembers = allAssigneeIds
     .map(id => members.find(m => m.id === id))
     .filter((m): m is Member => m !== undefined);

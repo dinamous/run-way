@@ -1,3 +1,29 @@
+import type { Task } from '@/lib/steps';
+
+export function getTaskRenderSignature(task: Task): string {
+  return JSON.stringify([
+    task.id,
+    task.title,
+    task.clickupLink ?? '',
+    task.priorityOrder,
+    task.status.blocked,
+    task.status.blockedAt ?? '',
+    task.concludedAt ?? '',
+    task.concludedBy ?? '',
+    task.subtasks.map(subtask => [
+      subtask.id,
+      subtask.title,
+      subtask.status,
+      subtask.progressStatus,
+      subtask.start,
+      subtask.end,
+      subtask.active,
+      subtask.order,
+      subtask.assignees,
+    ]),
+  ]);
+}
+
 export function formatDueDate(isoDate: string | undefined): { label: string; className: string } | null {
   if (!isoDate) return null;
   const due = new Date(isoDate.length === 10 ? isoDate + 'T00:00:00' : isoDate);

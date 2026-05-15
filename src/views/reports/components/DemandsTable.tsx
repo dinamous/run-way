@@ -35,7 +35,7 @@ const DemandsTable: React.FC<DemandsTableProps> = ({ enriched }) => (
           </thead>
           <tbody>
             {enriched.map((t, i) => {
-              const stepMeta = t.currentStep ? STEP_META[t.currentStep.type as StepType] : null;
+              const stepMeta = t.currentStep ? STEP_META[t.currentStep.status as StepType] : null;
               return (
                 <tr key={t.id} className={cn('border-b border-border last:border-0 hover:bg-muted/30 transition-colors', i % 2 === 0 ? '' : 'bg-muted/10')}>
                   <td className="px-4 py-3">

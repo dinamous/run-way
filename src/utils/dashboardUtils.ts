@@ -2,11 +2,11 @@ import { formatDate, formatDateDisplay } from '../utils/dateUtils';
 import {
   STEP_META,
   migrateLegacyTask,
-  getCurrentStep,
+  getCurrentSubtask,
   isStepBlocked,
   type Task,
-  type Step,
-  type StepType,
+  type Subtask,
+  type SubtaskStatus,
   type LegacyTask,
 } from '../lib/steps';
 
@@ -65,39 +65,44 @@ export function getMonthWeeks(year: number, month: number): Date[][] {
   return weeks;
 }
 
-/** Garante que a tarefa tem o formato moderno com `steps`. */
+/** Garante que a tarefa tem o formato moderno com `subtasks`. */
 export function normaliseTask(task: Task | LegacyTask): Task {
-  if ((task as Task).steps && typeof (task as Task).status === 'object') {
+  if ((task as Task).subtasks && typeof (task as Task).status === 'object') {
     return task as Task;
   }
   const migrated = migrateLegacyTask(task as LegacyTask);
   return { ...(task as object), ...migrated } as Task;
 }
 
-/** Devolve os steps ativos (com datas preenchidas) de uma tarefa. */
-export function getVisibleSteps(task: Task | LegacyTask): Step[] {
+/** Devolve as subtasks ativas (com datas preenchidas) de uma tarefa. */
+export function getVisibleSubtasks(task: Task | LegacyTask): Subtask[] {
   const norm = normaliseTask(task);
-  return norm.steps.filter(s => s.active && s.start && s.end);
+  return norm.subtasks.filter(s => s.active && s.start && s.end);
+}
+
+/** @deprecated use getVisibleSubtasks */
+export function getVisibleSteps(task: Task | LegacyTask): Subtask[] {
+  return getVisibleSubtasks(task);
 }
 
 export function getTaskStatusDisplay(task: Task | LegacyTask): { label: string; cls: string } {
   const norm = normaliseTask(task);
   const today = todayStr();
-  const step = getCurrentStep(norm.steps, today);
-  const stepLabel = step ? (STEP_META[step.type]?.label ?? step.type) : 'Sem steps';
+  const subtask = getCurrentSubtask(norm.subtasks, today);
+  const stepLabel = subtask ? (STEP_META[subtask.status]?.label ?? subtask.status) : 'Sem subtasks';
   if (norm.status?.blocked) {
     return {
       label: `${stepLabel} · Bloqueado`,
       cls: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
     };
   }
-  if (!step) {
-    return { label: 'Sem steps', cls: 'bg-muted text-muted-foreground' };
+  if (!subtask) {
+    return { label: 'Sem subtasks', cls: 'bg-muted text-muted-foreground' };
   }
-  if (step.end < today) {
+  if (subtask.end < today) {
     return { label: `${stepLabel} · Concluído`, cls: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' };
   }
-  if (step.start > today) {
+  if (subtask.start > today) {
     return { label: `${stepLabel} · Backlog`, cls: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200' };
   }
   return { label: `${stepLabel} · Em andamento`, cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100' };
@@ -110,7 +115,9 @@ export type CalendarViewMode = 'step' | 'demand';
 export interface BarItem {
   taskId: string;
   taskTitle: string;
-  stepType: StepType;
+  subtaskId: string;
+  subtaskTitle: string;
+  subtaskStatus: SubtaskStatus;
   stepStart: string;
   stepEnd: string;
   startCol: number;
@@ -126,65 +133,62 @@ export function layoutWeekBars(weekDays: Date[], tasks: (Task | LegacyTask)[], v
   const raw: Raw[] = [];
 
   for (const task of tasks) {
-    const steps = getVisibleSteps(task);
-    
+    const subtasks = getVisibleSubtasks(task);
+
     if (viewMode === 'demand') {
-      const sortedSteps = steps.filter(s => s.start && s.end).sort((a, b) => toLocalDate(a.start!).getTime() - toLocalDate(b.start!).getTime());
-      
-      let currentGroup: typeof steps[0] | null = null;
+      const sorted = subtasks.filter(s => s.start && s.end).sort((a, b) => toLocalDate(a.start).getTime() - toLocalDate(b.start).getTime());
+
+      let groupSubtask: Subtask | null = null;
       let groupStart = '';
       let groupEnd = '';
-      
-      for (const step of sortedSteps) {
-        const stepStart = step.start!;
-        const stepEnd = step.end!;
-        
-        if (!currentGroup) {
-          currentGroup = step;
-          groupStart = stepStart;
-          groupEnd = stepEnd;
+
+      for (const s of sorted) {
+        if (!groupSubtask) {
+          groupSubtask = s;
+          groupStart = s.start;
+          groupEnd = s.end;
           continue;
         }
-        
+
         const prevEnd = toLocalDate(groupEnd);
-        const currStart = toLocalDate(stepStart);
+        const currStart = toLocalDate(s.start);
         const gapDays = Math.round((currStart.getTime() - prevEnd.getTime()) / 86400000);
-        
+
         if (gapDays > 2) {
-          if (groupStart && groupEnd) {
+          if (groupSubtask && groupStart && groupEnd) {
             const pStart = toLocalDate(groupStart);
             const pEnd = toLocalDate(groupEnd);
             if (pEnd >= weekStart && pStart <= weekEnd) {
               const startCol = Math.max(0, Math.round((pStart.getTime() - weekStart.getTime()) / 86400000));
               const endCol = Math.min(6, Math.round((pEnd.getTime() - weekStart.getTime()) / 86400000));
-              raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', stepType: 'desenvolvimento', stepStart: groupStart, stepEnd: groupEnd, startCol, endCol });
+              raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', subtaskId: groupSubtask.id, subtaskTitle: groupSubtask.title, subtaskStatus: groupSubtask.status, stepStart: groupStart, stepEnd: groupEnd, startCol, endCol });
             }
           }
-          currentGroup = step;
-          groupStart = stepStart;
-          groupEnd = stepEnd;
+          groupSubtask = s;
+          groupStart = s.start;
+          groupEnd = s.end;
         } else {
-          if (stepEnd > groupEnd) groupEnd = stepEnd;
+          if (s.end > groupEnd) groupEnd = s.end;
         }
       }
-      
-      if (currentGroup && groupStart && groupEnd) {
+
+      if (groupSubtask && groupStart && groupEnd) {
         const pStart = toLocalDate(groupStart);
         const pEnd = toLocalDate(groupEnd);
         if (pEnd >= weekStart && pStart <= weekEnd) {
           const startCol = Math.max(0, Math.round((pStart.getTime() - weekStart.getTime()) / 86400000));
           const endCol = Math.min(6, Math.round((pEnd.getTime() - weekStart.getTime()) / 86400000));
-          raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', stepType: 'desenvolvimento', stepStart: groupStart, stepEnd: groupEnd, startCol, endCol });
+          raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', subtaskId: groupSubtask.id, subtaskTitle: groupSubtask.title, subtaskStatus: groupSubtask.status, stepStart: groupStart, stepEnd: groupEnd, startCol, endCol });
         }
       }
     } else {
-      for (const step of steps) {
-        const pStart = toLocalDate(step.start);
-        const pEnd = toLocalDate(step.end);
+      for (const s of subtasks) {
+        const pStart = toLocalDate(s.start);
+        const pEnd = toLocalDate(s.end);
         if (pEnd < weekStart || pStart > weekEnd) continue;
         const startCol = Math.max(0, Math.round((pStart.getTime() - weekStart.getTime()) / 86400000));
         const endCol   = Math.min(6, Math.round((pEnd.getTime() - weekStart.getTime()) / 86400000));
-        raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', stepType: step.type, stepStart: step.start, stepEnd: step.end, startCol, endCol });
+        raw.push({ taskId: task.id ?? '', taskTitle: task.title ?? '', subtaskId: s.id, subtaskTitle: s.title, subtaskStatus: s.status, stepStart: s.start, stepEnd: s.end, startCol, endCol });
       }
     }
   }
@@ -207,7 +211,7 @@ export function layoutWeekBars(weekDays: Date[], tasks: (Task | LegacyTask)[], v
 export interface DragState {
   type: 'move' | 'resize-start' | 'resize-end';
   taskId: string;
-  stepType: StepType;
+  subtaskId: string;
   originalStart: Date;
   originalEnd: Date;
   startX: number;
@@ -216,10 +220,10 @@ export interface DragState {
 
 export interface DragPreview {
   taskId: string;
-  stepType: StepType;
+  subtaskId: string;
   deltaDays: number;
   type: DragState['type'];
 }
 
 // Re-export used downstream
-export { formatDate, formatDateDisplay, STEP_META, isStepBlocked, type Task, type Step, type StepType, type LegacyTask };
+export { formatDate, formatDateDisplay, STEP_META, isStepBlocked, type Task, type Subtask, type SubtaskStatus, type LegacyTask };

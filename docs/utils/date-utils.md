@@ -77,8 +77,34 @@ export const DEFAULT_DURATIONS = {
 
 ---
 
+---
+
+## `src/utils/holidayUtils.ts`
+
+Utilitários para feriados, usado no `TaskModal` e em hooks de drag-and-drop.
+
+### Tipo `Holiday`
+```ts
+type Holiday = { date: string; name: string }
+```
+
+### `isWeekendOrHoliday(date: string, holidays: Holiday[]): boolean`
+Retorna `true` se a data cair em sábado, domingo ou na lista de feriados.
+
+### `getHolidayName(date: string, holidays: Holiday[]): string | undefined`
+Retorna o nome do feriado ou `undefined` se não for feriado.
+
+### `nextNonHolidayBusinessDay(date: string, holidays: Holiday[]): string`
+Retorna a primeira data **a partir de `date` inclusive** que não seja fim de semana nem feriado. Avança dia a dia até encontrar um dia útil.
+
+> **Atenção:** a helper interna `toDateStr` usa `getFullYear/getMonth/getDate` (fuso local) em vez de `toISOString()` para evitar que a conversão UTC retorne um dia a menos em fusos negativos (ex: UTC-3 do Brasil). Não alterar para `toISOString()`.
+
+---
+
 ## Atenção: Timezone
 
 As funções criam `new Date(str)` internamente. No `DashboardView.tsx`, as datas são sempre parseadas com `new Date(str + 'T00:00:00')` para forçar hora local e evitar problemas de UTC vs. local.
 
 Ao adicionar novas funções que usem `new Date(dateString)`, usar sempre o sufixo `'T00:00:00'` para strings no formato `YYYY-MM-DD`.
+
+**Nunca usar `date.toISOString().split('T')[0]`** para obter a data no formato `YYYY-MM-DD` — em UTC-3 isso retorna o dia anterior. Usar sempre `getFullYear/getMonth/getDate`.

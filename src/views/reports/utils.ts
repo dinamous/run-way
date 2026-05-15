@@ -1,5 +1,5 @@
 import { migrateLegacyTask, getCurrentStep } from '@/lib/steps';
-import type { Task, Step, LegacyTask, StepType } from '@/lib/steps';
+import type { Task, Subtask, LegacyTask, StepType } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -47,13 +47,13 @@ export function isTaskStagnant(lastUpdatedAt: string | null, daysThreshold: numb
 }
 
 export function normalizeTask(task: Task | LegacyTask): Task {
-  if ((task as Task).steps && typeof (task as Task).status === 'object') return task as Task;
+  if ((task as Task).subtasks && typeof (task as Task).status === 'object') return task as Task;
   const migrated = migrateLegacyTask(task as LegacyTask);
   return { ...(task as object), ...migrated } as Task;
 }
 
-export function getVisibleSteps(task: Task | LegacyTask): Step[] {
-  return normalizeTask(task).steps.filter(s => s.active && s.start && s.end);
+export function getVisibleSteps(task: Task | LegacyTask): Subtask[] {
+  return normalizeTask(task).subtasks.filter(s => s.active && s.start && s.end);
 }
 
 export function getLastDeadline(task: Task | LegacyTask): string | null {
@@ -87,14 +87,14 @@ export function getRisk(task: Task | LegacyTask, today: string): 'ok' | 'risco' 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type EnrichedTask = Task & {
-  visibleSteps: Step[];
+  visibleSteps: Subtask[];
   lastDeadline: string | null;
   firstStart: string | null;
   risk: 'ok' | 'risco' | 'atrasado' | 'concluido';
   daysLeft: number;
   bizLeft: number;
   taskMembers: Member[];
-  currentStep: Step | null;
+  currentStep: Subtask | null;
   progress: number;
   isBlocked: boolean;
   leadTime: number | null;
@@ -135,7 +135,7 @@ export function enrichTask(task: Task | LegacyTask, today: string, members: Memb
   const bizLeft = lastDeadline ? businessDaysLeft(lastDeadline, today) : 0;
   const memberIds = getTaskMembers(task);
   const taskMembers = members.filter(m => memberIds.includes(m.id));
-  const currentStep = getCurrentStep(norm.steps ?? [], today);
+  const currentStep = getCurrentStep(norm.subtasks ?? [], today);
 
   let progress = 0;
   if (visibleSteps.length > 0 && lastDeadline && firstStart) {

@@ -86,7 +86,7 @@ const WeekRow: React.FC<WeekRowProps> = React.memo(({
         const demandColor = viewMode === 'demand' ? getDemandColor(bar.taskId) : undefined;
         return (
           <StepBar
-            key={`${bar.taskId}-${bar.stepType}-${bi}`}
+            key={`${bar.taskId}-${bar.subtaskId}-${bi}`}
             bar={bar}
             task={task}
             isFirstBarOfStep={isFirstBarOfStep}

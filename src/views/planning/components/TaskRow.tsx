@@ -1,13 +1,13 @@
 import { memo } from 'react';
 import { Link2, AlertCircle, Clock } from 'lucide-react';
-import { STEP_META, type Task, type StepType } from '@/lib/steps';
+import { STEP_META, type Task, type SubtaskStatus } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
-import { formatDueDate } from '../utils';
+import { formatDueDate, getTaskRenderSignature } from '../utils';
 import { ActionMenu } from './ActionMenu';
 
 interface TaskRowProps {
   task: Task;
-  stepType: StepType;
+  stepType: SubtaskStatus;
   members: Member[];
   onToggleBlock: (task: Task) => void;
   onConclude: (task: Task) => void;
@@ -19,12 +19,12 @@ export const TaskRow = memo(function TaskRow({ task, stepType, members, onToggle
   const isConcluded = !!task.concludedAt;
   const meta = STEP_META[stepType];
 
-  const currentStep = task.steps.find(s => s.type === stepType) ?? task.steps.find(s => s.active) ?? task.steps[0];
-  const assigneeMembers = (currentStep?.assignees ?? [])
+  const currentSubtask = task.subtasks.find(s => s.status === stepType && s.active) ?? task.subtasks.find(s => s.active) ?? task.subtasks[0];
+  const assigneeMembers = (currentSubtask?.assignees ?? [])
     .map(id => members.find(m => m.id === id))
     .filter((m): m is Member => m !== undefined);
 
-  const timeStatus = formatDueDate(currentStep?.end);
+  const timeStatus = formatDueDate(currentSubtask?.end);
 
   return (
     <div
@@ -136,9 +136,7 @@ export const TaskRow = memo(function TaskRow({ task, stepType, members, onToggle
     </div>
   );
 }, (prev, next) =>
-  prev.task.id === next.task.id &&
-  prev.task.status?.blocked === next.task.status?.blocked &&
-  prev.task.concludedAt === next.task.concludedAt &&
+  getTaskRenderSignature(prev.task) === getTaskRenderSignature(next.task) &&
   prev.stepType === next.stepType &&
-  prev.members.length === next.members.length
+  prev.members === next.members
 );

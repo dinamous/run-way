@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useThrottledMutation } from '@/hooks/infra/useThrottledMutation'
 import { supabase } from '@/lib/supabase'
-import type { Task, Step } from '@/lib/steps'
+import type { Task, Subtask } from '@/lib/steps'
 import { toast } from 'sonner'
 import { logAudit } from '@/lib/audit'
 import { useTaskStore } from '@/store/useTaskStore'
@@ -33,37 +33,42 @@ interface UseSupabaseOptions {
   isAdmin?: boolean
 }
 
-async function createAllSteps(taskId: string, steps: Step[]): Promise<boolean> {
+async function createAllSubtasks(taskId: string, subtasks: Subtask[]): Promise<boolean> {
+  if (subtasks.length === 0) return true
+
   const { data, error } = await supabase
-    .from('task_steps')
+    .from('task_subtasks')
     .insert(
-      steps.map(step => ({
+      subtasks.map(s => ({
         task_id: taskId,
-        type: step.type,
-        step_order: step.order,
-        active: step.active,
-        start_date: step.start || null,
-        end_date: step.end || null,
+        title: s.title,
+        status: s.status,
+        progress_status: s.progressStatus,
+        subtask_order: s.order,
+        active: s.active,
+        start_date: s.start || null,
+        end_date: s.end || null,
       }))
     )
-    .select('id,type')
+    .select('id,title,status,subtask_order')
 
   if (error || !data) {
-    devLog('[createAllSteps] Erro ao inserir steps:', error?.message)
+    devLog('[createAllSubtasks] Erro ao inserir subtasks:', error?.message)
     return false
   }
 
-  const stepIdByType = new Map(data.map(row => [row.type, row.id]))
-  const assigneeRows = steps.flatMap(step => {
-    const stepId = stepIdByType.get(step.type)
-    if (!stepId || step.assignees.length === 0) return []
-    return step.assignees.map(memberId => ({ step_id: stepId, member_id: memberId }))
+  // Map inserted rows back by order (title+status combo can repeat, order is unique per task)
+  const idByOrder = new Map(data.map(row => [row.subtask_order, row.id]))
+  const assigneeRows = subtasks.flatMap(s => {
+    const subtaskId = idByOrder.get(s.order)
+    if (!subtaskId || s.assignees.length === 0) return []
+    return s.assignees.map(memberId => ({ subtask_id: subtaskId, member_id: memberId }))
   })
 
   if (assigneeRows.length > 0) {
-    const { error: assigneeErr } = await supabase.from('step_assignees').insert(assigneeRows)
+    const { error: assigneeErr } = await supabase.from('subtask_assignees').insert(assigneeRows)
     if (assigneeErr) {
-      devLog('[createAllSteps] Erro ao inserir assignees:', assigneeErr.message)
+      devLog('[createAllSubtasks] Erro ao inserir assignees:', assigneeErr.message)
       return false
     }
   }
@@ -77,6 +82,7 @@ function didTaskFieldsChange(prevTask: Task | undefined, nextTask: Task, resolve
   return (
     prevTask.title !== nextTask.title
     || (prevTask.clickupLink ?? null) !== (nextTask.clickupLink ?? null)
+    || prevTask.priorityOrder !== nextTask.priorityOrder
     || prevTask.status.blocked !== nextTask.status.blocked
     || (prevTask.status.blockedAt ?? null) !== (nextTask.status.blockedAt ?? null)
     || (prevTask.concludedAt ?? null) !== (nextTask.concludedAt ?? null)
@@ -94,14 +100,27 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     queryClient.invalidateQueries({ queryKey: queryKeys.tasks(clientId ?? null, isAdmin ?? false) })
   }, [queryClient, clientId, isAdmin])
 
-  const createTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt'>): Promise<boolean> => {
+  const createTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt' | 'priorityOrder'>): Promise<boolean> => {
     const resolvedClientId = taskData.clientId ?? clientId ?? null
+    devLog('[createTask] iniciando criação, clientId:', resolvedClientId, 'title:', taskData.title)
+
+    const priorityQuery = supabase
+      .from('tasks')
+      .select('priority_order')
+      .order('priority_order', { ascending: false })
+      .limit(1)
+
+    const { data: lastTask } = resolvedClientId === null
+      ? await priorityQuery.is('client_id', null)
+      : await priorityQuery.eq('client_id', resolvedClientId)
+    const priorityOrder = (lastTask?.[0]?.priority_order ?? -1) + 1
 
     const { data: taskRow, error: taskErr } = await supabase
       .from('tasks')
       .insert({
         title: taskData.title,
         clickup_link: taskData.clickupLink ?? null,
+        priority_order: priorityOrder,
         blocked: taskData.status.blocked,
         blocked_at: taskData.status.blockedAt ?? null,
         client_id: resolvedClientId,
@@ -109,14 +128,15 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       .select('id')
       .single()
 
+    devLog('[createTask] insert tasks respondeu, taskRow:', taskRow, 'taskErr:', taskErr)
     if (taskErr || !taskRow) {
       toast.error(toSafeUiErrorMessage(taskErr?.message))
       return false
     }
 
-    const ok = await createAllSteps(taskRow.id, taskData.steps)
+    const ok = await createAllSubtasks(taskRow.id, taskData.subtasks)
     if (!ok) {
-      toast.error('Tarefa criada mas erro ao guardar etapas')
+      toast.error('Tarefa criada mas erro ao guardar subtasks')
       invalidateTasks()
       return false
     }
@@ -169,6 +189,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         .update({
           title: taskData.title,
           clickup_link: taskData.clickupLink ?? null,
+          priority_order: taskData.priorityOrder,
           blocked: taskData.status.blocked,
           blocked_at: taskData.status.blockedAt ?? null,
           concluded_at: taskData.concludedAt ?? null,
@@ -184,43 +205,16 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       }
     }
 
-    const prevByType = new Map((prevTask?.steps ?? []).map(step => [step.type, step]))
-    const updates = taskData.steps
-      .map(step => {
-        const prevStep = prevByType.get(step.type)
-        const stepId = step.id || prevStep?.id || ''
+    const prevById = new Map((prevTask?.subtasks ?? []).map(s => [s.id, s]))
+    const nextIds = new Set(taskData.subtasks.filter(s => s.id).map(s => s.id))
 
-        if (!stepId || !prevStep) return null
-
-        const stepChanged = (
-          prevStep.type !== step.type
-          || prevStep.order !== step.order
-          || prevStep.active !== step.active
-          || (prevStep.start || '') !== (step.start || '')
-          || (prevStep.end || '') !== (step.end || '')
-        )
-
-        if (!stepChanged) return null
-
-        return {
-          id: stepId,
-          data: {
-            type: step.type,
-            step_order: step.order,
-            active: step.active,
-            start_date: step.start || null,
-            end_date: step.end || null,
-          },
-        }
-      })
-      .filter((item): item is { id: string; data: { type: Step['type']; step_order: number; active: boolean; start_date: string | null; end_date: string | null } } => item !== null)
-
-    for (const update of updates) {
+    // DELETE subtasks removed by the user
+    const removedIds = [...prevById.keys()].filter(id => !nextIds.has(id))
+    if (removedIds.length > 0) {
       const { error } = await supabase
-        .from('task_steps')
-        .update(update.data)
-        .eq('id', update.id)
-
+        .from('task_subtasks')
+        .delete()
+        .in('id', removedIds)
       if (error) {
         rollback()
         toast.error(toSafeUiErrorMessage(error.message))
@@ -228,33 +222,75 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       }
     }
 
-    const assigneesToAdd: Array<{ step_id: string; member_id: string }> = []
-    const assigneesToRemoveByStep = new Map<string, string[]>()
-
-    for (const step of taskData.steps) {
-      const prevStep = prevByType.get(step.type)
-      const stepId = step.id || prevStep?.id || ''
-      if (!stepId || !prevStep) continue
-
-      const prevAssignees = new Set(prevStep.assignees)
-      const nextAssignees = new Set(step.assignees)
-
-      const toAdd = step.assignees.filter(id => !prevAssignees.has(id))
-      const toRemove = prevStep.assignees.filter(id => !nextAssignees.has(id))
-
-      if (toAdd.length > 0) {
-        assigneesToAdd.push(...toAdd.map(id => ({ step_id: stepId, member_id: id })))
-      }
-      if (toRemove.length > 0) {
-        assigneesToRemoveByStep.set(stepId, toRemove)
+    // INSERT new subtasks (id is empty string)
+    const newSubtasks = taskData.subtasks.filter(s => !s.id)
+    if (newSubtasks.length > 0) {
+      const ok = await createAllSubtasks(taskData.id, newSubtasks)
+      if (!ok) {
+        rollback()
+        toast.error('Erro ao guardar novas subtasks')
+        return false
       }
     }
 
-    for (const [stepId, memberIds] of assigneesToRemoveByStep.entries()) {
+    // UPDATE existing subtasks that changed
+    const assigneesToAdd: Array<{ subtask_id: string; member_id: string }> = []
+    const assigneesToRemoveBySubtask = new Map<string, string[]>()
+
+    for (const subtask of taskData.subtasks) {
+      if (!subtask.id) continue
+      const prev = prevById.get(subtask.id)
+      if (!prev) continue
+
+      const changed = (
+        prev.title !== subtask.title
+        || prev.status !== subtask.status
+        || prev.progressStatus !== subtask.progressStatus
+        || prev.order !== subtask.order
+        || prev.active !== subtask.active
+        || (prev.start || '') !== (subtask.start || '')
+        || (prev.end || '') !== (subtask.end || '')
+      )
+
+      if (changed) {
+        const { error } = await supabase
+          .from('task_subtasks')
+          .update({
+            title: subtask.title,
+            status: subtask.status,
+            progress_status: subtask.progressStatus,
+            subtask_order: subtask.order,
+            active: subtask.active,
+            start_date: subtask.start || null,
+            end_date: subtask.end || null,
+          })
+          .eq('id', subtask.id)
+
+        if (error) {
+          rollback()
+          toast.error(toSafeUiErrorMessage(error.message))
+          return false
+        }
+      }
+
+      const prevAssignees = new Set(prev.assignees)
+      const nextAssignees = new Set(subtask.assignees)
+      const toAdd = subtask.assignees.filter(id => !prevAssignees.has(id))
+      const toRemove = prev.assignees.filter(id => !nextAssignees.has(id))
+
+      if (toAdd.length > 0) {
+        assigneesToAdd.push(...toAdd.map(id => ({ subtask_id: subtask.id, member_id: id })))
+      }
+      if (toRemove.length > 0) {
+        assigneesToRemoveBySubtask.set(subtask.id, toRemove)
+      }
+    }
+
+    for (const [subtaskId, memberIds] of assigneesToRemoveBySubtask.entries()) {
       const { error } = await supabase
-        .from('step_assignees')
+        .from('subtask_assignees')
         .delete()
-        .eq('step_id', stepId)
+        .eq('subtask_id', subtaskId)
         .in('member_id', memberIds)
 
       if (error) {
@@ -266,7 +302,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
 
     if (assigneesToAdd.length > 0) {
       const { error } = await supabase
-        .from('step_assignees')
+        .from('subtask_assignees')
         .insert(assigneesToAdd)
 
       if (error) {
@@ -346,8 +382,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
   }, [clientId, isAdmin, memberId, queryClient])
 
   const throttledCreateTask = useThrottledMutation(createTask, MUTATION_THROTTLE_MS)
-  const throttledUpdateTask = useThrottledMutation(updateTask, MUTATION_THROTTLE_MS)
   const throttledDeleteTask = useThrottledMutation(deleteTask, MUTATION_THROTTLE_MS)
 
-  return { createTask: throttledCreateTask, updateTask: throttledUpdateTask, deleteTask: throttledDeleteTask }
+  return { createTask: throttledCreateTask, updateTask, deleteTask: throttledDeleteTask }
 }

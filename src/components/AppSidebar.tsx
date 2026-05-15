@@ -47,16 +47,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Início", Icon: Home, view: "home" },
 
-  {
-    label: "Demandas",
-    Icon: ListChecks,
-    requiresClient: true,
-    children: [
-      { view: "demandas", label: "Todas Demandas" },
-      { view: "calendar", label: "Calendário" },
-      { view: "timeline", label: "Linha do Tempo" },
-    ],
-  },
+  { label: "Demandas", Icon: ListChecks, view: "demandas", requiresClient: true },
 
   { label: "Membros", Icon: Users, view: "members", requiresClient: true },
 
@@ -94,7 +85,6 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-const CALENDAR_VIEWS: ViewType[] = ["calendar", "timeline", "list"]
 const TOOLS_VIEWS: ViewType[] = ["tools", "tools-briefing-analyzer", "tools-import", "tools-export", "tools-integrations"]
 const REPORTS_VIEWS: ViewType[] = ["reports", "reports-fluxo", "reports-timeline", "reports-membros", "reports-alertas"]
 
@@ -128,7 +118,6 @@ export function AppSidebar() {
   } } = useLayoutContext()
   const [openGroups, setOpenGroups] = useState<string[]>(() => {
     const initial: string[] = []
-    if (CALENDAR_VIEWS.includes(view)) initial.push("Calendário")
     if (TOOLS_VIEWS.includes(view)) initial.push("Ferramentas")
     if (REPORTS_VIEWS.includes(view)) initial.push("Relatórios")
     return initial
@@ -219,7 +208,10 @@ export function AppSidebar() {
       )
     }
 
-    const isActive = view === item.view
+    const PLANNING_VIEWS: ViewType[] = ["demandas", "calendar", "timeline", "list", "kanban"]
+    const isActive = item.view === "demandas"
+      ? PLANNING_VIEWS.includes(view)
+      : view === item.view
 
     const button = (
       <button

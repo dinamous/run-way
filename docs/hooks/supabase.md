@@ -9,11 +9,11 @@ Hook de **mutations apenas**. Não armazena estado — após cada operação usa
 
 ## Funções
 
-- `createTask(data)` — insere tarefa + steps + assignees; invalida a query `['tasks', ...]` no fim
+- `createTask(data)` — insere tarefa + subtasks + assignees; invalida a query `['tasks', ...]` no fim
 - `updateTask(data)` — update otimista no cache do TanStack Query, depois persiste no DB; reverte em caso de erro
 - `deleteTask(id)` — remove do DB e atualiza o cache local sem re-fetch
 
-As três funções são envolvidas por `useThrottledMutation` (500ms) antes de serem expostas. Chamadas mais rápidas que o intervalo são rejeitadas com toast de aviso e retornam `false`.
+`createTask` e `deleteTask` são envolvidas por `useThrottledMutation` (500ms) antes de serem expostas — chamadas mais rápidas que o intervalo são rejeitadas com toast de aviso e retornam `false`. `updateTask` é exposto sem throttle, pois é chamado de forma intencional (drag-and-drop, edição inline).
 
 ## Rate Limiting (client-side)
 
@@ -28,28 +28,41 @@ Aplicado em: `useSupabase` (500ms), `useTaskQuickActions` (500ms), `useUserClien
 
 `useTaskQuickActions` (`src/hooks/useTaskQuickActions.ts`) centraliza os toggles rápidos de bloqueio e conclusão, usados por `ListView` e `TasksView` — elimina código duplicado e garante throttle consistente.
 
+`useSubtaskQuickEdit` (`src/hooks/tasks/useSubtaskQuickEdit.ts`) — mutations granulares de subtask sem passar pela modal. Expõe:
+- `updateSubtaskAssignees(task, subtaskId, assignees[])` — diff de adds/removes em `subtask_assignees` com update otimista no cache
+- `updateSubtaskDates(task, subtaskId, start, end)` — UPDATE direto em `task_subtasks.start_date / end_date` com update otimista no cache
+- `updateSubtaskProgressStatus(task, subtaskId, progressStatus)` — UPDATE direto em `task_subtasks.progress_status` com update otimista no cache
+
+Usado por `PlanningView` (subview `demandas`) para alimentar os popovers inline de `TaskTable`.
+
 ## Update otimista (`updateTask`)
 
 ```
 1. Snapshot de cachedTasks via queryClient.getQueryData
 2. queryClient.setQueryData → aplica alteração localmente (UI actualiza imediatamente)
 3. useTaskStore.applyOptimisticUpdate → sincroniza o store local (para rollback via clearOptimistic)
-4. Persiste no DB (tasks + steps + assignees)
+4. Persiste no DB (tasks + subtasks + assignees)
 5. Se erro → queryClient.setQueryData(prev) + useTaskStore.clearOptimistic()
 ```
 
-## Steps (`upsertSteps`)
+## Subtasks (`createAllSubtasks` + diff em `updateTask`)
 
-Função privada que faz insert/update de cada step e compara diff de assignees:
-- Step existente: UPDATE em `task_steps` apenas se mudou
-- Assignees adicionados: INSERT em `step_assignees`
-- Assignees removidos: DELETE em `step_assignees`
+`createAllSubtasks` — função privada chamada em `createTask` e em `updateTask` (para subtasks novas):
+- INSERT em `task_subtasks` (todas de uma vez), indexadas por `subtask_order` para associar IDs de volta
+- INSERT em `subtask_assignees` para assignees não vazias
+
+`updateTask` faz diff por `subtask.id`:
+- Subtasks com `id = ''` → novas → `createAllSubtasks`
+- IDs presentes no prev mas ausentes no next → DELETE em `task_subtasks`
+- IDs presentes em ambos → compara campos → UPDATE se mudou
+- Assignees diff por subtask: INSERT/DELETE em `subtask_assignees`
 
 ## Tabelas Supabase
 
 - `tasks` — dados da tarefa
-- `task_steps` — fases/steps da tarefa
-- `step_assignees` — relação step ↔ member
+- `task_subtasks` — subtasks da tarefa (substitui `task_steps`)
+- `subtask_assignees` — relação subtask ↔ member (substitui `step_assignees`)
+- `task_steps` / `step_assignees` — mantidas temporariamente para rollback (migration drop pendente)
 
 ## Estado
 

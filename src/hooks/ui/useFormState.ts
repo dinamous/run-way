@@ -30,6 +30,8 @@ export function useFormState<T>(
     setSubmitting(true)
     try {
       await fn()
+    } catch (err) {
+      console.error('[withSubmit] Erro inesperado ao submeter formulário:', err)
     } finally {
       setSubmitting(false)
     }

@@ -221,6 +221,36 @@ export type Database = {
           },
         ]
       }
+      subtask_assignees: {
+        Row: {
+          member_id: string
+          subtask_id: string
+        }
+        Insert: {
+          member_id: string
+          subtask_id: string
+        }
+        Update: {
+          member_id?: string
+          subtask_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subtask_assignees_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subtask_assignees_subtask_id_fkey"
+            columns: ["subtask_id"]
+            isOneToOne: false
+            referencedRelation: "task_subtasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_steps: {
         Row: {
           active: boolean
@@ -259,6 +289,53 @@ export type Database = {
           },
         ]
       }
+      task_subtasks: {
+        Row: {
+          active: boolean
+          created_at: string
+          end_date: string | null
+          id: string
+          progress_status: string
+          start_date: string | null
+          status: string
+          subtask_order: number
+          task_id: string
+          title: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          progress_status?: string
+          start_date?: string | null
+          status: string
+          subtask_order?: number
+          task_id: string
+          title?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          progress_status?: string
+          start_date?: string | null
+          status?: string
+          subtask_order?: number
+          task_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_subtasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           blocked: boolean
@@ -269,6 +346,7 @@ export type Database = {
           concluded_by: string | null
           created_at: string
           id: string
+          priority_order: number
           title: string
         }
         Insert: {
@@ -280,6 +358,7 @@ export type Database = {
           concluded_by?: string | null
           created_at?: string
           id?: string
+          priority_order?: number
           title: string
         }
         Update: {
@@ -291,6 +370,7 @@ export type Database = {
           concluded_by?: string | null
           created_at?: string
           id?: string
+          priority_order?: number
           title?: string
         }
         Relationships: [

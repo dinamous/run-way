@@ -9,7 +9,7 @@ interface MemberTaskItemProps {
 }
 
 const MemberTaskItem: React.FC<MemberTaskItemProps> = ({ task, steps, today }) => {
-  const currentStep = getCurrentStep(task.steps, today);
+  const currentStep = getCurrentStep(task.subtasks, today);
   const isBlocked = task.status?.blocked;
 
   return (
@@ -18,7 +18,7 @@ const MemberTaskItem: React.FC<MemberTaskItemProps> = ({ task, steps, today }) =
         {isBlocked ? (
           <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
         ) : (
-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${currentStep ? STEP_META[currentStep.type]?.dot : 'bg-muted-foreground'}`} />
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${currentStep ? STEP_META[currentStep.status]?.dot : 'bg-muted-foreground'}`} />
         )}
         <span className="font-medium truncate flex-1">{task.title}</span>
         {isBlocked && (
@@ -29,11 +29,11 @@ const MemberTaskItem: React.FC<MemberTaskItemProps> = ({ task, steps, today }) =
       </div>
       <div className="flex gap-1 flex-wrap pl-3.5">
         {steps.map(step => {
-          const meta = STEP_META[step.type];
+          const meta = STEP_META[step.status];
           const isActive = step.start <= today && step.end >= today;
           return (
             <span
-              key={step.type}
+              key={step.id}
               className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                 isBlocked && step.start >= (task.status?.blockedAt ?? '')
                   ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200'

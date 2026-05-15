@@ -6,9 +6,11 @@
  */
 
 import type { Task } from '../lib/steps';
+import type { ViewType } from '@/store/useUIStore';
 import type { Member } from '@/hooks/infra/useSupabase';
 import type { Holiday } from '../utils/holidayUtils';
-import type { CalendarViewMode } from '../utils/dashboardUtils';
+
+export type TaskModalPayload = Omit<Task, 'id' | 'createdAt' | 'priorityOrder'> & Partial<Pick<Task, 'priorityOrder'>>;
 
 // ─── TaskModal ────────────────────────────────────────────────────────────────
 
@@ -18,7 +20,7 @@ export interface TaskModalProps {
   members: Member[];
   onClose: () => void;
   /** Chamado com os dados prontos a guardar (sem `id` / `createdAt` se nova). */
-  onSave: (taskData: Omit<Task, 'id' | 'createdAt'>) => Promise<void>;
+  onSave: (taskData: TaskModalPayload) => Promise<void>;
   /** Chamado com o id da tarefa a eliminar; omitido no modal de criação. */
   onDelete?: (id: string) => void;
   holidays: Holiday[];
@@ -27,7 +29,8 @@ export interface TaskModalProps {
 // ─── PlanningView ─────────────────────────────────────────────────────────────
 
 export interface PlanningViewProps {
-  subview: 'calendar' | 'timeline' | 'list' | 'demandas';
+  subview: 'calendar' | 'timeline' | 'list' | 'demandas' | 'kanban';
+  onViewChange: (view: ViewType) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
@@ -40,12 +43,9 @@ export interface PlanningViewProps {
 
 export interface CalendarViewProps {
   tasks: Task[];
-  members: Member[];
   onEdit: (task: Task) => void;
-  onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
   holidays: Holiday[];
-  viewMode?: CalendarViewMode;
 }
 
 // ─── TimelineView ─────────────────────────────────────────────────────────────
@@ -57,7 +57,6 @@ export interface TimelineViewProps {
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;
   holidays: Holiday[];
-  daysRange: number;
 }
 
 // ─── MembersView ─────────────────────────────────────────────────────────────

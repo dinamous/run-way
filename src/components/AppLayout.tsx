@@ -100,10 +100,10 @@ export function AppLayout(props: AppLayoutProps) {
           <AppSidebar />
 
           <main
-            key={view}
+            key={["calendar","timeline","list","demandas","kanban"].includes(view) ? "planning" : view}
             className={cn(
               "flex-1 overflow-auto animate-blur-fade-in",
-              view === "home" ? "p-0" : "px-4 sm:px-6 lg:px-8 py-8"
+              view === "home" ? "p-0" : "px-4 sm:px-6 lg:px-8 py-8",
             )}
           >
             <TooltipProvider>

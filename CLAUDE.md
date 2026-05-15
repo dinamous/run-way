@@ -14,13 +14,15 @@ npm run lint      # ESLint
 
 ## Modelo de Dados
 
-**Task:** `id, title, clickupLink?, assignee, status ('backlog'|'em andamento'|'bloqueado'|'concluído'), phases {design,approval,dev,qa} cada com {start,end} YYYY-MM-DD, createdAt`
+**Task:** `id, title, clickupLink?, status {blocked, blockedAt?}, subtasks: Subtask[], createdAt, concludedAt?, concludedBy?, clientId?`
+
+**Subtask:** `id, title (livre, obrigatório), status (SubtaskStatus), start (YYYY-MM-DD), end (YYYY-MM-DD), assignees (member ids), active, order` — substitui o antigo `Step`. Tabela: `task_subtasks` + `subtask_assignees`.
+
+**SubtaskStatus (enum):** `analise-ux` | `analise-dev` | `design` | `aprovacao-design` | `desenvolvimento` | `homologacao` | `qa` | `publicacao` — controla a cor/ícone da subtask nas views; o título é livre.
 
 **Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais), avatar_url?, email?, auth_user_id?, access_role ('admin'|'user'), is_active?, created_at?, deactivated_at?`
 
 **UserPreferences:** `id, user_id (fk → members.id), theme ('light'|'dark'|'system'), language ('pt-BR'|'en'), notifications_enabled, default_view ('home'|'calendar'|'timeline'|'list'), client_order (text[]), notification_step_overdue (bool, def true), notification_task_stalled (bool, def true), notification_member_overloaded (bool, def true), stalled_days_threshold (int 1–30, def 5), overload_threshold (int 1–20, def 3), created_at, updated_at`
-
-**Fases:** Design (5d, violeta) → Approval (3d, laranja) → Dev (7d, azul) → QA (3d, esmeralda). Cascata automática.
 
 ## Branding
 

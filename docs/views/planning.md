@@ -4,6 +4,12 @@
 
 `PlanningView` é o container de todas as visualizações de planejamento de demandas. Substitui a antiga `DashboardView` e absorveu a `TasksView` como subview `demandas`.
 
+**Arquitetura de filtros:** `PlanningView` gerencia dois conjuntos de filtros independentes, ambos como `FiltersState` local:
+- `demandasFilters` — filtros do subview `demandas`
+- `calendarFilters` — filtros dos subviews `calendar`, `timeline` e `kanban`
+
+Ambos são renderizados pelo `PlanningViewHeader` via `TasksFilters` (o componente de filtros unificado). `PlanningView` aplica `calendarFilters` sobre as tasks já processadas por `useTaskFilters` antes de passar `filteredTasks` para `CalendarView` e `TimelineView`. `CalendarView` e `TimelineView` não renderizam mais filtros internamente — recebem apenas tasks já filtradas. O estado de `viewMode` (step/demand) para o calendário ainda vive em `usePlanningFiltersStore`.
+
 Localização: `src/views/planning/`
 
 ## Navegação
@@ -15,26 +21,39 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | `calendar` | Calendário mensal com drag-drop |
 | `timeline` | Gantt/linha do tempo |
 | `list` | Tabela de demandas (ListView) |
-| `demandas` | Lista de demandas agrupadas por etapa atual |
+| `demandas` | Tabela hierárquica de demandas com subtasks como linhas-filho |
+| `kanban` | Board Kanban com colunas de progressStatus e drag-drop nativo |
 
-`PlanningView` recebe `subview: 'calendar' | 'timeline' | 'list' | 'demandas'` e renderiza o modo correspondente.
+`PlanningView` recebe `subview: 'calendar' | 'timeline' | 'list' | 'demandas' | 'kanban'` e renderiza o modo correspondente. URL: `/:clientSlug/tasks/kanban`.
 
 ## Ficheiros
 
 | Ficheiro | Responsabilidade |
 |---|---|
-| `src/views/planning/PlanningView.tsx` | Orquestra dados, filtros e renderiza a subview correta |
-| `src/views/planning/hooks/useTaskFilters.ts` | Filtros de assignee, status, steps, período para calendar/timeline |
-| `src/views/planning/components/FilterBar.tsx` | Barra de filtros usada por calendar e timeline |
+| `src/views/planning/PlanningView.tsx` | Orquestra dados globais (tasks, members, holidays), aplica filtros via `useTaskFilters` e passa `filteredTasks`, `members`, `onOpenNew` e `onExport` para `CalendarView` e `TimelineView` via prop |
+| `src/views/planning/components/PlanningViewHeader.tsx` | Header compartilhado: tabs de navegação, título/descrição da view e `TasksFilters` para todos os subviews (`demandas`, `calendar`, `timeline`, `kanban`). Recebe `demandasFilters` e `calendarFilters` como props separados. |
+| `src/views/kanban/KanbanView.tsx` | Board Kanban com até 10 colunas cobrindo todos os valores de `SubtaskProgressStatus` (`todo`, `ready`, `in-progress`, `in-review`, `waiting`, `blocked`, `needs-changes`, `paused`, `done`, `canceled`); exibe apenas as 4 padrão + colunas que tiverem cards; demandas mãe concluídas (`concludedAt` preenchido) são excluídas; cards draggáveis com dot colorido por `STEP_META`, badge de prazo, avatares e indicador de bloqueio; ao mover um card chama `onUpdateTask` com `progressStatus` atualizado. |
+| `src/store/usePlanningFiltersStore.ts` | Store Zustand com estado de `viewMode` (step/demand) e filtros legados lidos por `useTaskFilters` |
+| `src/views/planning/hooks/useTaskFilters.ts` | Lê filtros de `usePlanningFiltersStore` e aplica sobre as tasks; expõe `filteredTasks`, contadores e helpers |
+| `src/views/planning/components/FilterBar.tsx` | Barra de filtros legada — não mais usada por `CalendarView` ou `TimelineView` |
 | `src/views/planning/components/MetricsBar.tsx` | Cards de métricas (saúde operacional, em andamento, bloqueadas) |
 | `src/views/planning/components/StepsLegend.tsx` | Legenda de cores das fases |
-| `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, etapa, responsável, período, bloqueadas) |
-| `src/views/planning/components/StepGroup.tsx` | Grupo colapsável de tasks por etapa (usado em `demandas`) |
-| `src/views/planning/components/TaskRow.tsx` | Linha de uma demanda no subview `demandas` |
+| `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, status de subtask, responsável com avatares, período, bloqueadas, concluídas) |
+| `src/views/planning/components/TaskTable.tsx` | Componente raiz da tabela — itera tasks e delega para `TaskTableRow` |
+| `src/views/planning/components/TaskTableRow.tsx` | Linha-pai colapsável de uma task com progresso, prazo, avatares e painel de subtasks |
+| `src/views/planning/components/SubtaskRow.tsx` | Linha-filho de uma subtask com ícone de status, badge de etapa, popover de andamento, `DatesPopover` e `AssigneesPopover` |
+| `src/views/planning/components/MemberAvatars.tsx` | Avatares empilhados de membros (tamanhos `sm`/`xs`); placeholder `?` quando sem responsável |
+| `src/views/planning/components/AssigneesPopover.tsx` | Popover de atribuição de responsáveis — renderizado via `createPortal` no `document.body` |
+| `src/views/planning/components/DatesPopover.tsx` | Popover de edição de período (start/end) — renderizado via `createPortal` no `document.body` |
+| `src/views/planning/components/SubtaskProgressStatusPopover.tsx` | Popover de edição do andamento da subtask (`progressStatus`) |
+| `src/views/planning/components/usePopover.ts` | Hook de controle de popover: open/close, posicionamento via `getBoundingClientRect`, fechar ao clicar fora ou `Escape` |
+| `src/views/planning/components/StepGroup.tsx` | **Legado** — grupo colapsável por etapa (substituído por `TaskTable`) |
+| `src/views/planning/components/TaskRow.tsx` | **Legado** — linha de demanda no modo "Por etapa" (substituído por `TaskTable`) |
+| `src/views/planning/components/TaskList.tsx` | **Legado** — lista de demandas com subtasks expandidas (substituído por `TaskTable`) |
 | `src/views/planning/components/ActionMenu.tsx` | Dropdown de ações rápidas (abrir, ClickUp, concluir, bloquear) |
 | `src/views/planning/utils.ts` | `formatDueDate` — badge de prazo relativo |
-| `src/views/CalendarView.tsx` | Calendário mensal com drag-drop e slots |
-| `src/views/timeline/TimelineView.tsx` | Timeline/Gantt — componente raiz |
+| `src/views/calendar/CalendarView.tsx` | Calendário mensal — recebe `tasks` (já filtradas) via prop; renderiza apenas header de navegação de mês + grade de semanas. Sem filtros internos. Props: `tasks`, `onEdit`, `onUpdateTask`, `holidays` |
+| `src/views/timeline/TimelineView.tsx` | Timeline/Gantt — recebe `tasks` (já filtradas) via prop; sem filtros internos. Props: `tasks`, `members`, `onEdit`, `onDelete`, `onUpdateTask`, `holidays` |
 | `src/views/timeline/components/TimelineHeader.tsx` | Selector de range (14/30/60/90d) |
 | `src/views/timeline/components/DayColumnHeaders.tsx` | Header de colunas de dias (mês + dia + feriados) |
 | `src/views/timeline/components/TaskCalendarRows.tsx` | Linhas de fases no calendário por tarefa |
@@ -48,45 +67,88 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 
 ## Subview: Demandas
 
-Lista todas as demandas agrupadas pela **etapa atual** (step ativo). Focada em acompanhamento operacional.
+Lista todas as demandas em **tabela hierárquica** estilo ClickUp. Não há mais toggle de modo — um único layout unifica a visão por task e por subtask.
 
-### StepGroup
-Agrupa tasks por `StepType`. Colapsa/expande via `ChevronDown`/`ChevronRight`.
+### TaskTable
+Componente principal do subview `demandas`. Cada **task** é uma linha-pai colapsável; cada **subtask** é uma linha-filho exibida quando a task está expandida.
 
-Recebe `hasActiveFilters?: boolean`. Comportamento por estado:
-- **Com tasks:** expansível normalmente, cabeçalho com contador colorido
-- **Vazio + filtros ativos:** cabeçalho apagado (contador `0`), mensagem de filtro em itálico
-- **Vazio sem filtros:** renderizado normalmente com contador `0`
+**Linha da task (pai):**
+- Borda lateral colorida pela fase ativa (ou vermelha se bloqueada)
+- Botão `▾`/`▸` para expandir/colapsar subtasks
+- Título clicável (`onEdit`) com risco se bloqueada ou concluída
+- Badges "Bloqueada" e "Concluída"
+- Ícone `Link2` inline para ClickUp
+- **Barra de progresso** (visível em `md+`): percentual de subtasks concluídas; verde em 100%, cor primária caso contrário
+- Contador de etapas, badge de prazo (da subtask ativa), avatares de todos os responsáveis
+- `ActionMenu` com `stopPropagation`
 
-**Virtualização (`react-window`):** quando um grupo tem mais de 50 tasks, usa `FixedSizeList` (altura de item `52px`, altura máxima `600px`). Abaixo do threshold usa `.map()` normal.
+**Painel expandido das subtasks:** header interno alinhado ao grid + linha vertical da árvore (`absolute left-[18px]`) com traço horizontal em cada subtask. Grid fixo `grid-cols-[180px_150px_1fr_110px_90px_auto]`.
 
-### TaskRow
-Linha de uma demanda. A div inteira é clicável (`onEdit`) — `ActionMenu` tem `stopPropagation`.
+| Coluna | Conteúdo |
+|---|---|
+| Etapa | Ícone de status contextual + pill colorida com `STEP_META.label` |
+| Status | Pill clicável com `Subtask.progressStatus`; abre popover para alterar andamento inline |
+| Título | Texto livre da subtask (`subtask.title`) |
+| Período | `DD/MM → DD/MM` em `font-mono` — clicável; abre `DatesPopover` para editar start/end inline |
+| Prazo | Badge `formatDueDate` — exibido para **todas** as subtasks; `—` quando sem data |
+| Resp. | Avatares dos responsáveis; botão `+` dashed quando sem responsável — clicável; abre `AssigneesPopover` para atribuir/remover membros inline |
 
-Exibe:
-- Título com risco (`line-through`) quando bloqueada
-- Ícone `Link2` inline para abrir o ClickUp diretamente
-- Badge "Bloqueada" (vermelho) — fundo da linha fica vermelho sutil
-- Badge "Concluída" (muted) — linha com opacidade reduzida
-- Badge de prazo dinâmico baseado no `end` do step ativo (`formatDueDate`)
-- Avatares dos responsáveis do step correspondente ao grupo
+**Ícones de status da subtask (`SubtaskStatusIcon`):**
+
+| Estado | Ícone |
+|---|---|
+| Concluída (task) | `CheckCircle2` verde |
+| Ativa + bloqueada | `AlertTriangle` laranja |
+| Ativa + atrasada | `AlertCircle` vermelho |
+| Ativa normal | `PlayCircle` azul |
+| Pendente | `Circle` pequeno em muted |
+
+**Edição inline de subtasks:**
+
+`AssigneesPopover` — abre ao clicar no avatar ou no botão `+` da coluna Resp. Lista todos os membros com toggle (checkbox visual). Persiste via `useSubtaskQuickEdit.updateSubtaskAssignees` — diff de adds/removes direto em `subtask_assignees`. Update otimista no cache TanStack Query.
+
+`DatesPopover` — abre ao clicar no período da coluna Período. Dois `<input type="date">` (início/fim) com botões Cancelar/Salvar. Persiste via `useSubtaskQuickEdit.updateSubtaskDates` — UPDATE direto em `task_subtasks`. Fecha ao salvar com sucesso.
+
+`SubtaskProgressStatusPopover` — abre ao clicar no pill da coluna Status. Valores: A fazer, Pronta, Em andamento, Em revisão, Aguardando, Bloqueada, Precisa de ajustes, Pausada, Concluída, Cancelada. Persiste via `useSubtaskQuickEdit.updateSubtaskProgressStatus` — UPDATE direto em `task_subtasks.progress_status`. Fecha ao salvar com sucesso.
+
+Os popovers fecham ao clicar fora ou pressionar `Escape` (hook `usePopover`). Renderizam via `createPortal` no `document.body` com `z-index: 9999` e posicionamento calculado por `getBoundingClientRect + scrollY/scrollX` — isso evita corte por `overflow:hidden` das rows da tabela. `PlanningView` instancia `useSubtaskQuickEdit` e passa `onUpdateSubtaskAssignees`, `onUpdateSubtaskDates` e `onUpdateSubtaskProgressStatus` para `TaskTable`.
+
+**Comportamentos:**
+- Tasks expandidas por padrão quando há filtros ativos
+- Reordenação manual das linhas-pai por drag-and-drop quando não há filtros ativos; a ordem persiste em `tasks.priority_order`
+- Tasks bloqueadas: fundo vermelho sutil em task e subtasks
+- Tasks concluídas: opacidade reduzida, título riscado
+- Subtasks sem datas mostram `—` no campo Período
 
 ### TasksFilters
-Barra de filtros com `CheckboxDropdown` customizado para etapa e responsável. Filtros:
+Barra de filtros do subview `demandas`. Interface `FiltersState`:
 
-| Filtro | Implementação |
-|---|---|
-| Busca por texto/ID | `task.title` e `task.id` case-insensitive |
-| Etapa | `selectedSteps: StepType[]` — verifica `currentStep.type` |
-| Responsável | `selectedMemberIds: string[]` — qualquer assignee de qualquer step |
-| Período (prazo) | Tabs "Todos / 7d / 15d / 30d" — compara `currentStep.end` com `today + N dias` |
-| Bloqueadas | Toggle — filtra `task.status.blocked === true` |
+```ts
+{
+  searchTerm: string;
+  selectedSteps: SubtaskStatus[];           // categoria/fase
+  selectedProgressStatuses: SubtaskProgressStatus[]; // andamento
+  selectedMemberIds: string[];
+  selectedPeriod: string;
+  showOnlyBlocked: boolean;
+  showConcluded: boolean;
+}
+```
+
+| Filtro | Campo | Implementação |
+|---|---|---|
+| Busca por texto/ID | `searchTerm` | `task.title`, `task.id` e `subtask.title` case-insensitive |
+| Categoria | `selectedSteps: SubtaskStatus[]` | Dropdown — verifica `subtask.status` de **todas** as subtasks |
+| Status | `selectedProgressStatuses: SubtaskProgressStatus[]` | Dropdown — verifica `subtask.progressStatus` de **todas** as subtasks |
+| Responsável | `selectedMemberIds` | `MemberAvatarPicker` — botão exibe avatares empilhados dos selecionados |
+| Período (prazo) | `selectedPeriod` | Tabs "Todos / 7d / 15d / 30d" — compara `end` da subtask ativa com `today + N dias` |
+| Bloqueadas | `showOnlyBlocked` | Toggle — filtra `task.status.blocked === true` |
+| Concluídas | `showConcluded` | Toggle — mostra tarefas com `task.concludedAt` preenchido (default: ocultas) |
+
+O botão **Nova Demanda** fica na row do título (alinhado à direita), não dentro da barra de filtros.
 
 ### Ordenação dentro dos grupos
-Tasks ordenadas por `end` do step correspondente — da mais atrasada para a mais recente. Sem data ficam no final.
-
-### Agrupamento
-"Etapa atual" é `task.steps.find(s => s.active) ?? task.steps[0]`. Uma task aparece em **todas** as categorias cujos steps estão `active: true`. Com filtro por membro, aparece nos grupos de **todos os steps onde o membro está atribuído**.
+Tasks ordenadas por `end` da subtask ativa no grupo — da mais atrasada para a mais recente. Sem data ficam no final.
 
 ## Subview: Calendar
 

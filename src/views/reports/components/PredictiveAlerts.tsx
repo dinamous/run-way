@@ -24,7 +24,7 @@ const PredictiveAlerts: React.FC<PredictiveAlertsProps> = ({ enriched, p85ByStep
 
     for (const t of enriched) {
       const step = t.currentStep;
-      const p85 = step ? p85ByStep[step.type] : 0;
+      const p85 = step ? p85ByStep[step.status] : 0;
       const plannedDuration = step?.start && step?.end 
         ? Math.ceil((new Date(step.end + 'T00:00:00').getTime() - new Date(step.start + 'T00:00:00').getTime()) / 86400000) + 1
         : 0;
