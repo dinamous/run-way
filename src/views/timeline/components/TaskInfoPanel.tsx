@@ -1,12 +1,12 @@
 import React from 'react';
 import { Edit2, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { normaliseTask, getTaskStatusDisplay, type Task, type Step } from '@/utils/dashboardUtils';
+import { normaliseTask, getTaskStatusDisplay, type Task, type Subtask } from '@/utils/dashboardUtils';
 import type { Member } from '@/types/member';
 
 interface TaskInfoPanelProps {
   task: Task;
   members: Member[];
-  visibleSteps: Step[];
+  visibleSteps: Subtask[];
   totalH: number;
   onEdit: (t: Task) => void;
   onDelete: (id: string) => void;

@@ -1,5 +1,5 @@
 import { migrateLegacyTask, getCurrentStep } from '@/lib/steps';
-import type { Task, Step, LegacyTask, StepType } from '@/lib/steps';
+import type { Task, Subtask, LegacyTask, StepType } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ export function normalizeTask(task: Task | LegacyTask): Task {
   return { ...(task as object), ...migrated } as Task;
 }
 
-export function getVisibleSteps(task: Task | LegacyTask): Step[] {
+export function getVisibleSteps(task: Task | LegacyTask): Subtask[] {
   return normalizeTask(task).subtasks.filter(s => s.active && s.start && s.end);
 }
 
@@ -87,14 +87,14 @@ export function getRisk(task: Task | LegacyTask, today: string): 'ok' | 'risco' 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type EnrichedTask = Task & {
-  visibleSteps: Step[];
+  visibleSteps: Subtask[];
   lastDeadline: string | null;
   firstStart: string | null;
   risk: 'ok' | 'risco' | 'atrasado' | 'concluido';
   daysLeft: number;
   bizLeft: number;
   taskMembers: Member[];
-  currentStep: Step | null;
+  currentStep: Subtask | null;
   progress: number;
   isBlocked: boolean;
   leadTime: number | null;

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Plus } from 'lucide-react';
 import { TasksFilters, type FiltersState } from './TasksFilters';
 import type { Member } from '@/types/member';
+import type { ViewType } from '@/store/useUIStore';
 
 const DEMAND_TABS = [
   { value: 'demandas', label: 'Todas as Demandas' },
@@ -21,7 +22,7 @@ const VIEW_TITLES: Record<string, { title: string; description: string }> = {
 
 interface PlanningViewHeaderProps {
   subview: string;
-  onViewChange: (value: string) => void;
+  onViewChange: (value: ViewType) => void;
   onOpenNew: () => void;
   members: Member[];
   // TasksFilters props (demandas)
@@ -52,7 +53,7 @@ export function PlanningViewHeader({
 
   return (
     <div className="space-y-5">
-      <Tabs value={subview} onValueChange={onViewChange}>
+      <Tabs value={subview} onValueChange={v => onViewChange(v as ViewType)}>
         <TabsList variant="underline" className="w-full justify-end gap-0">
           {DEMAND_TABS.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value} variant="underline">

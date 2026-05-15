@@ -6,9 +6,9 @@
  */
 
 import type { Task } from '../lib/steps';
+import type { ViewType } from '@/store/useUIStore';
 import type { Member } from '@/hooks/infra/useSupabase';
 import type { Holiday } from '../utils/holidayUtils';
-import type { CalendarViewMode } from '../utils/dashboardUtils';
 
 export type TaskModalPayload = Omit<Task, 'id' | 'createdAt' | 'priorityOrder'> & Partial<Pick<Task, 'priorityOrder'>>;
 
@@ -30,7 +30,7 @@ export interface TaskModalProps {
 
 export interface PlanningViewProps {
   subview: 'calendar' | 'timeline' | 'list' | 'demandas' | 'kanban';
-  onViewChange: (view: string) => void;
+  onViewChange: (view: ViewType) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onUpdateTask: (task: Task) => void;

@@ -307,7 +307,7 @@ export function migrateLegacyTask(task: LegacyTask): { status: TaskStatus; subta
     return { status, subtasks };
   }
 
-  const legacyMap: Partial<Record<string, SubtaskStatus>> = {
+  const legacyMap: Record<string, SubtaskStatus> = {
     design: 'design',
     approval: 'aprovacao-design',
     dev: 'desenvolvimento',
