@@ -14,9 +14,12 @@ export function urlToView(pathname: string): ViewType {
   if (first === "profile") return "profile"
   if (first === "clients") return "clients"
 
+  // Rota raiz "/" sem slug
+  if (first === "") return "home"
+
   // /:clientSlug/...
   const rest = segments.slice(1)
-  if (rest.length === 0) return "home"
+  if (rest.length === 0) return "client-overview"
 
   const [section, sub] = rest
 
@@ -72,6 +75,7 @@ export function viewToPath(view: ViewType, clientSlug: string | null): string {
 
   const MAP: Partial<Record<ViewType, string>> = {
     home: base,
+    "client-overview": base,
     demandas: `${base}/tasks`,
     calendar: `${base}/tasks/calendar`,
     timeline: `${base}/tasks/timeline`,

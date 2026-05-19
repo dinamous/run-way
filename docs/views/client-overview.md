@@ -1,6 +1,6 @@
 # ClientOverviewView — Visão Geral do Cliente
 
-View individual por cliente, exibida quando `view="client-overview"`. Mostra um resumo operacional do cliente atualmente selecionado: KPIs, demandas e membros alocados. É o ponto de entrada específico de um cliente, em contraste com a `OverviewView` (home pessoal do usuário).
+View individual por cliente, exibida quando `view="client-overview"`. Funciona como um **cockpit do cliente**: responde de imediato o que precisa de atenção, qual é o risco, o que está atrasado e o que vem a seguir. É o ponto de entrada específico de um cliente, em contraste com a `OverviewView` (home pessoal do usuário).
 
 ## Estrutura de Arquivos
 
@@ -12,34 +12,33 @@ src/views/client-overview/
 │   └── useClientOverviewData.ts
 └── components/
     ├── ClientOverviewHeader.tsx
-    ├── ClientKpis.tsx
-    ├── ClientTaskList.tsx
-    └── ClientMembersCard.tsx
+    ├── ClientHealth.tsx
+    ├── ClientFocus.tsx
+    ├── ClientMetrics.tsx
+    ├── ClientTasksByPriority.tsx
+    ├── ClientTimeline.tsx
+    └── ClientTeam.tsx
 ```
+
+> `ClientKpis.tsx`, `ClientTaskList.tsx` e `ClientMembersCard.tsx` foram substituídos pelos componentes acima.
 
 ## Layout
 
 ```
-[Cabeçalho]
-┌────────────────────────────────────────┐
-│  ClientOverviewHeader (ícone + nome)   │
-└────────────────────────────────────────┘
+[ClientOverviewHeader]
 
-"Resumo"
-┌────────────────────────────────────────┐
-│  ClientKpis (grid 2×2)                 │
-└────────────────────────────────────────┘
+[ClientFocus (1fr)] | [ClientHealth (240px)]
 
-"Detalhes"
-┌───────────────────────────┬────────────┐
-│  ClientTaskList           │ ClientMem  │
-│  (abertas + concluídas)   │ bersCard   │
-└───────────────────────────┴────────────┘
+[ClientMetrics (grid 2×2 full width)]
+
+[ClientTasksByPriority (1fr)] | [ClientTimeline (280px)]
+
+[ClientTeam (full width)]
 
 Mobile: stacking vertical (1 col).
 ```
 
-"Detalhes" usa `grid-cols-[1fr_280px]`. Reutiliza as classes CSS `overview-root`, `overview-ambient`, `overview-card`, `overview-section-label` e `overview-item-enter` da OverviewView.
+Reutiliza as classes CSS `overview-root`, `overview-ambient`, `overview-card`, `overview-section-label` e `overview-item-enter` da OverviewView.
 
 ## `useClientOverviewData`
 
@@ -47,42 +46,114 @@ Mobile: stacking vertical (1 col).
 
 Recebe `clientId: string | null`. Busca em paralelo via `Promise.all`:
 
-1. **Info do cliente** — `clients.id, name` filtrado por `clientId`
-2. **Tasks do cliente** — `tasks` filtradas por `client_id`, com join em `task_subtasks → subtask_assignees → members`
+1. **Info do cliente** — `clients.id, name`
+2. **Tasks do cliente** — `tasks` filtradas por `client_id`, com join em `task_subtasks (id, title, end_date, status) → subtask_assignees → members`
 
-**KPIs calculados no client:**
-- `openTasks` — tasks com `concluded_at IS NULL`
-- `lateTasks` — tasks abertas com ao menos 1 subtarefa com `end_date < hoje`
-- `concludedTasks` — tasks com `concluded_at IS NOT NULL`
-- `totalSubtasks` — soma de subtarefas de todas as tasks
-- `lateSubtasks` — subtarefas com `end_date < hoje` em tasks abertas
+**Retorna `ClientOverviewData`:**
 
-**Membros calculados no client:** agrega `subtask_assignees` das tasks abertas em um `Map` por `member_id`, contando `subtaskCount`. Ordenados por carga decrescente.
+```ts
+interface ClientOverviewData {
+  client: ClientInfo | null
+  kpis: ClientOverviewKpis
+  health: ClientHealth
+  focusTasks: ClientTask[]   // top 5 tasks mais críticas
+  tasks: ClientTask[]        // todas as tasks
+  members: ClientMember[]
+  timeline: TimelineEntry[]  // subtasks com end_date ≤ hoje+7d
+  loading: boolean
+  error: string | null
+}
+```
+
+### Tipos principais
+
+```ts
+interface ClientTask {
+  id, title, clickupLink, concludedAt, createdAt
+  subtasks: ClientSubtask[]
+  subtaskCount: number
+  lateSubtaskCount: number
+  accumulatedLateDays: number          // soma dos dias de atraso por subtarefa
+  priority: 'critical' | 'important' | 'backlog'
+}
+
+interface ClientSubtask {
+  id, title, endDate, status, isLate
+  assignees: ClientMember[]
+}
+
+type ClientHealthStatus = 'healthy' | 'warning' | 'critical'
+
+interface ClientHealth {
+  status: ClientHealthStatus
+  lateTasks: number
+  criticalTasks: number
+  dueSoonTasks: number
+}
+
+interface TimelineEntry {
+  taskId, taskTitle, subtaskId, subtaskTitle
+  endDate: string        // YYYY-MM-DD
+  daysFromNow: number    // negativo = atrasado
+  isLate: boolean
+  status: string
+}
+```
+
+### Lógica de prioridade das tasks
+
+| priority | Condição |
+|---|---|
+| `critical` | Task aberta com ao menos 1 subtarefa com `end_date < hoje` |
+| `important` | Task aberta com subtarefa com `end_date ≤ hoje+7d` (sem atraso) |
+| `backlog` | Demais tasks abertas |
+
+### Lógica de saúde (`ClientHealthStatus`)
+
+| Status | Condição |
+|---|---|
+| `critical` | `lateTasks ≥ 4` **ou** `criticalTasks ≥ 2` |
+| `warning` | `lateTasks ≥ 1` **ou** `dueSoonTasks ≥ 2` |
+| `healthy` | Nenhuma das anteriores |
+
+### `focusTasks`
+
+Top 5 tasks abertas, ordenadas por prioridade (`critical → important → backlog`) e, dentro da mesma prioridade, por `accumulatedLateDays` decrescente.
+
+### `timeline`
+
+Todas as subtarefas de tasks abertas com `end_date ≤ hoje+7d`, ordenadas por data. Inclui subtarefas já atrasadas (`daysFromNow < 0`).
+
+### Membros
+
+Agrega `subtask_assignees` das tasks abertas em `Map` por `member_id`, contando `subtaskCount`. Ordenados por carga decrescente.
 
 ## Componentes
 
 ### `ClientOverviewHeader`
-Cabeçalho simples com ícone `Building2` + nome do cliente + label "Visão geral do cliente". Exibe skeleton durante `loading`.
+Cabeçalho com ícone `Building2` + nome do cliente + label "Visão geral do cliente". Skeleton durante `loading`.
 
-### `ClientKpis`
-Grid 2×2 de KPI tiles reutilizando o mesmo padrão visual da `WelcomeCard`:
+### `ClientHealth`
+Card de saúde do cliente com três estados: 🟢 Saudável / 🟡 Atenção / 🔴 Em risco. Fundo colorido por estado, ponto animado pulsante, detalhes de contagem (tarefas atrasadas, críticas, vencem em breve).
+
+### `ClientFocus`
+Lista das top 5 tasks mais críticas ("Foco agora"). Cada item exibe ponto colorido por prioridade, título, dias de atraso acumulado e badge Crítica/Urgente. Oculto quando não há tasks abertas.
+
+### `ClientMetrics`
+Grid 2×2 de KPI tiles:
 - **Demandas abertas** — variant `default`
-- **Com atraso** — variant `urgent` (vermelho quando `> 0`)
-- **Subtarefas atrasadas** — variant `urgent`
+- **Com atraso** — variant `urgent`
 - **Concluídas** — variant `positive`
+- **Dias de atraso acumulado** — variant `neutral`
 
-### `ClientTaskList`
-Lista de demandas separadas em dois grupos: abertas (no topo) e concluídas (abaixo com label "Concluídas"). Cada item mostra:
-- Ícone `CheckCircle2` (cinza = aberta, verde = concluída)
-- Título da task
-- Contagem de subtarefas + quantidade atrasadas em vermelho
-- Badge "Atrasada" (vermelho) ou "Concluída" (verde)
-- Link externo para ClickUp se `clickupLink` presente
+### `ClientTasksByPriority`
+Lista de tasks abertas agrupadas em seções Críticas / Importantes / Backlog. Cada item mostra ponto colorido, título, contagem de subtarefas atrasadas e badge de prioridade. Empty state com `GitBranch`.
 
-Empty state com `GitBranch`. Skeleton durante `loading`.
+### `ClientTimeline`
+Subtarefas dos próximos 7 dias (incluindo atrasadas), agrupadas por `daysFromNow`: "Hoje", "Amanhã", "Em N dias", "Nd de atraso". Atrasadas ficam em vermelho. Empty state quando não há entregas no período.
 
-### `ClientMembersCard`
-Lista de membros alocados às subtarefas abertas do cliente, ordenados por quantidade de subtarefas. Cada item exibe avatar (foto ou iniciais), nome, role e contagem de subtarefas. Empty state com `Users`. Skeleton durante `loading`.
+### `ClientTeam`
+Membros alocados às subtarefas abertas, com barra de carga proporcional ao membro com mais subtarefas. Empty state com `Users`.
 
 ## Props de `ClientOverviewView`
 
@@ -95,5 +166,5 @@ interface ClientOverviewViewProps {
 ## Integração
 
 - Montada em `AppRouter` quando `view === "client-overview"`, recebendo `effectiveClientId` do `RouterCtx`
-- Item **"Visão Geral"** adicionado ao topo da nav de cliente em `AppSidebar` (logo após "Início"), visível apenas quando há cliente selecionado (`requiresClient: true`)
+- Item **"Visão Geral"** no topo da nav de cliente em `AppSidebar`, visível apenas quando há cliente selecionado (`requiresClient: true`)
 - `ViewType` em `useUIStore` inclui `'client-overview'`

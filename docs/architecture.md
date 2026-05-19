@@ -14,7 +14,7 @@ src/
 │   ├── AppModals.tsx                  # TaskModal + ConfirmModal + ClientTransitionOverlay agrupados
 │   ├── TaskModal.tsx                  # Modal criar/editar demanda
 │   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
-│   ├── AppSidebar.tsx                 # Sidebar de navegação; theme toggle no footer (mobile e desktop); na home mostra apenas Início + Admin
+│   ├── AppSidebar.tsx                 # Sidebar de navegação; strip lateral (sidebar-1) com Home ativo/inativo + clientes; sidebar-2 com nav do cliente (primeiro item: Visão Geral); na home global mostra apenas Admin
 │   ├── ClientTransitionOverlay.tsx    # Overlay animado exibido ao trocar de cliente
 │   └── ui/                            # Design system (Button, Input, Label, Badge)
 ├── views/
@@ -56,7 +56,7 @@ src/
 │   └── useMemberStore.ts      # Stub de compatibilidade (sem fetch — migrado para useMembersQuery)
 ├── hooks/
 │   ├── useAppOrchestrator.ts  # Agrega toda a lógica de orquestração do App (cliente, views, notificações, task actions); expõe cachedClient, navigateTo e navigateToClient para App.tsx coordenar redirects sem estado intermediário
-│   ├── useAppNavigation.ts    # URL ↔ ViewType: urlToView, viewToPath, taskPath; lê clientSlug via location.pathname (não useParams)
+│   ├── useAppNavigation.ts    # URL ↔ ViewType: urlToView, viewToPath, taskPath; lê clientSlug via location.pathname (não useParams); "/" → "home"; "/:slug" (sem subsegmento) → "client-overview"; "/:slug/tasks" → "demandas" etc.
 │   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask) via TanStack Query
 │   ├── useTasksQuery.ts       # Query hook TanStack Query para tasks
 │   ├── useMembersQuery.ts     # Query hook TanStack Query para members
@@ -102,7 +102,8 @@ App.tsx (gates de auth + composição)
           ├── useUIStore        → view, isTaskModalOpen
           ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
           └── QueryClientProvider (main.tsx) → staleTime 5min, gcTime 30min
-    ├── view="home"                    → OverviewView (dashboard pessoal — nova home padrão)
+    ├── view="home" + sem cliente       → OverviewView (dashboard pessoal global)
+    ├── view="home" + cliente selecionado → ClientOverviewView (visão geral do cliente)
     ├── view="client-overview"         → ClientOverviewView (visão geral do cliente selecionado)
     ├── view="clients"                 → UserClientsView
     ├── view="calendar"                → DashboardView (subview="calendar") — calendário mensal
@@ -246,7 +247,7 @@ selectClient(clientId)
   → setTransitionTarget({ id, name })   ← exibe ClientTransitionOverlay (~3.2s)
   → após 650ms: queryClient.invalidateQueries(['tasks'])   ← TanStack Query refetch automático
                queryClient.invalidateQueries(['members']) ← TanStack Query refetch automático
-               navigateToClient(client) → navigate('/:slug') → view="home"
+               navigateToClient(client) → navigate('/:slug') → view="client-overview"
       ↓ onComplete (após fade-out do overlay)
   → toast cinza "Trocado para <Cliente>" (sonner, 3s)
   → setTransitionTarget(null)

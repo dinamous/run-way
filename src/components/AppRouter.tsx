@@ -68,7 +68,7 @@ export function AppRouter() {
 
   return (
     <Suspense fallback={<ViewSkeleton />}>
-      {view === "home" && (
+      {view === "home" && !selectedClient && (
         <OverviewView
           userName={displayName}
           userId={userId}
@@ -80,6 +80,10 @@ export function AppRouter() {
           onMarkNotificationAsRead={(id) => { onMarkNotificationAsRead(id).catch(() => {}) }}
           onSelectClient={(clientId) => onSelectClient(clientId)}
         />
+      )}
+
+      {view === "home" && selectedClient && (
+        <ClientOverviewView clientId={effectiveClientId ?? null} />
       )}
 
       {view === "client-overview" && (

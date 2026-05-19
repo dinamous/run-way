@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import {
   Users,
   BarChart2,
@@ -45,7 +46,6 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Início", Icon: Home, view: "home", homeOnly: true },
   { label: "Visão Geral", Icon: Building2, view: "client-overview", requiresClient: true },
   { label: "Demandas", Icon: ListChecks, view: "demandas", requiresClient: true },
   { label: "Membros", Icon: Users, view: "members", requiresClient: true },
@@ -114,6 +114,8 @@ export function AppSidebar() {
       isAdmin,
     },
   } = useLayoutContext()
+
+  const navigate = useNavigate()
 
   const [openGroups, setOpenGroups] = useState<string[]>(() => {
     const initial: string[] = []
@@ -241,7 +243,7 @@ export function AppSidebar() {
             </span>
           </div>
         ) : (
-          <span className="text-sm text-muted-foreground">Sem cliente</span>
+          <span className="text-sm text-muted-foreground">Sua visão geral</span>
         )}
       </div>
 
@@ -260,8 +262,13 @@ export function AppSidebar() {
       <Tooltip>
         <TooltipTrigger asChild>
           <button
-            onClick={() => onViewChange("home")}
-            className="w-9 h-9 bg-foreground text-background flex items-center justify-center rounded-md hover:opacity-80 transition-opacity mb-3 shrink-0"
+            onClick={() => navigate("/")}
+            className={cn(
+              "w-9 h-9 flex items-center justify-center rounded-md transition-all duration-150 mb-3 shrink-0",
+              !selectedClient
+                ? "bg-foreground text-background"
+                : "bg-muted text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+            )}
             aria-label="Ir para o início"
           >
             <Home className="w-[18px] h-[18px]" />
