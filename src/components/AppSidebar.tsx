@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { HelpModal } from "@/components/HelpModal"
 import {
   TooltipProvider,
   Tooltip,
@@ -178,6 +179,7 @@ export function AppSidebar() {
 
   const navigate = useNavigate()
   const reducedMotion = usePrefersReducedMotion()
+  const [helpOpen, setHelpOpen] = useState(false)
   const prevOpenRef = useRef(open)
   const [panelJustOpened, setPanelJustOpened] = useState(false)
 
@@ -484,7 +486,11 @@ export function AppSidebar() {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground/60 hover:bg-foreground/[0.06] hover:text-foreground transition-colors duration-150">
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground/60 hover:bg-foreground/[0.06] hover:text-foreground transition-colors duration-150"
+              aria-label="Ajuda"
+            >
               <HelpCircle className="w-[17px] h-[17px]" />
             </button>
           </TooltipTrigger>
@@ -532,6 +538,7 @@ export function AppSidebar() {
 
   return (
     <TooltipProvider delayDuration={200}>
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
       <>
         {/* MOBILE OVERLAY */}
         <div

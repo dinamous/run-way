@@ -12,6 +12,7 @@ src/
 │   ├── AppLayout.tsx                  # Shell do layout: AppHeader + AppSidebar + main/AppRouter
 │   ├── ClientPickerLayout.tsx         # Layout leve para "/" sem slug: header + mini-sidebar recolhida + ClientPickerView
 │   ├── AppModals.tsx                  # TaskModal + ConfirmModal + ClientTransitionOverlay agrupados
+│   ├── HelpModal.tsx                  # Modal de ajuda/FAQ: nav lateral por seção (Visão Geral, Planejamento, Membros, Relatórios, Clientes, Ferramentas, Admin, Dicas, Atalhos); accordion por pergunta; aberto pelo botão HelpCircle da AppSidebar
 │   ├── TaskModal.tsx                  # Modal criar/editar demanda
 │   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
 │   ├── AppSidebar.tsx                 # Sidebar de navegação; strip lateral (sidebar-1) com fundo um tom mais escuro que o card (tonal stratification), Home + avatares de clientes (ativo com ring + shadow); sidebar-2 com nav agrupada: workspace, Operações, Sistema; item ativo tem rail vertical 2px à esquerda + bg mais sólido; ícones inativos em 60% opacity com hover 100%; abertura do painel anima itens em stagger (28ms offset); View Transitions nos avatares de cliente ao trocar workspace; spring physics no chevron dos grupos; prefers-reduced-motion respeitado em todos os efeitos
