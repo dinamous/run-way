@@ -150,10 +150,10 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 
 ## ADR-017: ClientPickerView como tela obrigatória de seleção de cliente
 
-**Status:** Aceito (Abr 2026)
-**Decisão:** qualquer rota sem `effectiveClientId` válido (sem slug, slug inválido, `/clients`, etc.) exibe `ClientPickerView` com cards dos clientes disponíveis — exceto `/profile`, que é genuinamente global; se houver um cliente válido em cache (`cachedClient` de `useClientStore`), o redirect ocorre automaticamente sem exibir a tela de seleção; `App.tsx` renderiza `ClientPickerLayout` quando `!effectiveClientId && !isProfileView`
+**Status:** Aceito (Abr 2026) — parcialmente supersedido por ADR-023
+**Decisão:** qualquer rota sem `effectiveClientId` válido (sem slug, slug inválido, `/clients`, etc.) exibe `ClientPickerView` com cards dos clientes disponíveis — exceto `/profile` e `/home`, que são globais; se houver um cliente válido em cache (`cachedClient` de `useClientStore`), o redirect ocorre automaticamente sem exibir a tela de seleção; `App.tsx` renderiza `ClientPickerLayout` quando `!effectiveClientId && !isProfileView && !isHomeView`
 **Racional:** o guard anterior (`!clientSlug`) só cobria ausência de slug, deixando rotas como `/clients` ou slugs inválidos caírem no `AppLayout` sem cliente, causando estado ambíguo; expandir o guard para `!effectiveClientId` cobre todos os casos estruturalmente; o redirect via `cachedClient` preserva a experiência de retorno sem fricção
-**Consequências:** `/clients` não é mais uma rota global tratada separadamente — redireciona para o cliente em cache preservando a view (ex: `/clients` → `/:slug/client-info`) ou exibe a tela de seleção; `useAppOrchestrator` expõe `cachedClient`, `navigateTo` e `navigateToClient`; o redirect usa `useEffect` para evitar loop de re-render (`selectClient` durante render causava "Too many re-renders"); `isGlobalView` foi simplificado para `isProfileView` em `App.tsx`
+**Consequências:** `/clients` não é mais uma rota global tratada separadamente — redireciona para o cliente em cache preservando a view (ex: `/clients` → `/:slug/client-info`) ou exibe a tela de seleção; `useAppOrchestrator` expõe `cachedClient`, `navigateTo` e `navigateToClient`; o redirect usa `useEffect` para evitar loop de re-render (`selectClient` durante render causava "Too many re-renders"); `isGlobalView` foi simplificado para `isProfileView` em `App.tsx`; ver ADR-023 para a exceção da `home`
 
 ---
 
@@ -199,3 +199,12 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 **Decisão:** `task_subtasks` passa a ter `progress_status`, separado de `status` (que continua representando a etapa/tipo: Design, QA, Publicação etc.). O domínio expõe `Subtask.progressStatus` com os valores `todo`, `ready`, `in-progress`, `in-review`, `waiting`, `blocked`, `needs-changes`, `paused`, `done` e `canceled`.
 **Racional:** o campo `status` já era usado como categoria visual e filtro de etapa; reaproveitá-lo para andamento quebraria calendário, timeline e legenda. Separar andamento permite gerir subtasks esquecidas, bloqueadas ou concluídas sem perder a fase de entrega.
 **Consequências:** a tabela de demandas ganhou uma coluna "Status" com popover de edição inline; o modal de demanda também salva o andamento; o progresso da demanda agora considera subtasks `done` e ignora subtasks `canceled`.
+
+---
+
+## ADR-023: OverviewView como destino pós-login sem exigir seleção de cliente
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** após o login, o usuário é levado diretamente à `OverviewView` (view `home`) sem passar pelo `ClientPickerView`, mesmo que tenha múltiplos clientes. A `home` é tratada como rota global — não exige `effectiveClientId`. O `ClientPickerView` continua disponível apenas para views que requerem um cliente específico (calendar, timeline, list, etc.) sem slug na URL.
+**Racional:** a `OverviewView` já exibe dados agregados de todos os clientes do usuário (`clients` prop passada pelo `AppRouter`); forçar a seleção de cliente antes de acessá-la era fricção desnecessária. O fluxo correto é: login → overview global → usuário navega para uma view específica e seleciona o cliente se necessário.
+**Consequências:** `needsPicker` em `App.tsx` passou a excluir `isHomeView` (`view === "home" || !view`); o `useEffect` de restauração automática de último cliente em `useAppOrchestrator` foi removido (não há mais necessidade de redirecionar `/` para `/:slug` automaticamente); `isProfileView` renomeado conceitualmente para "rotas globais" junto com `isHomeView`; a `OverviewView` permanece sem alterações, pois já suportava múltiplos clientes.

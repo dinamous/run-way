@@ -38,19 +38,6 @@ export function useAppOrchestrator() {
     if (effectiveClientId) storeClient(effectiveClientId);
   }, [effectiveClientId, storeClient]);
 
-  useEffect(() => {
-    const shouldRestoreLastClient =
-      !auth.loading &&
-      !nav.currentSlug &&
-      nav.view === "home" &&
-      storedClientId &&
-      isClientBuffValid()
-
-    if (shouldRestoreLastClient) {
-      const lastClient = auth.clients.find((c) => c.id === storedClientId);
-      if (lastClient) nav.navigateToClient(lastClient);
-    }
-  }, [auth.loading, nav.currentSlug, storedClientId, auth.clients, nav]);
 
 
   const { data: members = [] } = useMembersQuery(effectiveClientId);

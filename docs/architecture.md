@@ -84,9 +84,10 @@ AuthContext (AuthProvider)
 App.tsx (gates de auth + composição)
     ├── !session                       → LoginView
     ├── !hasClients                    → OnboardingView
-    ├── !effectiveClientId (sem slug, slug inválido, /clients…) e não é /profile
-    │       ├── cachedClient válido    → useEffect: navigateTo(view, cachedClient) → redirect preservando a view (ex: /clients → /:slug/client-info); renderiza null enquanto navega
+    ├── !effectiveClientId e não é /profile nem /home
+    │       ├── cachedClient válido    → useEffect: navigateTo(view, cachedClient) → redirect preservando a view; renderiza null enquanto navega
     │       └── sem cache             → ClientPickerLayout → ClientPickerView
+    ├── !effectiveClientId e é /home  → OverviewView (dashboard global — não requer cliente)
     └── useAppOrchestrator (toda a lógica de orquestração)
           ├── useClientStore    → selectedClientId (persist)
           ├── useMembersQuery   → members com cache TanStack Query
@@ -139,7 +140,7 @@ isClientBuffValid()         // true se selectedAt < 4h atrás
 | `null` | Admin vê todos os clientes (sem filtro no fetch) |
 | `string` | Cliente específico selecionado |
 
-O "buff" de 4h (`CLIENT_BUFF_MS = 4 * 60 * 60 * 1000`) é verificado em `useAppOrchestrator` antes de restaurar o cliente automaticamente. Após expirar, o usuário vê o `ClientPickerView` independentemente do valor persistido.
+O "buff" de 4h (`CLIENT_BUFF_MS = 4 * 60 * 60 * 1000`) é verificado em `useAppOrchestrator` antes de usar `cachedClient` para redirect automático. Após expirar, o usuário vê o `ClientPickerView` se tentar acessar uma view que exige cliente (calendar, timeline, etc.); a `home` (OverviewView) nunca exige cliente.
 
 ### `useTaskStore`
 Estado local mínimo para suporte a **update otimista**. O fetch de tasks foi migrado para `useTasksQuery` (TanStack Query).
