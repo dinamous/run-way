@@ -18,7 +18,15 @@ src/
 │   ├── ClientTransitionOverlay.tsx    # Overlay animado exibido ao trocar de cliente
 │   └── ui/                            # Design system (Button, Input, Label, Badge)
 ├── views/
-│   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess (pós-seleção de cliente)
+│   ├── overview/              # OverviewView — dashboard pessoal: KPIs, PriorityList, ActiveClients, InboxCard
+│   │   ├── hooks/
+│   │   │   └── useOverviewData.ts   # Busca subtasks do assignee, contagem de tasks por cliente, KPIs
+│   │   └── components/
+│   │       ├── WelcomeCard.tsx      # Saudação por horário + grid 2×2 de KPIs
+│   │       ├── PriorityList.tsx     # Subtasks ativas paginadas (+15), prazo colorido
+│   │       ├── ActiveClients.tsx    # Grid de até 4 clientes; clique navega para PlanningView
+│   │       └── InboxCard.tsx        # Até 5 notificações não lidas; marca como lida ao clicar
+│   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess (mantida, não é mais a home padrão)
 │   ├── client-picker/         # ClientPickerView — boas-vindas + grid de seleção de cliente (rota "/")
 │   │   └── components/
 │   │       └── ClientCard.tsx
@@ -85,9 +93,9 @@ App.tsx (gates de auth + composição)
           ├── useUIStore        → view, isTaskModalOpen
           ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
           └── QueryClientProvider (main.tsx) → staleTime 5min, gcTime 30min
-    ├── view="home"                    → HomeView
+    ├── view="home"                    → OverviewView (dashboard pessoal — nova home padrão)
     ├── view="clients"                 → UserClientsView
-    ├── view="overview"                → DashboardView (subview="overview") — métricas e resumo
+    ├── view="overview"                → (alias futuro; atualmente mapeado como "home")
     ├── view="calendar"                → DashboardView (subview="calendar") — calendário mensal
     ├── view="timeline"                → DashboardView (subview="timeline") — Gantt
     ├── view="list"                    → DashboardView (subview="list") — tabela
@@ -351,6 +359,7 @@ interface LayoutCtx {
 - **`AppLayout`** cria o `LayoutContext.Provider` com os valores agrupados; não passa props para filhos diretos
 - **`AppHeader`**, **`AppSidebar`** e **`AppRouter`** são zero-props — consomem o contexto via `useLayoutContext()`
 - `useLayoutContext()` lança erro se usado fora do `AppLayout`
+- `RouterCtx` foi estendido com `userId`, `memberId`, `isAdmin`, `availableClients`, `notificationsLoading`, `onSelectClient` e `onMarkNotificationAsRead` para que `OverviewView` acesse esses dados sem prop drilling adicional
 
 ## Decisões
 

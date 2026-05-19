@@ -184,6 +184,15 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 
 ---
 
+## ADR-022: OverviewView substitui HomeView como tela inicial padrão
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** A view `home` passa a renderizar `OverviewView` (dashboard pessoal com KPIs, lista de subtasks do assignee, clientes ativos e inbox de notificações) em vez da `HomeView` anterior (saudação + SearchLauncher + QuickAccess). A `HomeView` é mantida no codebase mas não está mais acessível pela navegação padrão.
+**Racional:** a tela de boas-vindas não agregava valor recorrente; o dashboard pessoal entrega dados contextuais (subtasks atrasadas, vencimentos, notificações) a cada abertura do app, reduzindo o número de cliques para atingir informação relevante.
+**Consequências:** `LayoutContext.RouterCtx` foi estendido com `userId`, `memberId`, `isAdmin`, `availableClients`, `notificationsLoading`, `onSelectClient` e `onMarkNotificationAsRead` para eliminar prop drilling. `useOverviewData` faz fetch próprio de subtasks (`subtask_assignees → task_subtasks → tasks → clients`) e contagem de tasks ativas por cliente — não existe hook global para essas queries. Notificações vêm via prop (reutilizando o `useNotifications` já subscrito no App).
+
+---
+
 ## ADR-021: Status de andamento separado da etapa da subtask
 
 **Status:** Aceito (Mai 2026)

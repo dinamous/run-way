@@ -10,9 +10,9 @@ const MembersView    = lazy(() => import("@/views/MembersView"));
 const ReportsView    = lazy(() => import("@/views/reports"));
 const AdminView      = lazy(() => import("@/views/admin").then(m => ({ default: m.AdminView })));
 const UserClientsView = lazy(() => import("@/views/user/UserClientsView").then(m => ({ default: m.UserClientsView })));
-const HomeView       = lazy(() => import("@/views/home").then(m => ({ default: m.HomeView })));
 const ToolsView      = lazy(() => import("@/views/tools").then(m => ({ default: m.ToolsView })));
 const ProfileView    = lazy(() => import("@/views/profile").then(m => ({ default: m.ProfileView })));
+const OverviewView   = lazy(() => import("@/views/overview").then(m => ({ default: m.OverviewView })));
 
 function ViewSkeleton() {
   return (
@@ -40,17 +40,23 @@ const REPORTS_SUBVIEW_MAP: Partial<Record<ViewType, ReportsSubview>> = {
 export function AppRouter() {
   const { view, router: {
     hasClients,
-    effectiveClientId,
     selectedClient,
     userName,
     userEmail,
+    userId,
+    memberId,
+    isAdmin,
+    availableClients,
+    notificationsLoading,
     holidays,
     onViewChange,
     onEditTask,
     onOpenNewTask,
     onDeleteTask,
     onUpdateTask,
-  } } = useLayoutContext()
+    onSelectClient,
+    onMarkNotificationAsRead,
+  }, header: { notifications } } = useLayoutContext()
   const goToClients = () => onViewChange("clients");
   const displayName = userName || userEmail || "";
 
@@ -61,11 +67,16 @@ export function AppRouter() {
   return (
     <Suspense fallback={<ViewSkeleton />}>
       {view === "home" && (
-        <HomeView
+        <OverviewView
           userName={displayName}
-          clientName={selectedClient?.name}
-          hasClient={!!effectiveClientId}
-          onViewChange={onViewChange}
+          userId={userId}
+          memberId={memberId}
+          isAdmin={isAdmin}
+          clients={availableClients}
+          notifications={notifications}
+          notificationsLoading={notificationsLoading}
+          onMarkNotificationAsRead={(id) => { onMarkNotificationAsRead(id).catch(() => {}) }}
+          onSelectClient={(clientId) => onSelectClient(clientId)}
         />
       )}
 
@@ -97,11 +108,16 @@ export function AppRouter() {
       {REPORTS_VIEWS.has(view) && <ReportsView subview={REPORTS_SUBVIEW_MAP[view]} />}
 
       {!view && (
-        <HomeView
+        <OverviewView
           userName={displayName}
-          clientName={selectedClient?.name}
-          hasClient={!!effectiveClientId}
-          onViewChange={onViewChange}
+          userId={userId}
+          memberId={memberId}
+          isAdmin={isAdmin}
+          clients={availableClients}
+          notifications={notifications}
+          notificationsLoading={notificationsLoading}
+          onMarkNotificationAsRead={(id) => { onMarkNotificationAsRead(id).catch(() => {}) }}
+          onSelectClient={(clientId) => onSelectClient(clientId)}
         />
       )}
     </Suspense>

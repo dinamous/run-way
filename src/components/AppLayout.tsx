@@ -50,6 +50,9 @@ interface AppLayoutProps {
   urlTaskId: string | null
   onOpenTask: (taskId: string, subview?: "calendar" | "timeline" | "list") => void
   onCloseTask: () => void
+  userId: string
+  memberId: string
+  notificationsLoading: boolean
 }
 
 export function AppLayout(props: AppLayoutProps) {
@@ -66,6 +69,7 @@ export function AppLayout(props: AppLayoutProps) {
     effectiveClientId, userName, holidays,
     onEditTask, onOpenNewTask, onDeleteTask, onUpdateTask,
     urlTaskId, onOpenTask, onCloseTask,
+    userId, memberId, notificationsLoading,
   } = props
 
   return (
@@ -88,9 +92,12 @@ export function AppLayout(props: AppLayoutProps) {
       },
       router: {
         effectiveClientId, selectedClient, userName, userEmail,
+        userId, memberId, isAdmin, availableClients, notificationsLoading,
         holidays, hasClients, onViewChange,
         onEditTask, onOpenNewTask, onDeleteTask, onUpdateTask,
         urlTaskId, onOpenTask, onCloseTask,
+        onSelectClient: (clientId: string) => onSelectClient(clientId),
+        onMarkNotificationAsRead,
       },
     }}>
       <div className="flex flex-col h-screen bg-background text-foreground font-sans">

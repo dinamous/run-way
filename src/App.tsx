@@ -106,6 +106,9 @@ export default function App() {
         // router
         effectiveClientId={app.effectiveClientId}
         userName={app.auth.member?.name ?? ""}
+        userId={app.auth.user?.id ?? ""}
+        memberId={app.auth.member?.id ?? ""}
+        notificationsLoading={app.notifications.loading}
         holidays={app.holidays}
         onEditTask={app.taskActions.openEditTask}
         onOpenNewTask={app.taskActions.openNewTask}
