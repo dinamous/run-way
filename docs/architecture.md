@@ -26,6 +26,14 @@ src/
 │   │       ├── PriorityList.tsx     # Subtasks ativas paginadas (+15), prazo colorido
 │   │       ├── ActiveClients.tsx    # Grid de até 4 clientes; clique navega para PlanningView
 │   │       └── InboxCard.tsx        # Até 5 notificações não lidas; marca como lida ao clicar
+│   ├── client-overview/       # ClientOverviewView — visão geral de um cliente específico (view="client-overview")
+│   │   ├── hooks/
+│   │   │   └── useClientOverviewData.ts  # Busca info, KPIs, tasks e membros alocados do cliente
+│   │   └── components/
+│   │       ├── ClientOverviewHeader.tsx  # Cabeçalho com nome do cliente
+│   │       ├── ClientKpis.tsx            # Grid 2×2: demandas abertas, com atraso, subtarefas atrasadas, concluídas
+│   │       ├── ClientTaskList.tsx        # Lista de demandas separadas por abertas/concluídas + badge de atraso
+│   │       └── ClientMembersCard.tsx     # Membros alocados nas subtarefas abertas, ordenados por carga
 │   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess (mantida, não é mais a home padrão)
 │   ├── client-picker/         # ClientPickerView — boas-vindas + grid de seleção de cliente (rota "/")
 │   │   └── components/
@@ -95,8 +103,8 @@ App.tsx (gates de auth + composição)
           ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
           └── QueryClientProvider (main.tsx) → staleTime 5min, gcTime 30min
     ├── view="home"                    → OverviewView (dashboard pessoal — nova home padrão)
+    ├── view="client-overview"         → ClientOverviewView (visão geral do cliente selecionado)
     ├── view="clients"                 → UserClientsView
-    ├── view="overview"                → (alias futuro; atualmente mapeado como "home")
     ├── view="calendar"                → DashboardView (subview="calendar") — calendário mensal
     ├── view="timeline"                → DashboardView (subview="timeline") — Gantt
     ├── view="list"                    → DashboardView (subview="list") — tabela
@@ -117,10 +125,10 @@ App.tsx (gates de auth + composição)
 Estado de navegação e modal. Não persiste.
 ```ts
 view: ViewType
-// 'home' | 'overview' | 'calendar' | 'timeline' | 'list'
+// 'home' | 'client-overview' | 'calendar' | 'timeline' | 'list'
 // | 'members' | 'reports' | 'admin' | 'clients'
 // | 'tools' | 'tools-briefing-analyzer' | 'tools-import' | 'tools-export' | 'tools-integrations'
-// | 'profile'
+// | 'demandas' | 'kanban' | 'profile'
 setView(view)
 isTaskModalOpen: boolean
 openTaskModal() / closeTaskModal()

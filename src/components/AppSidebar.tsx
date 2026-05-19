@@ -46,6 +46,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Início", Icon: Home, view: "home", homeOnly: true },
+  { label: "Visão Geral", Icon: Building2, view: "client-overview", requiresClient: true },
   { label: "Demandas", Icon: ListChecks, view: "demandas", requiresClient: true },
   { label: "Membros", Icon: Users, view: "members", requiresClient: true },
   {

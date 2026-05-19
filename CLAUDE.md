@@ -66,6 +66,7 @@ npm run lint      # ESLint
 |---|---|
 | Estrutura, fluxo de dados, decisões | [docs/architecture.md](docs/architecture.md) |
 | OverviewView, useOverviewData, KPIs, PriorityList, InboxCard | [docs/views/overview.md](docs/views/overview.md) |
+| ClientOverviewView, useClientOverviewData, visão geral por cliente | [docs/views/client-overview.md](docs/views/client-overview.md) |
 | PlanningView, Calendar, Timeline, Demandas, drag-drop | [docs/views/planning.md](docs/views/planning.md) |
 | MembersView, capacidade | [docs/views/members.md](docs/views/members.md) |
 | AdminView, UsersPanel, useAdminData, useAdminStore | [docs/views/admin.md](docs/views/admin.md) |

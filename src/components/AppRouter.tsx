@@ -13,6 +13,7 @@ const UserClientsView = lazy(() => import("@/views/user/UserClientsView").then(m
 const ToolsView      = lazy(() => import("@/views/tools").then(m => ({ default: m.ToolsView })));
 const ProfileView    = lazy(() => import("@/views/profile").then(m => ({ default: m.ProfileView })));
 const OverviewView   = lazy(() => import("@/views/overview").then(m => ({ default: m.OverviewView })));
+const ClientOverviewView = lazy(() => import("@/views/client-overview").then(m => ({ default: m.ClientOverviewView })));
 
 function ViewSkeleton() {
   return (
@@ -41,6 +42,7 @@ export function AppRouter() {
   const { view, router: {
     hasClients,
     selectedClient,
+    effectiveClientId,
     userName,
     userEmail,
     userId,
@@ -78,6 +80,10 @@ export function AppRouter() {
           onMarkNotificationAsRead={(id) => { onMarkNotificationAsRead(id).catch(() => {}) }}
           onSelectClient={(clientId) => onSelectClient(clientId)}
         />
+      )}
+
+      {view === "client-overview" && (
+        <ClientOverviewView clientId={effectiveClientId ?? null} />
       )}
 
       {view === "admin" && <RequireAdmin><AdminView /></RequireAdmin>}
