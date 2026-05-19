@@ -17,10 +17,14 @@ export interface SubtaskRow {
   taskConcludedAt: string | null
 }
 
+export type ClientRisk = 'healthy' | 'attention' | 'critical'
+
 export interface ClientSummary {
   id: string
   name: string
   activeTaskCount: number
+  lateSubtaskCount: number
+  risk: ClientRisk
 }
 
 export interface OverviewKpis {
@@ -35,6 +39,7 @@ export interface OverviewData {
   subtasks: SubtaskRow[]
   notifications: Notification[]
   clients: ClientSummary[]
+  accumulatedDelayDays: number
   loading: boolean
   error: string | null
 }
@@ -89,15 +94,36 @@ export function useOverviewData({ memberId, userId, isAdmin, clients }: UseOverv
 
   const today = new Date().toISOString().slice(0, 10)
   const activeTasks = subtasks.filter((s) => !s.taskConcludedAt)
+  const lateSubtasks = activeTasks.filter((s) => s.end < today)
+
+  const accumulatedDelayDays = lateSubtasks.reduce((acc, s) => {
+    const diff = Math.round(
+      (new Date(today + 'T00:00:00').getTime() - new Date(s.end + 'T00:00:00').getTime()) /
+        (1000 * 60 * 60 * 24)
+    )
+    return acc + diff
+  }, 0)
 
   const kpis: OverviewKpis = {
     open: new Set(activeTasks.map((s) => s.taskId)).size,
-    late: activeTasks.filter((s) => s.end < today).length,
+    late: lateSubtasks.length,
     today: activeTasks.filter((s) => s.end === today).length,
     concluded: new Set(subtasks.filter((s) => s.taskConcludedAt).map((s) => s.taskId)).size,
   }
 
-  return { kpis, subtasks, notifications, clients: clientSummaries, loading, error }
+  // Enrich client summaries with risk based on subtask data
+  const lateByClient = lateSubtasks.reduce<Record<string, number>>((acc, s) => {
+    acc[s.clientId] = (acc[s.clientId] ?? 0) + 1
+    return acc
+  }, {})
+
+  const enrichedClients: ClientSummary[] = clientSummaries.map((c) => {
+    const lateCount = lateByClient[c.id] ?? 0
+    const risk: ClientRisk = lateCount >= 2 ? 'critical' : lateCount === 1 ? 'attention' : 'healthy'
+    return { ...c, lateSubtaskCount: lateCount, risk }
+  })
+
+  return { kpis, subtasks, notifications, clients: enrichedClients, accumulatedDelayDays, loading, error }
 }
 
 async function fetchSubtasks(memberId: string): Promise<SubtaskRow[]> {
@@ -197,6 +223,8 @@ async function fetchClientSummaries(clientIds: string[], isAdmin: boolean): Prom
         id: clientId,
         name: clientData?.name ?? '',
         activeTaskCount: count ?? 0,
+        lateSubtaskCount: 0,
+        risk: 'healthy' as ClientRisk,
       }
     })
   )

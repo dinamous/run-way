@@ -1,9 +1,10 @@
-import { Clock, AlertTriangle, CheckCircle2, Layers } from 'lucide-react'
+import { Layers, AlertTriangle, Clock, CheckCircle2, TrendingUp } from 'lucide-react'
 import type { OverviewKpis } from '../hooks/useOverviewData'
 
 interface WelcomeCardProps {
   userName: string
   kpis: OverviewKpis
+  accumulatedDelayDays: number
   loading: boolean
 }
 
@@ -16,61 +17,106 @@ function getGreeting(): string {
 
 function getContextPhrase(kpis: OverviewKpis): string {
   if (kpis.late > 0 && kpis.today > 0) {
-    return `Você tem ${kpis.today} para hoje e ${kpis.late} atrasadas. Vamos focar?`
+    return `${kpis.today} para hoje, ${kpis.late} atrasadas. Vamos focar.`
   }
-  if (kpis.late > 0) return `Você tem ${kpis.late} subtarefas atrasadas. Atenção!`
-  if (kpis.today > 0) return `Você tem ${kpis.today} subtarefas para entregar hoje.`
-  return 'Tudo em dia por enquanto. Bom trabalho!'
+  if (kpis.late > 0) return `${kpis.late} subtarefas atrasadas. Atenção necessária.`
+  if (kpis.today > 0) return `${kpis.today} subtarefas vencem hoje.`
+  return 'Tudo em dia por enquanto.'
 }
 
-const KPI_CONFIG = [
-  { key: 'open' as const, label: 'Em aberto', icon: Layers, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/40' },
-  { key: 'late' as const, label: 'Atrasadas', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-950/40' },
-  { key: 'today' as const, label: 'Vencem hoje', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/40' },
-  { key: 'concluded' as const, label: 'Concluídas', icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-950/40' },
-]
+interface KpiTileProps {
+  value: number
+  label: string
+  icon: React.ElementType
+  variant: 'default' | 'urgent' | 'warn' | 'positive'
+  loading: boolean
+}
 
-export function WelcomeCard({ userName, kpis, loading }: WelcomeCardProps) {
+function KpiTile({ value, label, icon: Icon, variant, loading }: KpiTileProps) {
+  const colors = {
+    default: {
+      wrap: 'bg-foreground/[0.04]',
+      icon: 'text-muted-foreground',
+      value: 'text-foreground',
+    },
+    urgent: {
+      wrap: value > 0 ? 'bg-red-500/8 dark:bg-red-500/12' : 'bg-foreground/[0.04]',
+      icon: value > 0 ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground',
+      value: value > 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground',
+    },
+    warn: {
+      wrap: value > 0 ? 'bg-amber-500/8 dark:bg-amber-500/12' : 'bg-foreground/[0.04]',
+      icon: value > 0 ? 'text-amber-500 dark:text-amber-400' : 'text-muted-foreground',
+      value: value > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground',
+    },
+    positive: {
+      wrap: 'bg-foreground/[0.04]',
+      icon: 'text-muted-foreground',
+      value: 'text-muted-foreground',
+    },
+  }
+  const c = colors[variant]
+
+  return (
+    <div className={`flex flex-col gap-2 rounded-lg p-3.5 ${c.wrap} transition-colors duration-200`}>
+      <div className="flex items-center justify-between">
+        <Icon className={`h-4 w-4 ${c.icon}`} />
+        {loading ? (
+          <div className="h-6 w-8 animate-pulse rounded bg-muted/50" />
+        ) : (
+          <span className={`text-2xl font-semibold tabular-nums leading-none ${c.value}`}>
+            {value}
+          </span>
+        )}
+      </div>
+      <span className="text-xs text-muted-foreground leading-none">{label}</span>
+    </div>
+  )
+}
+
+export function WelcomeCard({ userName, kpis, accumulatedDelayDays, loading }: WelcomeCardProps) {
   const firstName = userName.split(' ')[0]
   const greeting = getGreeting()
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 flex flex-col gap-5">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-          {greeting}, {firstName}!
+    <div className="overview-card p-6 flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+          {greeting}, {firstName}.
         </h2>
         {loading ? (
-          <div className="mt-1.5 h-4 w-64 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-52 animate-pulse rounded bg-muted/50" />
         ) : (
-          <p className="mt-1.5 text-sm text-muted-foreground">{getContextPhrase(kpis)}</p>
+          <p className="text-sm text-muted-foreground">{getContextPhrase(kpis)}</p>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {KPI_CONFIG.map(({ key, label, icon: Icon, color, bg }) => (
-          <div key={key} className={`rounded-xl border border-border p-4 flex flex-col gap-3 ${bg}`}>
-            {loading ? (
-              <>
-                <div className="h-5 w-5 animate-pulse rounded bg-muted" />
-                <div className="h-8 w-12 animate-pulse rounded bg-muted" />
-                <div className="h-3 w-16 animate-pulse rounded bg-muted" />
-              </>
-            ) : (
-              <>
-                <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${color}`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <span className="text-3xl font-bold tracking-tight text-foreground leading-none">
-                  {kpis[key]}
-                </span>
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {label}
-                </span>
-              </>
-            )}
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-2">
+        <KpiTile value={kpis.open} label="Em aberto" icon={Layers} variant="default" loading={loading} />
+        <KpiTile value={kpis.late} label="Atrasadas" icon={AlertTriangle} variant="urgent" loading={loading} />
+        <KpiTile value={kpis.today} label="Vencem hoje" icon={Clock} variant="warn" loading={loading} />
+        <KpiTile value={kpis.concluded} label="Concluídas" icon={CheckCircle2} variant="positive" loading={loading} />
+      </div>
+
+      {/* Carga da semana strip */}
+      <div className="flex items-center gap-1.5 rounded-lg bg-foreground/[0.03] px-4 py-3 border border-border/40">
+        <TrendingUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="text-xs text-muted-foreground">Carga acumulada:</span>
+        {loading ? (
+          <div className="h-3.5 w-16 animate-pulse rounded bg-muted/50" />
+        ) : (
+          <span
+            className={`text-xs font-semibold tabular-nums ${
+              accumulatedDelayDays > 0
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-foreground'
+            }`}
+          >
+            {accumulatedDelayDays > 0
+              ? `${accumulatedDelayDays}d de atraso acumulado`
+              : 'Sem atraso acumulado'}
+          </span>
+        )}
       </div>
     </div>
   )

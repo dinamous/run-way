@@ -1,8 +1,9 @@
- import { useOverviewData } from './hooks/useOverviewData'
+import { useOverviewData } from './hooks/useOverviewData'
 import { WelcomeCard } from './components/WelcomeCard'
 import { PriorityList } from './components/PriorityList'
 import { ActiveClients } from './components/ActiveClients'
 import { InboxCard } from './components/InboxCard'
+import { FocoDoDia } from './components/FocoDoDia'
 import type { Notification } from '@/types/notification'
 import type { ClientOption } from '@/contexts/AuthContext'
 
@@ -31,30 +32,58 @@ export function OverviewView({
 }: OverviewViewProps) {
   const data = useOverviewData({ memberId, userId, isAdmin, clients })
 
+  const hasFocus =
+    !data.loading &&
+    data.subtasks.some(
+      (s) => !s.taskConcludedAt && s.end <= new Date().toISOString().slice(0, 10)
+    )
+
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-screen-xl mx-auto">
-      {/* Row 1: Welcome (wide) + Inbox (sidebar, spans 2 rows) */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px] lg:gap-5">
-        <WelcomeCard userName={userName} kpis={data.kpis} loading={data.loading} />
+    <div className="overview-root relative min-h-full">
+      <div className="overview-ambient" aria-hidden="true" />
 
-        {/* Inbox spans rows 1 and 2 on desktop */}
-        <div className="lg:row-span-2">
-          <InboxCard
-            notifications={notifications}
-            loading={notificationsLoading}
-            onMarkAsRead={onMarkNotificationAsRead}
-          />
-        </div>
+      <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-screen-xl mx-auto flex flex-col gap-8">
 
-        {/* Row 2: PriorityList + ActiveClients side by side */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_220px] lg:gap-5">
-          <PriorityList subtasks={data.subtasks} loading={data.loading} />
-          <ActiveClients
-            clients={data.clients}
-            loading={data.loading}
-            onSelectClient={onSelectClient}
-          />
-        </div>
+        
+
+        {/* Seu dia — welcome + clients */}
+        <section className="flex flex-col gap-2">
+          <span className="overview-section-label">Seu dia</span>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
+            <WelcomeCard
+              userName={userName}
+              kpis={data.kpis}
+              accumulatedDelayDays={data.accumulatedDelayDays}
+              loading={data.loading}
+            />
+            <ActiveClients
+              clients={data.clients}
+              loading={data.loading}
+              onSelectClient={onSelectClient}
+            />
+          </div>
+        </section>
+
+        {/* Foco do dia — full width, shown only when there are critical/today items */}
+        {hasFocus && (
+          <section className="flex flex-col gap-2">
+            <FocoDoDia subtasks={data.subtasks} loading={data.loading} />
+          </section>
+        )}
+
+        {/* Atenção agora — subtasks + inbox */}
+        <section className="flex flex-col gap-2">
+          <span className="overview-section-label">Atenção agora</span>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+            <PriorityList subtasks={data.subtasks} loading={data.loading} />
+            <InboxCard
+              notifications={notifications}
+              loading={notificationsLoading}
+              onMarkAsRead={onMarkNotificationAsRead}
+            />
+          </div>
+        </section>
+
       </div>
     </div>
   )
