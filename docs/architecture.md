@@ -14,7 +14,7 @@ src/
 │   ├── AppModals.tsx                  # TaskModal + ConfirmModal + ClientTransitionOverlay agrupados
 │   ├── TaskModal.tsx                  # Modal criar/editar demanda
 │   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
-│   ├── AppSidebar.tsx                 # Sidebar de navegação; theme toggle no footer mobile
+│   ├── AppSidebar.tsx                 # Sidebar de navegação; theme toggle no footer (mobile e desktop); na home mostra apenas Início + Admin
 │   ├── ClientTransitionOverlay.tsx    # Overlay animado exibido ao trocar de cliente
 │   └── ui/                            # Design system (Button, Input, Label, Badge)
 ├── views/

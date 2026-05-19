@@ -208,3 +208,13 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 **Decisão:** após o login, o usuário é levado diretamente à `OverviewView` (view `home`) sem passar pelo `ClientPickerView`, mesmo que tenha múltiplos clientes. A `home` é tratada como rota global — não exige `effectiveClientId`. O `ClientPickerView` continua disponível apenas para views que requerem um cliente específico (calendar, timeline, list, etc.) sem slug na URL.
 **Racional:** a `OverviewView` já exibe dados agregados de todos os clientes do usuário (`clients` prop passada pelo `AppRouter`); forçar a seleção de cliente antes de acessá-la era fricção desnecessária. O fluxo correto é: login → overview global → usuário navega para uma view específica e seleciona o cliente se necessário.
 **Consequências:** `needsPicker` em `App.tsx` passou a excluir `isHomeView` (`view === "home" || !view`); o `useEffect` de restauração automática de último cliente em `useAppOrchestrator` foi removido (não há mais necessidade de redirecionar `/` para `/:slug` automaticamente); `isProfileView` renomeado conceitualmente para "rotas globais" junto com `isHomeView`; a `OverviewView` permanece sem alterações, pois já suportava múltiplos clientes.
+
+
+---
+
+## ADR-024: AppSidebar filtra itens de nav pelo contexto de cliente
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** quando a view atual é `home` ou não há `selectedClient`, a `AppSidebar` exibe apenas os itens marcados com `homeOnly: true` — atualmente "Início" e "Admin" (restrito a admins). Todos os demais itens (Demandas, Membros, Relatórios, Clientes, Ferramentas) só aparecem após um cliente estar selecionado. O item "Clientes" passa a ter `requiresClient: true` (antes não tinha). O campo `homeOnly` foi adicionado à interface `NavItem`.
+**Racional:** a home é uma rota global sem cliente; exibir links para views client-scoped sem contexto de cliente cria itens de nav que não têm destino válido e gera confusão. Manter apenas "Início" e "Admin" simplifica o estado inicial e reforça o fluxo login → overview → selecionar cliente → trabalhar.
+**Consequências:** a lógica de `filteredItems` em `AppSidebar` passou a checar `isOnHome` (derivado de `view === "home" || !selectedClient`) antes de `requiresClient` e `canAccessView`; itens sem `homeOnly` são suprimidos na home mesmo que o usuário seja admin; "Ferramentas" e "Clientes" receberam `requiresClient: true`.

@@ -90,7 +90,7 @@ export function useOverviewData({ memberId, userId, isAdmin, clients }: UseOverv
 
     load()
     return () => { cancelled = true }
-  }, [memberId, userId, isAdmin, clients])
+  }, [memberId, userId, isAdmin, clients.map(c => c.id).join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const today = new Date().toISOString().slice(0, 10)
   const activeTasks = subtasks.filter((s) => !s.taskConcludedAt)

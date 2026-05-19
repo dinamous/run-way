@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -50,7 +50,7 @@ export function useAppOrchestrator() {
 
   const { holidays } = useHolidays();
 
-  const allClientIds = auth.clients.map((c) => c.id);
+  const allClientIds = useMemo(() => auth.clients.map((c) => c.id), [auth.clients]);
   const notifications = useNotifications(auth.member?.id, allClientIds);
 
   // Modal state ainda vive no UIStore (não é URL)
