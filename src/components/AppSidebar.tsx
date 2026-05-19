@@ -1,20 +1,21 @@
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Users,
-  BarChart2,
+  TrendingUp,
   ChevronDown,
   Home,
-  Building2,
+  Briefcase,
   Settings,
   LogOut,
-  Wrench,
-  ListChecks,
+  Zap,
+  CalendarRange,
   UserCircle,
   Plus,
   HelpCircle,
   ChevronLeft,
   ChevronRight,
+  LayoutGrid,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -45,35 +46,54 @@ interface NavItem {
   homeOnly?: boolean
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { label: "Visão Geral", Icon: Building2, view: "client-overview", requiresClient: true },
-  { label: "Demandas", Icon: ListChecks, view: "demandas", requiresClient: true },
-  { label: "Membros", Icon: Users, view: "members", requiresClient: true },
+interface NavGroup {
+  label?: string
+  items: NavItem[]
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Relatórios",
-    Icon: BarChart2,
-    requiresClient: true,
-    children: [
-      { view: "reports", label: "Geral" },
-      { view: "reports-fluxo", label: "Fluxo" },
-      { view: "reports-timeline", label: "Timeline" },
-      { view: "reports-membros", label: "Membros" },
-      { view: "reports-alertas", label: "Alertas" },
+    items: [
+      { label: "Visão Geral", Icon: LayoutGrid, view: "client-overview", requiresClient: true },
+      { label: "Planejamento", Icon: CalendarRange, view: "demandas", requiresClient: true },
+      { label: "Membros", Icon: Users, view: "members", requiresClient: true },
+      {
+        label: "Relatórios",
+        Icon: TrendingUp,
+        requiresClient: true,
+        children: [
+          { view: "reports", label: "Geral" },
+          { view: "reports-fluxo", label: "Fluxo" },
+          { view: "reports-timeline", label: "Timeline" },
+          { view: "reports-membros", label: "Membros" },
+          { view: "reports-alertas", label: "Alertas" },
+        ],
+      },
     ],
   },
-  { label: "Clientes", Icon: Building2, view: "clients", requiresClient: true },
   {
-    label: "Ferramentas",
-    Icon: Wrench,
-    requiresClient: true,
-    children: [
-      { view: "tools-briefing-analyzer", label: "Analisador de Briefing" },
-      { view: "tools-import", label: "Importação" },
-      { view: "tools-export", label: "Exportação" },
-      { view: "tools-integrations", label: "Integrações" },
+    label: "Operações",
+    items: [
+      { label: "Clientes", Icon: Briefcase, view: "clients", requiresClient: true },
+      {
+        label: "Ferramentas",
+        Icon: Zap,
+        requiresClient: true,
+        children: [
+          { view: "tools-briefing-analyzer", label: "Analisador de Briefing" },
+          { view: "tools-import", label: "Importação" },
+          { view: "tools-export", label: "Exportação" },
+          { view: "tools-integrations", label: "Integrações" },
+        ],
+      },
     ],
   },
-  { label: "Admin", Icon: Settings, view: "admin", isAdminOnly: true, homeOnly: true },
+  {
+    label: "Sistema",
+    items: [
+      { label: "Admin", Icon: Settings, view: "admin", isAdminOnly: true, homeOnly: true },
+    ],
+  },
 ]
 
 const TOOLS_VIEWS: ViewType[] = ["tools", "tools-briefing-analyzer", "tools-import", "tools-export", "tools-integrations"]
@@ -92,6 +112,47 @@ function getClientInitials(name: string) {
   const parts = name.trim().split(/\s+/)
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
   return name.slice(0, 2).toUpperCase()
+}
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches)
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
+  }, [])
+  return reduced
+}
+
+/* Staggered entrance for nav items when sidebar panel opens */
+function useStaggeredEntrance(active: boolean, count: number, reducedMotion: boolean) {
+  const [visible, setVisible] = useState<boolean[]>(() => Array(count).fill(!active || reducedMotion))
+
+  useEffect(() => {
+    if (!active || reducedMotion) {
+      setVisible(Array(count).fill(true))
+      return
+    }
+    setVisible(Array(count).fill(false))
+    const timers: ReturnType<typeof setTimeout>[] = []
+    for (let i = 0; i < count; i++) {
+      timers.push(
+        setTimeout(() => {
+          setVisible((prev) => {
+            const next = [...prev]
+            next[i] = true
+            return next
+          })
+        }, 40 + i * 28)
+      )
+    }
+    return () => timers.forEach(clearTimeout)
+  }, [active, count, reducedMotion])
+
+  return visible
 }
 
 export function AppSidebar() {
@@ -116,6 +177,19 @@ export function AppSidebar() {
   } = useLayoutContext()
 
   const navigate = useNavigate()
+  const reducedMotion = usePrefersReducedMotion()
+  const prevOpenRef = useRef(open)
+  const [panelJustOpened, setPanelJustOpened] = useState(false)
+
+  useEffect(() => {
+    if (!prevOpenRef.current && open) {
+      setPanelJustOpened(true)
+      const t = setTimeout(() => setPanelJustOpened(false), 600)
+      prevOpenRef.current = open
+      return () => clearTimeout(t)
+    }
+    prevOpenRef.current = open
+  }, [open])
 
   const [openGroups, setOpenGroups] = useState<string[]>(() => {
     const initial: string[] = []
@@ -132,51 +206,85 @@ export function AppSidebar() {
 
   const isGlobalHome = !selectedClient
 
-  const filteredItems = NAV_ITEMS.filter((item) => {
+  const filterItem = (item: NavItem) => {
     if (item.isAdminOnly && role !== "admin") return false
     if (isGlobalHome) return item.homeOnly ?? false
     if (item.requiresClient && !hasClient) return false
     if (!item.view && !item.children) return true
     if (item.view) return canAccessView(item.view, role, true)
     return true
-  })
+  }
 
-  const showMultipleClients = availableClients.length > 1 || (isAdmin && availableClients.length > 0)
+  const filteredGroups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter(filterItem),
+  })).filter((g) => g.items.length > 0)
 
-  /* ── Nav item (sidebar-2) ─────────────────────────────────── */
-  const renderNavItem = (item: NavItem) => {
+  const allNavItems = filteredGroups.flatMap((g) => g.items)
+  const staggerVisible = useStaggeredEntrance(panelJustOpened, allNavItems.length, reducedMotion)
+
+  /* View Transition helper for client selection */
+  const selectClientWithTransition = (clientId: string) => {
+    if (!onSelectClient) return
+    if (!reducedMotion && "startViewTransition" in document) {
+      (document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(
+        () => { onSelectClient(clientId) }
+      )
+    } else {
+      onSelectClient(clientId)
+    }
+  }
+
+  /* Track stagger index across groups */
+  let staggerIdx = 0
+
+  /* ── Nav item ─────────────────────────────────────────────── */
+  const renderNavItem = (item: NavItem, itemIdx: number) => {
     const isDisabled = item.requiresClient && !hasClient
+    const entryStyle = !reducedMotion && staggerVisible[itemIdx] !== undefined
+      ? {
+          opacity: staggerVisible[itemIdx] ? 1 : 0,
+          transform: staggerVisible[itemIdx] ? "translateX(0)" : "translateX(-6px)",
+          transition: "opacity 220ms ease-out, transform 220ms ease-out",
+        }
+      : undefined
 
     if (item.children) {
       const isOpen = openGroups.includes(item.label)
       const isChildActive = item.children.some((c) => c.view === view)
 
       return (
-        <div key={item.label}>
+        <div key={item.label} style={entryStyle}>
           <button
             onClick={() => !isDisabled && toggleGroup(item.label)}
             className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors duration-150 group",
+              "w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-sm transition-colors duration-150 relative group",
               isChildActive
-                ? "bg-muted text-foreground font-medium"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                ? "bg-foreground/[0.09] text-foreground font-medium"
+                : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground",
               isDisabled && "opacity-40 cursor-not-allowed"
             )}
           >
+            {isChildActive && (
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-foreground rounded-full" />
+            )}
             <div className="flex items-center gap-2.5">
-              <item.Icon className="w-[18px] h-[18px] shrink-0" />
+              <item.Icon className={cn("w-[15px] h-[15px] shrink-0", isChildActive ? "opacity-100" : "opacity-60 group-hover:opacity-100 transition-opacity duration-150")} />
               <span>{item.label}</span>
             </div>
             <ChevronDown
               className={cn(
-                "w-3 h-3 transition-transform duration-150 text-muted-foreground",
+                "w-3 h-3 text-muted-foreground/50",
+                !reducedMotion
+                  ? "transition-transform duration-300 cubic-bezier(0.34,1.56,0.64,1)"
+                  : "transition-transform duration-150",
                 isOpen && "rotate-180"
               )}
             />
           </button>
 
           {isOpen && (
-            <div className="ml-7 mt-0.5 flex flex-col gap-px border-l border-border pl-3">
+            <div className="ml-5 mt-0.5 mb-0.5 flex flex-col gap-px pl-3 border-l border-border/50">
               {item.children.map((child) => {
                 const isActive = view === child.view
                 return (
@@ -187,12 +295,15 @@ export function AppSidebar() {
                       onCloseMobile?.()
                     }}
                     className={cn(
-                      "text-xs text-left px-2 py-1.5 rounded-md transition-colors duration-150",
+                      "text-xs text-left px-2.5 py-1.5 rounded-md transition-colors duration-150 relative",
                       isActive
-                        ? "bg-muted text-foreground font-medium"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        ? "bg-foreground/[0.09] text-foreground font-medium"
+                        : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground"
                     )}
                   >
+                    {isActive && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-3 bg-foreground rounded-full" />
+                    )}
                     {child.label}
                   </button>
                 )
@@ -209,20 +320,24 @@ export function AppSidebar() {
     return (
       <button
         key={item.view}
+        style={entryStyle}
         onClick={() => {
           if (isDisabled) return
           onViewChange(item.view!)
           onCloseMobile?.()
         }}
         className={cn(
-          "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors duration-150",
+          "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm transition-colors duration-150 relative group",
           isActive
-            ? "bg-muted text-foreground font-medium"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            ? "bg-foreground/[0.09] text-foreground font-medium"
+            : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground",
           isDisabled && "opacity-40 cursor-not-allowed"
         )}
       >
-        <item.Icon className="w-[18px] h-[18px] shrink-0" />
+        {isActive && (
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-foreground rounded-full" />
+        )}
+        <item.Icon className={cn("w-[15px] h-[15px] shrink-0", isActive ? "opacity-100" : "opacity-60 group-hover:opacity-100 transition-opacity duration-150")} />
         <span>{item.label}</span>
       </button>
     )
@@ -231,74 +346,100 @@ export function AppSidebar() {
   /* ── Sidebar-2 content ────────────────────────────────────── */
   const sidebar2Content = (
     <>
-      {/* Client name header */}
-      <div className="h-14 flex items-center px-4 border-b border-border shrink-0">
+      {/* Workspace header */}
+      <div className="h-14 flex items-center px-4 border-b border-border/60 shrink-0">
         {selectedClient ? (
           <div className="flex flex-col min-w-0">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest leading-none mb-1">
+            <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest leading-none mb-1">
               Workspace
             </span>
-            <span className="text-sm font-semibold text-foreground truncate leading-tight">
+            <span
+              className="text-sm font-semibold text-foreground truncate leading-tight"
+              style={{ viewTransitionName: "workspace-name" }}
+            >
               {selectedClient.name}
             </span>
           </div>
         ) : (
-          <span className="text-sm text-muted-foreground">Sua visão geral</span>
+          <span className="text-sm font-medium text-muted-foreground">{"Visão geral"}</span>
         )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-px">
-        {filteredItems.map((item) => renderNavItem(item))}
+      <nav className="flex-1 overflow-y-auto px-2 py-3 flex flex-col gap-4">
+        {filteredGroups.map((group, i) => {
+          const groupItems = group.items
+          return (
+            <div key={i} className="flex flex-col gap-px">
+              {group.label && (
+                <span className="px-2.5 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
+                  {group.label}
+                </span>
+              )}
+              {groupItems.map((item) => {
+                const idx = staggerIdx++
+                return renderNavItem(item, idx)
+              })}
+            </div>
+          )
+        })}
       </nav>
-
     </>
   )
 
   /* ── Sidebar-1 strip ─────────────────────────────────────── */
   const sidebar1 = (
-    <aside className="w-[52px] h-full bg-card border-r border-border flex flex-col items-center py-3 z-30 shrink-0">
-      {/* Logo */}
+    <aside
+      className={cn(
+        "w-[52px] h-full flex flex-col items-center py-3 z-30 shrink-0 border-r",
+        /* strip is one tone darker than the card surface */
+        "bg-[oklch(0.975_0_0)] dark:bg-[oklch(0.175_0_0)] border-border"
+      )}
+    >
+      {/* Logo / Home */}
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             onClick={() => navigate("/")}
             className={cn(
-              "w-9 h-9 flex items-center justify-center rounded-md transition-all duration-150 mb-3 shrink-0",
+              "w-9 h-9 flex items-center justify-center rounded-md transition-all duration-200 mb-3 shrink-0",
               !selectedClient
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                ? "bg-foreground text-background shadow-sm"
+                : "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.12] hover:text-foreground"
             )}
             aria-label="Ir para o início"
+            style={!selectedClient ? { viewTransitionName: "home-btn" } : undefined}
           >
-            <Home className="w-[18px] h-[18px]" />
+            <Home className="w-[17px] h-[17px]" />
           </button>
         </TooltipTrigger>
         <TooltipContent side="right">Início</TooltipContent>
       </Tooltip>
 
-      <div className="w-5 h-px bg-border mb-3 shrink-0" />
+      <div className="w-5 h-px bg-border/70 mb-3 shrink-0" />
 
       {/* Client list */}
-      <div className="flex-1 w-full flex flex-col items-center gap-2 px-2">
-        {availableClients.map((client) => {
+      <div className="flex-1 w-full flex flex-col items-center gap-1.5 px-2">
+        {availableClients.map((client, idx) => {
           const isActive = selectedClient?.id === client.id
           return (
             <Tooltip key={client.id}>
               <TooltipTrigger asChild>
                 <button
-                  onClick={() => onSelectClient?.(client.id)}
+                  onClick={() => selectClientWithTransition(client.id)}
                   className={cn(
-                    "relative w-9 h-9 rounded-md text-[11px] font-bold transition-all duration-150 flex items-center justify-center shrink-0",
+                    "w-9 h-9 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0",
+                    "transition-all duration-200",
                     isActive
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                      ? "bg-foreground text-background shadow-sm ring-2 ring-foreground/15 ring-offset-2 ring-offset-[oklch(0.975_0_0)] dark:ring-offset-[oklch(0.175_0_0)]"
+                      : "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.12] hover:text-foreground"
                   )}
+                  style={{
+                    viewTransitionName: `client-avatar-${idx}`,
+                    animationDelay: reducedMotion ? "0ms" : `${idx * 40}ms`,
+                  }}
                 >
                   {getClientInitials(client.name)}
-                  {isActive && (
-                    <span className="absolute -left-[9px] top-1/2 -translate-y-1/2 w-[3px] h-5 bg-foreground rounded-r-sm" />
-                  )}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">{client.name}</TooltipContent>
@@ -311,7 +452,7 @@ export function AppSidebar() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => onViewChange("clients")}
-                className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150 mt-1 shrink-0"
+                className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground/60 hover:bg-foreground/[0.06] hover:text-foreground transition-colors duration-150 mt-1 shrink-0"
                 aria-label="Gerenciar clientes"
               >
                 <Plus className="w-4 h-4" />
@@ -322,18 +463,20 @@ export function AppSidebar() {
         )}
       </div>
 
-      {/* Bottom */}
-      <div className="w-full flex flex-col items-center gap-2 pt-3 shrink-0">
-        <div className="w-5 h-px bg-border" />
+      {/* Bottom actions */}
+      <div className="w-full flex flex-col items-center gap-1.5 pt-3 shrink-0">
+        <div className="w-5 h-px bg-border/70" />
 
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               onClick={onToggle}
-              className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150"
+              className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground/60 hover:bg-foreground/[0.06] hover:text-foreground transition-colors duration-150"
               aria-label={open ? "Recolher painel" : "Expandir painel"}
             >
-              {open ? <ChevronLeft className="w-[18px] h-[18px]" /> : <ChevronRight className="w-[18px] h-[18px]" />}
+              {open
+                ? <ChevronLeft className="w-[17px] h-[17px]" />
+                : <ChevronRight className="w-[17px] h-[17px]" />}
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">{open ? "Recolher" : "Expandir"}</TooltipContent>
@@ -341,8 +484,8 @@ export function AppSidebar() {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150">
-              <HelpCircle className="w-[18px] h-[18px]" />
+            <button className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground/60 hover:bg-foreground/[0.06] hover:text-foreground transition-colors duration-150">
+              <HelpCircle className="w-[17px] h-[17px]" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Ajuda</TooltipContent>
@@ -352,7 +495,12 @@ export function AppSidebar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="w-9 h-9 rounded-md bg-foreground text-background flex items-center justify-center text-[11px] font-bold overflow-hidden hover:opacity-80 transition-opacity shrink-0"
+              className={cn(
+                "w-9 h-9 rounded-md flex items-center justify-center text-[11px] font-bold overflow-hidden shrink-0",
+                "bg-foreground text-background",
+                "hover:opacity-80 transition-opacity duration-150",
+                "ring-2 ring-foreground/10 ring-offset-1 ring-offset-[oklch(0.975_0_0)] dark:ring-offset-[oklch(0.175_0_0)]"
+              )}
               aria-label="Menu do utilizador"
             >
               {userAvatarUrl ? (
@@ -388,7 +536,7 @@ export function AppSidebar() {
         {/* MOBILE OVERLAY */}
         <div
           className={cn(
-            "fixed inset-0 bg-black/40 z-40 md:hidden transition-opacity",
+            "fixed inset-0 bg-black/40 z-40 md:hidden transition-opacity duration-200",
             mobileOpen ? "opacity-100" : "opacity-0 pointer-events-none"
           )}
           onClick={onCloseMobile}
@@ -397,7 +545,8 @@ export function AppSidebar() {
         {/* MOBILE SIDEBAR */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 w-[260px] bg-card border-r z-50 md:hidden flex flex-col transition-transform",
+            "fixed inset-y-0 left-0 w-[260px] bg-card border-r z-50 md:hidden flex flex-col",
+            "transition-transform duration-250 ease-out",
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -406,13 +555,14 @@ export function AppSidebar() {
 
         {/* DESKTOP: dual-level sidebar */}
         <div className="hidden md:flex h-full">
-          {/* Level 1: client strip */}
+          {/* Level 1: strip */}
           {sidebar1}
 
-          {/* Level 2: client nav */}
+          {/* Level 2: nav panel */}
           <aside
             className={cn(
-              "h-full bg-card border-r border-border flex flex-col transition-all duration-200 overflow-hidden",
+              "h-full bg-card border-r border-border flex flex-col overflow-hidden",
+              "transition-all duration-200 ease-out",
               open ? "w-[220px]" : "w-0 border-r-0"
             )}
           >

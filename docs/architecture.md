@@ -14,7 +14,7 @@ src/
 │   ├── AppModals.tsx                  # TaskModal + ConfirmModal + ClientTransitionOverlay agrupados
 │   ├── TaskModal.tsx                  # Modal criar/editar demanda
 │   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
-│   ├── AppSidebar.tsx                 # Sidebar de navegação; strip lateral (sidebar-1) com Home ativo/inativo + clientes; sidebar-2 com nav do cliente (primeiro item: Visão Geral); na home global mostra apenas Admin
+│   ├── AppSidebar.tsx                 # Sidebar de navegação; strip lateral (sidebar-1) com fundo um tom mais escuro que o card (tonal stratification), Home + avatares de clientes (ativo com ring + shadow); sidebar-2 com nav agrupada: workspace, Operações, Sistema; item ativo tem rail vertical 2px à esquerda + bg mais sólido; ícones inativos em 60% opacity com hover 100%; abertura do painel anima itens em stagger (28ms offset); View Transitions nos avatares de cliente ao trocar workspace; spring physics no chevron dos grupos; prefers-reduced-motion respeitado em todos os efeitos
 │   ├── ClientTransitionOverlay.tsx    # Overlay animado exibido ao trocar de cliente
 │   └── ui/                            # Design system (Button, Input, Label, Badge)
 ├── views/
