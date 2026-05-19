@@ -48,7 +48,8 @@
       "Bash(powershell -NonInteractive -Command \"Get-Content '.claude/settings.json' | ConvertFrom-Json | ConvertTo-Json -Depth 10\")",
       "Bash(node -e \"const rw = require\\('react-window'\\); console.log\\(Object.keys\\(rw\\)\\)\")",
       "Bash(git log *)",
-      "Bash(Get-Content .env.example)"
+      "Bash(Get-Content .env.example)",
+      "Bash(npx skills *)"
     ]
   },
   "hooks": {
