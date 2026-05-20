@@ -44,6 +44,7 @@ npm run lint      # ESLint
 - Sem abstrações prematuras
 - Views devem ser pastas (`src/views/<nome>/`) com componentes, hooks e `index.ts` — nunca arquivos monolíticos
 - **Co-location:** componentes e hooks **privados** de uma view ficam dentro dela (`views/<nome>/components/`, `views/<nome>/hooks/`). Só sobem para `src/components/` ou `src/hooks/` quando usados por 2+ views
+- **Dados estáticos:** constantes de conteúdo puro (listas, textos, configs) ficam em `src/data/` como arquivos `.ts` tipados — não inline no componente
 - `.env` nunca commitado
 - **Testes:** toda nova feature ou bugfix deve ter testes unitários com Vitest. Rodar com `npm run test:run`. Arquivos de teste ficam em `src/**/__tests__/` co-localizados com o módulo testado
 - **Migrations:** toda alteração de schema no Supabase requer um arquivo SQL em `supabase/migrations/`. Nomenclatura: `YYYYMMDD<seq>_<descricao>.sql` — seq começa em `000000`; se houver mais de uma migration no mesmo dia, incrementar a seq (`000001`, `000002`, …). Nunca alterar migrations já aplicadas.
