@@ -42,14 +42,14 @@ export function OverviewView({
     )
 
   return (
-    <div className="overview-root relative min-h-full">
+    <div className="bg-[oklch(0.955_0.004_250)] dark:bg-[oklch(0.13_0.008_250)] relative min-h-full">
       <div className="overview-ambient" aria-hidden="true" />
 
       <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-screen-xl mx-auto flex flex-col gap-8">
 
         {/* Seu dia — welcome + clients */}
         <section className="flex flex-col gap-2">
-          <span className="overview-section-label">Seu dia</span>
+          <span className="block text-[0.6875rem] font-semibold tracking-[0.07em] uppercase text-[oklch(0.52_0.006_250)] dark:text-[oklch(0.50_0.008_250)] pl-0.5">Seu dia</span>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
             <WelcomeCard
               userName={userName}
@@ -86,7 +86,7 @@ export function OverviewView({
 
         {/* Atenção agora — subtasks + inbox */}
         <section className="flex flex-col gap-2">
-          <span className="overview-section-label">Atenção agora</span>
+          <span className="block text-[0.6875rem] font-semibold tracking-[0.07em] uppercase text-[oklch(0.52_0.006_250)] dark:text-[oklch(0.50_0.008_250)] pl-0.5">Atenção agora</span>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
             <PriorityList subtasks={data.subtasks} loading={data.loading} />
             {/* <InboxCard

@@ -150,7 +150,7 @@ function GroupSection({ group, items, globalOffset }: GroupSectionProps) {
     <div className="flex flex-col">
       <div className="flex items-center gap-2 mb-1">
         <span className={`flex h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} aria-hidden="true" />
-        <span className={`overview-group-label ${meta.labelColor}`}>
+        <span className={`text-[0.6875rem] font-semibold tracking-[0.05em] uppercase px-0.5 pb-1.5 mt-1 ${meta.labelColor}`}>
           {meta.label}
         </span>
         <span className="ml-auto text-[11px] text-muted-foreground/60 tabular-nums">{items.length}</span>

@@ -27,7 +27,12 @@ src/views/client-overview/
 ```
 [ClientOverviewHeader]
 
-[ClientFocus (1fr)] | [ClientHealth (240px)]
+Com pendências (lateTasks | criticalTasks | dueSoonTasks > 0):
+  [ClientFocus (1fr)] | [ClientHealth (240px)]
+
+Sem pendências:
+  [ClientHealth (full width)]
+  [ClientFocus (full width)]
 
 [ClientMetrics (grid 2×2 full width)]
 
@@ -48,6 +53,7 @@ Recebe `clientId: string | null`. Busca em paralelo via `Promise.all`:
 
 1. **Info do cliente** — `clients.id, name`
 2. **Tasks do cliente** — `tasks` filtradas por `client_id`, com join em `task_subtasks (id, title, end_date, status) → subtask_assignees → members`
+3. **Membros do cliente** — `user_clients` filtrado por `client_id`, com join em `members (id, name, role, avatar_url, capacity)`
 
 **Retorna `ClientOverviewData`:**
 
@@ -126,7 +132,12 @@ Todas as subtarefas de tasks abertas com `end_date ≤ hoje+7d`, ordenadas por d
 
 ### Membros
 
-Agrega `subtask_assignees` das tasks abertas em `Map` por `member_id`, contando `subtaskCount` e `lateCount` (subtarefas com `isLate = true` atribuídas ao membro). Ordenados por carga decrescente.
+Lista **todos** os membros vinculados ao cliente via `user_clients`, independentemente de terem tarefas alocadas. A lógica funciona em duas etapas:
+
+1. Agrega `subtask_assignees` das tasks abertas em `Map` por `member_id`, contando `subtaskCount` e `lateCount` (subtarefas com `isLate = true` atribuídas ao membro).
+2. Itera pelos membros da query `user_clients` e insere no mapa os que ainda não estão presentes (com `subtaskCount: 0` e `lateCount: 0`).
+
+Resultado ordenado por carga decrescente (`subtaskCount`).
 
 ```ts
 interface ClientMember {
@@ -143,7 +154,7 @@ interface ClientMember {
 Cabeçalho com ícone `Building2` + nome do cliente + label "Visão geral do cliente". Skeleton durante `loading`.
 
 ### `ClientHealth`
-Card de saúde do cliente com três estados: 🟢 Saudável / 🟡 Atenção / 🔴 Em risco. Fundo colorido por estado, ponto animado pulsante, detalhes de contagem (tarefas atrasadas, críticas, vencem em breve).
+Card de saúde do cliente com três estados: 🟢 Saudável / 🟡 Atenção / 🔴 Em risco. Fundo colorido por estado, ponto animado pulsante, detalhes de contagem (tarefas atrasadas, críticas, vencem em breve). Quando não há pendências, ocupa largura total e é posicionado acima do `ClientFocus` no layout pai.
 
 ### `ClientFocus`
 Lista das top 5 tasks mais críticas ("Foco agora"). Cada item exibe ponto colorido por prioridade, título, dias de atraso acumulado e badge Crítica/Urgente. Oculto quando não há tasks abertas.

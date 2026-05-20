@@ -119,7 +119,7 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
         const today = new Date().toISOString().slice(0, 10)
         const in7Days = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
 
-        const [clientResult, tasksResult] = await Promise.all([
+        const [clientResult, tasksResult, clientMembersResult] = await Promise.all([
           supabase.from('clients').select('id, name').eq('id', clientId).single(),
           supabase
             .from('tasks')
@@ -148,11 +148,16 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
             `)
             .eq('client_id', clientId)
             .order('created_at', { ascending: false }),
+          supabase
+            .from('user_clients')
+            .select('members (id, name, role, avatar_url, capacity)')
+            .eq('client_id', clientId),
         ])
 
         if (cancelled) return
         if (clientResult.error) throw clientResult.error
         if (tasksResult.error) throw tasksResult.error
+        if (clientMembersResult.error) throw clientMembersResult.error
 
         const rawTasks = tasksResult.data ?? []
 
@@ -284,6 +289,24 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
           setHealth({ status: healthStatus, lateTasks: lateTasks.length, criticalTasks: criticalTasks.length, dueSoonTasks: dueSoonTasks.length })
           setFocusTasks(focus)
           setTasks(taskList)
+          const allClientMembers = (clientMembersResult.data ?? [])
+            .map((row) => row.members as { id: string; name: string; role: string; avatar_url: string | null; capacity: number } | null)
+            .filter(Boolean) as { id: string; name: string; role: string; avatar_url: string | null; capacity: number }[]
+
+          for (const m of allClientMembers) {
+            if (!memberMap.has(m.id)) {
+              memberMap.set(m.id, {
+                id: m.id,
+                name: m.name,
+                role: m.role,
+                avatarUrl: m.avatar_url,
+                capacity: m.capacity ?? 6,
+                subtaskCount: 0,
+                lateCount: 0,
+              })
+            }
+          }
+
           setMembers([...memberMap.values()].sort((a, b) => b.subtaskCount - a.subtaskCount))
           setTimeline(timelineEntries)
         }

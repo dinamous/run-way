@@ -15,7 +15,7 @@ export function ClientOverviewView({ clientId }: ClientOverviewViewProps) {
   const data = useClientOverviewData(clientId)
 
   return (
-    <div className="overview-root relative min-h-full">
+    <div className="bg-[oklch(0.955_0.004_250)] dark:bg-[oklch(0.13_0.008_250)] relative min-h-full">
       <div className="overview-ambient" aria-hidden="true" />
 
       <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-screen-xl mx-auto flex flex-col gap-6">
@@ -26,10 +26,20 @@ export function ClientOverviewView({ clientId }: ClientOverviewViewProps) {
         <ClientMetrics kpis={data.kpis} loading={data.loading} />
 
         {/* Foco + Status */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_240px]">
-          <ClientFocus tasks={data.focusTasks} loading={data.loading} />
-          <ClientHealth health={data.health} loading={data.loading} />
-        </div>
+        {(() => {
+          const hasIssues = data.health.lateTasks > 0 || data.health.criticalTasks > 0 || data.health.dueSoonTasks > 0
+          return hasIssues ? (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_240px]">
+              <ClientFocus tasks={data.focusTasks} loading={data.loading} />
+              <ClientHealth health={data.health} loading={data.loading} />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <ClientHealth health={data.health} loading={data.loading} />
+              <ClientFocus tasks={data.focusTasks} loading={data.loading} />
+            </div>
+          )
+        })()}
 
        
 

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { RequireAdmin } from "@/components/RequireAdmin";
 import { NoClientView } from "@/components/NoClientView";
+import { ViewShell } from "@/components/ViewShell";
 import type { ViewType } from "@/store/useUIStore";
 import type { ReportsSubview } from "@/views/reports/ReportsView";
 import { useLayoutContext } from "@/contexts/LayoutContext";
@@ -68,69 +69,84 @@ export function AppRouter() {
 
   return (
     <Suspense fallback={<ViewSkeleton />}>
-      {view === "home" && !selectedClient && (
-        <OverviewView
-          userName={displayName}
-          userId={userId}
-          memberId={memberId}
-          isAdmin={isAdmin}
-          clients={availableClients}
-          notifications={notifications}
-          notificationsLoading={notificationsLoading}
-          onMarkNotificationAsRead={(id) => { onMarkNotificationAsRead(id).catch(() => {}) }}
-          onSelectClient={(clientId) => onSelectClient(clientId)}
-          onNavigateToPlanning={() => onViewChange("calendar")}
-        />
+      {(view === "home" || !view) && !selectedClient && (
+        <ViewShell viewOverride="home" noPadding>
+          <OverviewView
+            userName={displayName}
+            userId={userId}
+            memberId={memberId}
+            isAdmin={isAdmin}
+            clients={availableClients}
+            notifications={notifications}
+            notificationsLoading={notificationsLoading}
+            onMarkNotificationAsRead={(id) => { onMarkNotificationAsRead(id).catch(() => {}) }}
+            onSelectClient={(clientId) => onSelectClient(clientId)}
+            onNavigateToPlanning={() => onViewChange("calendar")}
+          />
+        </ViewShell>
       )}
 
       {view === "home" && selectedClient && (
-        <ClientOverviewView clientId={effectiveClientId ?? null} />
+        <ViewShell viewOverride="home" noPadding>
+          <ClientOverviewView clientId={effectiveClientId ?? null} />
+        </ViewShell>
       )}
 
       {view === "client-overview" && (
-        <ClientOverviewView clientId={effectiveClientId ?? null} />
+        <ViewShell noPadding>
+          <ClientOverviewView clientId={effectiveClientId ?? null} />
+        </ViewShell>
       )}
 
-      {view === "admin" && <RequireAdmin><AdminView /></RequireAdmin>}
+      {view === "admin" && (
+        <ViewShell>
+          <RequireAdmin><AdminView /></RequireAdmin>
+        </ViewShell>
+      )}
 
-      {(view === "clients") && <UserClientsView client={selectedClient ?? null} />}
+      {view === "clients" && (
+        <ViewShell>
+          <UserClientsView client={selectedClient ?? null} />
+        </ViewShell>
+      )}
 
       {PLANNING_VIEWS.has(view) && (
-        <PlanningView
-          subview={view as PlanningSubview}
-          onViewChange={onViewChange}
-          onEdit={onEditTask}
-          onDelete={onDeleteTask}
-          onUpdateTask={onUpdateTask}
-          onOpenNew={onOpenNewTask}
-          onExport={() => window.print()}
-          holidays={holidays}
-        />
+        <ViewShell noPadding>
+          <PlanningView
+            subview={view as PlanningSubview}
+            onViewChange={onViewChange}
+            onEdit={onEditTask}
+            onDelete={onDeleteTask}
+            onUpdateTask={onUpdateTask}
+            onOpenNew={onOpenNewTask}
+            onExport={() => window.print()}
+            holidays={holidays}
+          />
+        </ViewShell>
       )}
 
-      {view === "profile" && <ProfileView />}
+      {view === "profile" && (
+        <ViewShell>
+          <ProfileView />
+        </ViewShell>
+      )}
 
-      {view === "members" && <MembersView />}
+      {view === "members" && (
+        <ViewShell>
+          <MembersView />
+        </ViewShell>
+      )}
 
       {TOOLS_VIEWS.has(view) && (
-        <ToolsView subview={view === "tools" ? undefined : view as ToolsSubview} />
+        <ViewShell>
+          <ToolsView subview={view === "tools" ? undefined : view as ToolsSubview} />
+        </ViewShell>
       )}
 
-      {REPORTS_VIEWS.has(view) && <ReportsView subview={REPORTS_SUBVIEW_MAP[view]} />}
-
-      {!view && (
-        <OverviewView
-          userName={displayName}
-          userId={userId}
-          memberId={memberId}
-          isAdmin={isAdmin}
-          clients={availableClients}
-          notifications={notifications}
-          notificationsLoading={notificationsLoading}
-          onMarkNotificationAsRead={(id) => { onMarkNotificationAsRead(id).catch(() => {}) }}
-          onSelectClient={(clientId) => onSelectClient(clientId)}
-          onNavigateToPlanning={() => onViewChange("calendar")}
-        />
+      {REPORTS_VIEWS.has(view) && (
+        <ViewShell>
+          <ReportsView subview={REPORTS_SUBVIEW_MAP[view]} />
+        </ViewShell>
       )}
     </Suspense>
   );

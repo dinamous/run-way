@@ -7,9 +7,9 @@ src/
 ├── App.tsx                    # Root: gates de auth + composição declarativa — ~80 linhas
 ├── main.tsx                   # Entry point
 ├── components/
-│   ├── AppRouter.tsx                  # Mapeia view (lida da URL) → componente; guards de cliente
+│   ├── AppRouter.tsx                  # Mapeia view (lida da URL) → componente; guards de cliente; wrappeia cada view com ViewShell (breadcrumb + padding automáticos)
 │   ├── AppRoutes.tsx                  # Árvore de rotas React Router (declarativa, sem renderização)
-│   ├── AppLayout.tsx                  # Shell do layout: AppHeader + AppSidebar + main/AppRouter
+│   ├── AppLayout.tsx                  # Shell do layout: AppHeader + AppSidebar + main/AppRouter; o <main> não define mais padding (responsabilidade do ViewShell)
 │   ├── ClientPickerLayout.tsx         # Layout leve para "/" sem slug: header + mini-sidebar recolhida + ClientPickerView
 │   ├── AppModals.tsx                  # TaskModal + ConfirmModal + ClientTransitionOverlay agrupados
 │   ├── HelpModal.tsx                  # Modal de ajuda/FAQ: nav lateral por seção (Visão Geral, Planejamento, Membros, Relatórios, Clientes, Ferramentas, Admin, Dicas, Atalhos); accordion por pergunta; aberto pelo botão HelpCircle da AppSidebar
@@ -17,6 +17,8 @@ src/
 │   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
 │   ├── AppSidebar.tsx                 # Sidebar de navegação; strip lateral (sidebar-1) com fundo um tom mais escuro que o card (tonal stratification), Home + avatares de clientes (ativo com ring + shadow); sidebar-2 com nav agrupada: workspace, Operações, Sistema; item ativo tem rail vertical 2px à esquerda + bg mais sólido; ícones inativos em 60% opacity com hover 100%; abertura do painel anima itens em stagger (28ms offset); View Transitions nos avatares de cliente ao trocar workspace; spring physics no chevron dos grupos; prefers-reduced-motion respeitado em todos os efeitos
 │   ├── ClientTransitionOverlay.tsx    # Overlay animado exibido ao trocar de cliente
+│   ├── ViewShell.tsx                  # Wrapper de view: renderiza ink strip (sticky, z-40, h-14, fundo sólido azul-tonal) com ViewBreadcrumb + zona de conteúdo abaixo; prop noPadding remove padding da zona de conteúdo; prop subview adiciona crumb extra; prop viewOverride sobrepõe view inferida do LayoutContext
+│   ├── ViewBreadcrumb.tsx             # Breadcrumb redesenhado: clientName como chip uppercase antes da chain; separadores "/"; ancestors em 0.75rem/500 com underline slide-in no hover; leaf atual em 0.8125rem/600; monta crumbs automaticamente via PARENT_VIEW map; itens clicáveis quando onNavigate é passado
 │   └── ui/                            # Design system (Button, Input, Label, Badge)
 ├── views/
 │   ├── overview/              # OverviewView — dashboard pessoal: KPIs, PriorityList, ActiveClients, InboxCard

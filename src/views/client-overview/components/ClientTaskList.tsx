@@ -110,7 +110,7 @@ export function ClientTaskList({ tasks, loading }: ClientTaskListProps) {
           ))}
           {concluded.length > 0 && open.length > 0 && (
             <div className="mt-3 mb-1">
-              <span className="overview-group-label text-muted-foreground/60">Concluídas</span>
+              <span className="text-[0.6875rem] font-semibold tracking-[0.05em] uppercase px-0.5 pb-1.5 mt-1 text-muted-foreground/60">Concluídas</span>
             </div>
           )}
           {concluded.map((task, i) => (
