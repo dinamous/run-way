@@ -79,7 +79,7 @@ export function WelcomeCard({ userName, kpis, accumulatedDelayDays, loading }: W
   const greeting = getGreeting()
 
   return (
-    <div className="overview-card p-6 flex flex-col gap-5">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <h2 className="text-xl font-semibold tracking-tight text-foreground">
           {greeting}, {firstName}.

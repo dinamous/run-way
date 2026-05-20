@@ -16,7 +16,7 @@ export function ClientOverviewView({ clientId }: ClientOverviewViewProps) {
 
   return (
     <div className="bg-[oklch(0.955_0.004_250)] dark:bg-[oklch(0.13_0.008_250)] relative min-h-full">
-      <div className="overview-ambient" aria-hidden="true" />
+      <div className="overview-ambient absolute inset-0 pointer-events-none" aria-hidden="true" />
 
       <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-screen-xl mx-auto flex flex-col gap-6">
 

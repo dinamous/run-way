@@ -26,7 +26,7 @@ function groupByDay(entries: TimelineEntry[]): Map<number, TimelineEntry[]> {
 export function ClientTimeline({ timeline, loading }: ClientTimelineProps) {
   if (loading) {
     return (
-      <div className="overview-card p-6 flex flex-col gap-4">
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
         <div className="h-4 w-28 animate-pulse rounded bg-muted/50" />
         <div className="flex flex-col gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -42,7 +42,7 @@ export function ClientTimeline({ timeline, loading }: ClientTimelineProps) {
 
   if (timeline.length === 0) {
     return (
-      <div className="overview-card p-6 flex flex-col gap-4">
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <CalendarClock className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold text-foreground">Próximos 7 dias</h3>
@@ -59,7 +59,7 @@ export function ClientTimeline({ timeline, loading }: ClientTimelineProps) {
   const days = [...grouped.keys()].sort((a, b) => a - b)
 
   return (
-    <div className="overview-card p-6 flex flex-col gap-4">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <CalendarClock className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-foreground">Próximos 7 dias</h3>

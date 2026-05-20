@@ -58,7 +58,7 @@ export function InboxCard({ notifications, loading, onMarkAsRead }: InboxCardPro
 
   if (loading) {
     return (
-      <div className="overview-card p-6 flex flex-col gap-4 h-full">
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-4 h-full">
         <div className="h-4 w-24 animate-pulse rounded bg-muted/50" />
         <div className="flex flex-col gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -76,7 +76,7 @@ export function InboxCard({ notifications, loading, onMarkAsRead }: InboxCardPro
   }
 
   return (
-    <div className="overview-card p-6 flex flex-col gap-4 h-full">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-4 h-full">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Notificações</h3>
         {unread.length > 0 && (

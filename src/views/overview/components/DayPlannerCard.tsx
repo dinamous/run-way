@@ -60,7 +60,7 @@ function MessageItem({ msg, onNavigate }: { msg: PlanMessage; onNavigate?: () =>
 
 function LoadingSkeleton() {
   return (
-    <div className="overview-card p-5 flex flex-col gap-4 h-full">
+    <div className="overview-card rounded-xl p-5 flex flex-col gap-4 h-full">
       <div className="flex items-center gap-2">
         <div className="h-4 w-4 animate-pulse rounded bg-muted/50" />
         <div className="h-4 w-28 animate-pulse rounded bg-muted/50" />
@@ -88,7 +88,7 @@ export function DayPlannerCard({ subtasks, blockedTasks, loading, onNavigateToPl
   const blockedMessages = plan.messages.filter((m) => m.tier === 'blocked')
 
   return (
-    <div className="overview-card p-5 flex flex-col gap-4 h-full">
+    <div className="overview-card rounded-xl p-5 flex flex-col gap-4 h-full">
 
       {/* Header */}
       <div className="flex items-center gap-2">

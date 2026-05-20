@@ -38,7 +38,7 @@ export function ClientHealth({ health, loading }: ClientHealthProps) {
   const Icon = c.icon
 
   return (
-    <div className={`overview-card p-5 flex flex-col gap-3 ${c.wrap}`}>
+    <div className={`overview-card rounded-xl p-5 flex flex-col gap-3 ${c.wrap}`}>
       <div className="flex items-center gap-2">
         <div className={`h-1.5 w-1.5 rounded-full ${c.dot} animate-pulse`} />
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</span>

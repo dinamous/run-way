@@ -55,7 +55,7 @@ function FocusItem({ task, index }: { task: ClientTask; index: number }) {
 export function ClientFocus({ tasks, loading }: ClientFocusProps) {
   if (loading) {
     return (
-      <div className="overview-card p-6 flex flex-col gap-4">
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
         <div className="h-4 w-32 animate-pulse rounded bg-muted/50" />
         <div className="flex flex-col gap-2.5">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -72,7 +72,7 @@ export function ClientFocus({ tasks, loading }: ClientFocusProps) {
   if (tasks.length === 0) return null
 
   return (
-    <div className="overview-card p-6 flex flex-col gap-4">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <Flame className="h-4 w-4 text-orange-500 dark:text-orange-400" />
         <h3 className="text-sm font-semibold text-foreground">Foco agora</h3>

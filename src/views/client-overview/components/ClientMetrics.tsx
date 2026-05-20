@@ -44,7 +44,7 @@ function MetricTile({ value, label, icon: Icon, variant, loading }: MetricTilePr
 
 export function ClientMetrics({ kpis, loading }: ClientMetricsProps) {
   return (
-    <div className="overview-card p-6 flex flex-col gap-4">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
       <h3 className="text-sm font-semibold text-foreground">Métricas</h3>
       <div className="grid grid-cols-2 gap-2">
         <MetricTile value={kpis.openTasks} label="Demandas abertas" icon={Layers} variant="default" loading={loading} />

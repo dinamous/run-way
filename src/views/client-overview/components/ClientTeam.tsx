@@ -122,7 +122,7 @@ function CapacityTrack({
 export function ClientTeam({ members, loading }: ClientTeamProps) {
   if (loading) {
     return (
-      <div className="overview-card p-6 flex flex-col gap-5">
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-5">
         <div className="h-4 w-20 animate-pulse rounded bg-muted/50" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -148,7 +148,7 @@ export function ClientTeam({ members, loading }: ClientTeamProps) {
   }
 
   return (
-    <div className="overview-card p-6 flex flex-col gap-5">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Equipe</h3>
         {members.length > 0 && (

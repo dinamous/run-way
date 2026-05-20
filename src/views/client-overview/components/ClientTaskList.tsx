@@ -70,7 +70,7 @@ export function ClientTaskList({ tasks, loading }: ClientTaskListProps) {
 
   if (loading) {
     return (
-      <div className="overview-card p-6 flex flex-col gap-4">
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
         <div className="h-4 w-28 animate-pulse rounded bg-muted/50" />
         <div className="flex flex-col gap-2.5">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -88,7 +88,7 @@ export function ClientTaskList({ tasks, loading }: ClientTaskListProps) {
   }
 
   return (
-    <div className="overview-card p-6 flex flex-col gap-4">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Demandas</h3>
         {tasks.length > 0 && (

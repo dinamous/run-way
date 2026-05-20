@@ -225,7 +225,7 @@ const hasDemandasActiveFilters =
         onClearCalendarFilters={() => setCalendarFilters(EMPTY_FILTERS)}
       />
 
-      <div key={subview} className="animate-blur-fade-in space-y-5">
+      <div key={subview} className="animation-[blur-fade-in_300ms_ease-out_forwards] space-y-5">
         {showFilterBar && filteredTasks.length === 0 ? (
           <ViewState
             icon={FilterX}

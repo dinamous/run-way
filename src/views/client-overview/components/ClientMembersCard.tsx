@@ -34,7 +34,7 @@ function MemberAvatar({ member }: { member: ClientMember }) {
 export function ClientMembersCard({ members, loading }: ClientMembersCardProps) {
   if (loading) {
     return (
-      <div className="overview-card p-6 flex flex-col gap-4">
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
         <div className="h-4 w-24 animate-pulse rounded bg-muted/50" />
         <div className="flex flex-col gap-2">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -52,7 +52,7 @@ export function ClientMembersCard({ members, loading }: ClientMembersCardProps) 
   }
 
   return (
-    <div className="overview-card p-6 flex flex-col gap-4">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Membros</h3>
         {members.length > 0 && (

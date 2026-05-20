@@ -65,7 +65,7 @@ function clientColor(name: string): string {
 export function FocoDoDia({ subtasks, loading }: FocoDoDiaProps) {
   if (loading) {
     return (
-      <div className="overview-card p-5 flex flex-col gap-4 h-full">
+      <div className="overview-card rounded-xl p-5 flex flex-col gap-4 h-full">
         <div className="flex items-center gap-2">
           <div className="h-4 w-4 animate-pulse rounded bg-muted/50" />
           <div className="h-4 w-32 animate-pulse rounded bg-muted/50" />
@@ -91,7 +91,7 @@ export function FocoDoDia({ subtasks, loading }: FocoDoDiaProps) {
   if (items.length === 0) return null
 
   return (
-    <div className="overview-card p-5 flex flex-col gap-3 h-full">
+    <div className="overview-card rounded-xl p-5 flex flex-col gap-3 h-full">
       <div className="flex items-center gap-2">
         <Flame className="h-4 w-4 text-red-500 dark:text-red-400" aria-hidden="true" />
         <h3 className="text-sm font-semibold text-foreground">Foco de hoje</h3>

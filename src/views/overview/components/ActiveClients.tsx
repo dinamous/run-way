@@ -56,7 +56,7 @@ export function ActiveClients({ clients, loading, onSelectClient }: ActiveClient
 
   if (loading) {
     return (
-      <div className="overview-card p-6 flex flex-col gap-4">
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
         <div className="h-4 w-28 animate-pulse rounded bg-muted/50" />
         <div className="flex flex-col gap-1">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -71,7 +71,7 @@ export function ActiveClients({ clients, loading, onSelectClient }: ActiveClient
   const attentionCount = clients.filter((c) => c.risk === 'attention').length
 
   return (
-    <div className="overview-card p-6 flex flex-col gap-4">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Clientes</h3>
         {(criticalCount > 0 || attentionCount > 0) && (

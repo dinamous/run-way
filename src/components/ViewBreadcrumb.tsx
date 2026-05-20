@@ -107,12 +107,12 @@ export function ViewBreadcrumb({ view, clientName, subview, className, onNavigat
               <button
                 type="button"
                 onClick={crumb.onClick}
-                className="view-breadcrumb-ancestor"
+                className="view-breadcrumb-ancestor relative text-xs font-medium tracking-[0.005em] bg-none border-0 p-0 cursor-pointer no-underline transition-colors duration-[120ms] ease-out"
               >
                 {crumb.label}
               </button>
             ) : (
-              <span className={isLast ? 'view-breadcrumb-current' : 'view-breadcrumb-ancestor'}>
+              <span className={isLast ? 'view-breadcrumb-current font-semibold text-[0.8125rem] tracking-[-0.005em]' : 'view-breadcrumb-ancestor relative text-xs font-medium tracking-[0.005em] no-underline'}>
                 {crumb.label}
               </span>
             )}

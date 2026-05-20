@@ -24,6 +24,13 @@
     --input: oklch(0.87 0 0);
     --ring: oklch(0.145 0 0);
     --radius: 0.5rem;
+    --surface-tinted: oklch(0.955 0.004 250);
+    --surface-tinted-card: oklch(0.995 0 0);
+    --border-tinted: oklch(0.885 0.004 250);
+    --border-strip: oklch(0.87 0.006 250);
+    --text-crumb: oklch(0.48 0.006 250);
+    --text-crumb-hover: oklch(0.22 0.004 250);
+    --text-crumb-current: oklch(0.145 0.004 250);
   }
 
   .dark {
@@ -46,6 +53,13 @@
     --border: oklch(0.269 0 0);
     --input: oklch(0.269 0 0);
     --ring: oklch(0.985 0 0);
+    --surface-tinted: oklch(0.155 0.008 250);
+    --surface-tinted-card: oklch(0.20 0.008 250);
+    --border-tinted: oklch(0.28 0.008 250);
+    --border-strip: oklch(0.22 0.008 250);
+    --text-crumb: oklch(0.55 0.008 250);
+    --text-crumb-hover: oklch(0.82 0.006 250);
+    --text-crumb-current: oklch(0.94 0.004 250);
   }
 }
 
@@ -84,6 +98,13 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-surface-tinted: var(--surface-tinted);
+  --color-surface-tinted-card: var(--surface-tinted-card);
+  --color-border-tinted: var(--border-tinted);
+  --color-border-strip: var(--border-strip);
+  --color-text-crumb: var(--text-crumb);
+  --color-text-crumb-hover: var(--text-crumb-hover);
+  --color-text-crumb-current: var(--text-crumb-current);
 }
 
 @keyframes blur-fade-in {
@@ -98,17 +119,12 @@
 }
 
 
-.animate-blur-fade-in {
-  animation: blur-fade-in 300ms ease-out forwards;
-}
 
 /* ── Overview ──────────────────────────────────────────────────── */
 
 /* Single subtle gradient — just a hint of depth, no noise */
+/* absolute/inset-0/pointer-events-none set via Tailwind on the element */
 .overview-ambient {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
   background-image:
     radial-gradient(ellipse 70% 40% at 15% 0%, oklch(0.88 0.012 255 / 0.5) 0%, transparent 65%),
     radial-gradient(ellipse 50% 35% at 85% 100%, oklch(0.86 0.010 285 / 0.35) 0%, transparent 65%);
@@ -120,15 +136,13 @@
 }
 
 /* Solid surface cards — no blur, no glass */
+/* rounded-xl set via Tailwind on the element */
 .overview-card {
-  background-color: oklch(0.995 0 0);
-  border: 1px solid oklch(0.885 0.004 250);
+  background-color: var(--surface-tinted-card);
+  border: 1px solid var(--border-tinted);
   box-shadow: 0 1px 3px oklch(0.145 0 0 / 0.06), 0 1px 2px oklch(0.145 0 0 / 0.04);
-  border-radius: 0.75rem;
 }
 .dark .overview-card {
-  background-color: oklch(0.20 0.008 250);
-  border: 1px solid oklch(0.28 0.008 250);
   box-shadow: 0 1px 3px oklch(0 0 0 / 0.25), 0 2px 8px oklch(0 0 0 / 0.15);
 }
 
@@ -154,56 +168,31 @@
 /* ── ViewShell — Ink Strip + Zoned Background ───────────────────── */
 
 /* The ink strip — ambient surface band that holds the breadcrumb */
+/* sticky/top-0/z-40/isolate set via Tailwind on the element */
 .view-ink-strip {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  /* Solid — never transparent */
-  background-color: oklch(0.955 0.004 250);
+  background-color: var(--surface-tinted);
   background-image:
     radial-gradient(ellipse 120% 300% at 0% 50%, oklch(0.88 0.012 255 / 0.55) 0%, transparent 60%);
-  /* Hard bottom edge — no border, relies on color break */
-  box-shadow: 0 1px 0 oklch(0.87 0.006 250);
-  /* Isolate stacking context so nothing bleeds through */
-  isolation: isolate;
+  box-shadow: 0 1px 0 var(--border-strip);
 }
 
 .dark .view-ink-strip {
-  background-color: oklch(0.155 0.008 250);
   background-image:
     radial-gradient(ellipse 120% 300% at 0% 50%, oklch(0.22 0.018 255 / 0.5) 0%, transparent 60%);
-  box-shadow: 0 1px 0 oklch(0.22 0.008 250);
 }
 
 /* ── ViewBreadcrumb ──────────────────────────────────────────────── */
+/* font-size/weight/tracking/bg/border/padding/cursor/transition/position set via Tailwind on the element */
 
 .view-breadcrumb-ancestor {
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.005em;
-  color: oklch(0.48 0.006 250);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  transition: color 120ms ease-out;
-  text-decoration: none;
-  position: relative;
-}
-
-.dark .view-breadcrumb-ancestor {
-  color: oklch(0.55 0.008 250);
+  color: var(--text-crumb);
 }
 
 .view-breadcrumb-ancestor:hover {
-  color: oklch(0.22 0.004 250);
+  color: var(--text-crumb-hover);
 }
 
-.dark .view-breadcrumb-ancestor:hover {
-  color: oklch(0.82 0.006 250);
-}
-
-/* Underline slide-in on hover */
+/* Underline slide-in on hover — pseudo-element, not possible in Tailwind */
 .view-breadcrumb-ancestor::after {
   content: '';
   position: absolute;
@@ -223,14 +212,7 @@
   .view-breadcrumb-ancestor::after { transition: none; }
 }
 
-/* Current view — the leaf crumb, larger and in foreground */
+/* Current view — font-weight/font-size/letter-spacing set via Tailwind on the element */
 .view-breadcrumb-current {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  color: oklch(0.145 0.004 250);
-}
-
-.dark .view-breadcrumb-current {
-  color: oklch(0.94 0.004 250);
+  color: var(--text-crumb-current);
 }

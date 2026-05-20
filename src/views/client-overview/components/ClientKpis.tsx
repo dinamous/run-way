@@ -53,7 +53,7 @@ function KpiTile({ value, label, icon: Icon, variant, loading }: KpiTileProps) {
 
 export function ClientKpis({ kpis, loading }: ClientKpisProps) {
   return (
-    <div className="overview-card p-6 flex flex-col gap-4">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
       <h3 className="text-sm font-semibold text-foreground">Resumo</h3>
       <div className="grid grid-cols-2 gap-2">
         <KpiTile value={kpis.openTasks} label="Demandas abertas" icon={Layers} variant="default" loading={loading} />

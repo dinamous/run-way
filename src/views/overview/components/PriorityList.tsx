@@ -171,7 +171,7 @@ export function PriorityList({ subtasks, loading }: PriorityListProps) {
 
   if (loading) {
     return (
-      <div className="overview-card p-6 flex flex-col gap-4">
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
         <div className="h-4 w-36 animate-pulse rounded bg-muted/50" />
         <div className="flex flex-col gap-2.5">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -191,7 +191,7 @@ export function PriorityList({ subtasks, loading }: PriorityListProps) {
   }
 
   return (
-    <div className="overview-card p-6 flex flex-col gap-4">
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Minhas Subtarefas</h3>
         {active.length > 0 && (
