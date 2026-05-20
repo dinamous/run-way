@@ -56,7 +56,7 @@ Camada client-side que expõe funções tipadas para todas as operações admin,
 
 **Grupos de funções:**
 - `adminFetchClients / adminCreateClient / adminUpdateClient / adminDeleteClient`
-- `adminFetchMembers / adminCreateMember / adminUpdateMember / adminDeactivateMember / adminReactivateMember / adminSetMemberAuthId`
+- `adminFetchMembers / adminCreateMember / adminUpdateMember(id, name, role, email?, capacity?) / adminDeactivateMember / adminReactivateMember / adminSetMemberAuthId`
 - `adminListPendingUsers / adminListAuthUsers / adminFetchUserClientsMap / adminFetchAuditLogs`
 - `adminLinkUserToClient / adminUnlinkUserFromClient / adminSetUserRole`
 - `adminFetchAllNotifications / adminCreateNotification / adminCreateNotificationForAll`
@@ -125,7 +125,7 @@ Hook fino (`src/views/admin/hooks/useAdminData.ts`) que consome `useAdminStore` 
 **Mutations:**
 - `createClient / updateClient / deleteClient`
 - `linkUserToClient / unlinkUserFromClient`
-- `createUser / updateUser / setUserRole / setUserAuthId`
+- `createUser / updateUser(userId, name, role, email?, capacity?) / setUserRole / setUserAuthId`
 - `deactivateUser(userId)` — seta `is_active: false` e `deactivated_at: now()` no member; preserva tasks e steps
 - `reactivateUser(userId)` — seta `is_active: true` e limpa `deactivated_at: null` no member
 - `listGoogleUsers(search?)` — busca na Supabase Auth admin API (retorna até 20 resultados)
@@ -136,7 +136,7 @@ Hook fino (`src/views/admin/hooks/useAdminData.ts`) que consome `useAdminStore` 
 
 O drawer de edição acumula todas as mudanças em estado local e só dispara requests ao clicar em **Guardar**:
 
-- Alterações de nome, cargo e email → `onUpdate`
+- Alterações de nome, cargo, email e capacidade → `onUpdate`
 - Alteração de access role → `onSetRole` (só chamado se o valor mudou)
 - Adição/remoção de clientes → `onLink` / `onUnlink` em sequência
 - Vínculo de conta Google → `onSetAuthId`

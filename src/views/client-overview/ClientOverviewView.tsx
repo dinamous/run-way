@@ -22,14 +22,16 @@ export function ClientOverviewView({ clientId }: ClientOverviewViewProps) {
 
         <ClientOverviewHeader client={data.client} loading={data.loading} />
 
+ {/* Métricas */}
+        <ClientMetrics kpis={data.kpis} loading={data.loading} />
+
         {/* Foco + Status */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_240px]">
           <ClientFocus tasks={data.focusTasks} loading={data.loading} />
           <ClientHealth health={data.health} loading={data.loading} />
         </div>
 
-        {/* Métricas */}
-        <ClientMetrics kpis={data.kpis} loading={data.loading} />
+       
 
         {/* Demandas por prioridade + Timeline */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">

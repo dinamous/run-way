@@ -13,6 +13,7 @@ src/views/overview/
 └── components/
     ├── WelcomeCard.tsx
     ├── FocoDoDia.tsx
+    ├── DayPlannerCard.tsx
     ├── PriorityList.tsx
     ├── ActiveClients.tsx
     └── InboxCard.tsx
@@ -20,19 +21,20 @@ src/views/overview/
 
 ## Layout
 
-O layout é organizado em três seções semânticas. A seção "Foco do dia" só aparece quando há itens críticos ou com vencimento hoje.
+O layout é organizado em três seções semânticas. A seção "Foco + Plano do dia" só aparece quando há itens críticos ou com vencimento hoje.
 
 ```
-[Foco do dia — full width, condicional]
-┌──────────────────────────────────────┐
-│  FocoDoDia (até 5 itens priorizados) │
-└──────────────────────────────────────┘
-
 "Seu dia"
 ┌──────────────────────────────┬─────────────┐
 │  WelcomeCard (saudação + KPI │ ActiveCli   │
 │  + carga acumulada)          │ ents        │
 └──────────────────────────────┴─────────────┘
+
+[Foco + Plano do dia — condicional, grid 7/5 cols]
+┌───────────────────────────┬────────────────┐
+│  FocoDoDia (7 cols)       │ DayPlannerCard │
+│  até 5 itens priorizados  │ (5 cols)       │
+└───────────────────────────┴────────────────┘
 
 "Atenção agora"
 ┌──────────────────────────────┬─────────────┐
@@ -42,17 +44,21 @@ O layout é organizado em três seções semânticas. A seção "Foco do dia" s�
 Mobile: stacking vertical (1 col).
 ```
 
-"Seu dia" usa `grid-cols-[1fr_300px]`; "Atenção agora" usa `grid-cols-[1fr_320px]`. O `overview-root` envolve tudo com um fundo levemente colorido (oklch com chroma baixo ~0.004 em light, ~0.008 em dark). O overlay `overview-ambient` usa dois gradientes radiais sutis (chroma máx 0.018) sem filtro de ruído.
+"Seu dia" usa `grid-cols-[1fr_300px]`; "Atenção agora" usa `grid-cols-[1fr_320px]`; "Foco + Plano" usa `grid-cols-12` com `col-span-7` / `col-span-5`. O `overview-root` envolve tudo com um fundo levemente colorido (oklch com chroma baixo ~0.004 em light, ~0.008 em dark). O overlay `overview-ambient` usa dois gradientes radiais sutis (chroma máx 0.018) sem filtro de ruído.
 
 ## `useOverviewData`
 
 **Arquivo:** `src/views/overview/hooks/useOverviewData.ts`
 
-Busca em paralelo via `Promise.all`:
+Busca em paralelo via `Promise.all` (3 chamadas simultâneas):
 
-1. **Subtasks do assignee** — `subtask_assignees → task_subtasks (start_date, end_date) → tasks (concluded_at, client_id) → clients`
+1. **Subtasks** — admin: `fetchAllSubtasks(clientIds)` (todas, deduplicadas por subtask id, filtradas pelos clientIds do usuário); user: `fetchSubtasks(memberId)` (só as assignadas ao membro). Ambas buscam `active`, `blocked` da task e `clients`.
 2. **Notificações** — `fetchNotifications(userId, clientIds)` de `src/lib/notifications.ts`
-3. **Clientes com contagem de tasks ativas** — query por `client_id` + `concluded_at IS NULL`
+3. **Clientes com contagem de tasks ativas** — 2 queries paralelas: `clients` (filtrado por ids ou todos se admin) + `tasks` com `concluded_at IS NULL`; agregação feita em memória para evitar N+1. Admin não usa ids intermediários: busca todos os clientes diretamente.
+
+**Derivados memoizados (`useMemo`):**
+
+KPIs, `enrichedClients` e `blockedTasks` são calculados via `useMemo` dependente de `subtasks` e `clientSummaries` — não recalculam a cada render.
 
 **KPIs calculados no client:**
 - `open` — tarefas únicas com `concluded_at IS NULL`
@@ -64,8 +70,34 @@ Busca em paralelo via `Promise.all`:
 - `accumulatedDelayDays` — soma dos dias de atraso de todas as subtasks atrasadas ativas
 - `ClientSummary.lateSubtaskCount` — subtasks atrasadas pertencentes ao cliente (cruzado com `subtasks` localmente)
 - `ClientSummary.risk` — `'critical'` (≥2 atrasadas) | `'attention'` (1 atrasada) | `'healthy'` (nenhuma)
+- `blockedTasks: BlockedTask[]` — tasks únicas (por `taskId`) com `blocked = true` e não concluídas; usadas pelo `DayPlannerCard`
+
+**`SubtaskRow` — campos:**
+```ts
+interface SubtaskRow {
+  id, title, status, start, end
+  active: boolean          // filtra subtasks inativas no planner
+  taskId, taskTitle
+  taskBlocked: boolean     // task.blocked (coluna boolean direta no banco)
+  clientId, clientName
+  taskConcludedAt: string | null
+}
+```
 
 ## Componentes
+
+### `DayPlannerCard`
+Bloco lateral (5 cols) exibido ao lado do `FocoDoDia` quando há itens urgentes. Gera um plano do dia textual com base nos dados de `useOverviewData`, usando `generateDayPlan` de `src/utils/planner.ts`.
+
+**Métricas no topo:** Atrasadas / Hoje / Esta semana (contadores numéricos com cores: vermelho / âmbar / azul).
+
+**Mensagens:** agrupadas por tier de urgência (`late → today → soon`) dentro de cada cliente+task. Ordenação interna por fase (fases finais = mais urgentes: `publicacao > qa > homologacao > ...`). Máximo 7 mensagens de urgência. Tom contextual e humano. Cada mensagem é clicável e navega para a `PlanningView` (calendar) via `onNavigateToPlanning`.
+
+**Setor "Bloqueadas":** exibido separadamente no final, com label próprio. Máximo 3 tasks bloqueadas.
+
+**Estado vazio:** quando não há itens críticos, exibe mensagem motivacional (não oculta o bloco).
+
+**Escopo por perfil:** admin recebe todas as subtasks da equipe; user recebe apenas as suas — controlado em `useOverviewData`.
 
 ### `FocoDoDia`
 Bloco condicional no topo (exibido quando há itens com `end <= hoje`). Mostra até 5 subtasks mais urgentes: atrasadas em ordem decrescente de dias de atraso, depois as de hoje. Cada item exibe badge vermelho (`Xd atraso`) ou âmbar (`Hoje`). Não aparece se todas as subtasks são futuras ou o usuário não tem nenhuma.
@@ -108,6 +140,7 @@ interface OverviewViewProps {
   notificationsLoading: boolean
   onMarkNotificationAsRead: (id: string) => void
   onSelectClient: (clientId: string) => void
+  onNavigateToPlanning?: () => void  // navega para calendar view; passado pelo AppRouter
 }
 ```
 

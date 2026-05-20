@@ -40,7 +40,7 @@ interface UsersPanelProps {
     email?: string | null,
     avatarUrl?: string | null
   ) => Promise<boolean>
-  onUpdate: (userId: string, name: string, role: string, email?: string | null) => Promise<boolean>
+  onUpdate: (userId: string, name: string, role: string, email?: string | null, capacity?: number | null) => Promise<boolean>
   onSetAuthId: (userId: string, authUserId: string | null, avatarUrl?: string | null) => Promise<boolean>
   onListGoogleUsers: (search?: string) => Promise<GoogleUser[]>
   onDeactivate: (userId: string) => Promise<boolean>
@@ -159,6 +159,7 @@ export function UsersPanel({
   const [editName, setEditName] = useState('')
   const [editUserRole, setEditUserRole] = useState('')
   const [editEmail, setEditEmail] = useState('')
+  const [editCapacity, setEditCapacity] = useState<number>(6)
   const [editClients, setEditClients] = useState<string[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
   const [editErrors, setEditErrors] = useState<ValidationErrors>({})
@@ -258,6 +259,7 @@ export function UsersPanel({
     setEditUserRole(user.role)
     setEditEmail(user.email ?? '')
     setEditRole(user.access_role ?? 'user')
+    setEditCapacity(user.capacity ?? 6)
     setEditClients(userClientsMap[user.id] ?? [])
     setEditGoogleSearch('')
     setEditGoogleResults([])
@@ -272,6 +274,7 @@ export function UsersPanel({
       editUserRole.trim() !== editingUser.role ||
       editEmail.trim() !== (editingUser.email ?? '') ||
       editRole !== (editingUser.access_role ?? 'user') ||
+      editCapacity !== (editingUser.capacity ?? 6) ||
       editClients.length !== currentClientIds.length ||
       editClients.some(id => !currentClientIds.includes(id)) ||
       (editGoogleSearch !== '' && editGoogleSearch !== (editingUser.email ?? ''))
@@ -285,6 +288,7 @@ export function UsersPanel({
     setEditUserRole('')
     setEditEmail('')
     setEditRole('user')
+    setEditCapacity(6)
     setEditClients([])
     setEditErrors({})
     setSavingEdit(false)
@@ -429,14 +433,16 @@ export function UsersPanel({
     const nameChanged = editName.trim() !== editingUser.name
     const roleChanged = editUserRole.trim() !== editingUser.role
     const emailChanged = editEmail.trim() !== (editingUser.email ?? '')
+    const capacityChanged = editCapacity !== (editingUser.capacity ?? 6)
 
     let basicOk = true
-    if (nameChanged || roleChanged || emailChanged) {
+    if (nameChanged || roleChanged || emailChanged || capacityChanged) {
       basicOk = await onUpdate(
         editingUser.id,
         editName.trim(),
         editUserRole.trim(),
-        editEmail.trim() || null
+        editEmail.trim() || null,
+        editCapacity,
       )
     }
 
@@ -1134,6 +1140,21 @@ export function UsersPanel({
                     {editErrors.email && (
                       <p role="alert" className="text-xs text-red-500 mt-1">{editErrors.email}</p>
                     )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-capacity">Capacidade (subtarefas simultâneas)</Label>
+                    <Input
+                      id="edit-capacity"
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={editCapacity}
+                      onChange={e => setEditCapacity(Math.min(50, Math.max(1, Number(e.target.value) || 1)))}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Número máximo de subtarefas ativas antes de ser considerado sobrecarregado.
+                    </p>
                   </div>
                 </div>
 

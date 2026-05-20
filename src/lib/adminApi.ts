@@ -80,8 +80,8 @@ export async function adminCreateMember(payload: CreateMemberPayload): Promise<M
   return invoke<Member>('admin-members', { method: 'POST', body: payload })
 }
 
-export async function adminUpdateMember(id: string, name: string, role: string, email?: string | null): Promise<void> {
-  await invoke('admin-members', { method: 'PUT', query: q({ id }), body: { name, role, email } })
+export async function adminUpdateMember(id: string, name: string, role: string, email?: string | null, capacity?: number | null): Promise<void> {
+  await invoke('admin-members', { method: 'PUT', query: q({ id }), body: { name, role, email, capacity } })
 }
 
 export async function adminDeactivateMember(id: string): Promise<{ deactivated_at: string }> {

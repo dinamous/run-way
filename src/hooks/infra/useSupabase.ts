@@ -25,6 +25,7 @@ export interface Member {
   is_active?: boolean
   created_at?: string | null
   deactivated_at?: string | null
+  capacity?: number | null
 }
 
 interface UseSupabaseOptions {

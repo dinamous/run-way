@@ -33,7 +33,9 @@ export interface ClientMember {
   name: string
   role: string
   avatarUrl: string | null
+  capacity: number
   subtaskCount: number
+  lateCount: number
 }
 
 export interface ClientOverviewKpis {
@@ -138,7 +140,8 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
                     id,
                     name,
                     role,
-                    avatar_url
+                    avatar_url,
+                    capacity
                   )
                 )
               )
@@ -163,7 +166,7 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
             status: string
             subtask_assignees: Array<{
               member_id: string
-              members: { id: string; name: string; role: string; avatar_url: string | null } | null
+              members: { id: string; name: string; role: string; avatar_url: string | null; capacity: number } | null
             }>
           }>
 
@@ -176,7 +179,9 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
                 name: a.members!.name,
                 role: a.members!.role,
                 avatarUrl: a.members!.avatar_url,
+                capacity: a.members!.capacity ?? 6,
                 subtaskCount: 0,
+                lateCount: 0,
               }))
             return { id: s.id, title: s.title ?? '', endDate: s.end_date, status: s.status, isLate, assignees }
           })
@@ -199,8 +204,9 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
                 const existing = memberMap.get(a.id)
                 if (existing) {
                   existing.subtaskCount++
+                  if (s.isLate) existing.lateCount++
                 } else {
-                  memberMap.set(a.id, { ...a, subtaskCount: 1 })
+                  memberMap.set(a.id, { ...a, subtaskCount: 1, lateCount: s.isLate ? 1 : 0 })
                 }
               }
             }

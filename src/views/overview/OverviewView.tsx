@@ -4,6 +4,7 @@ import { PriorityList } from './components/PriorityList'
 import { ActiveClients } from './components/ActiveClients'
 import { InboxCard } from './components/InboxCard'
 import { FocoDoDia } from './components/FocoDoDia'
+import { DayPlannerCard } from './components/DayPlannerCard'
 import type { Notification } from '@/types/notification'
 import type { ClientOption } from '@/contexts/AuthContext'
 
@@ -17,6 +18,7 @@ export interface OverviewViewProps {
   notificationsLoading: boolean
   onMarkNotificationAsRead: (id: string) => void
   onSelectClient: (clientId: string) => void
+  onNavigateToPlanning?: () => void
 }
 
 export function OverviewView({
@@ -29,6 +31,7 @@ export function OverviewView({
   notificationsLoading,
   onMarkNotificationAsRead,
   onSelectClient,
+  onNavigateToPlanning,
 }: OverviewViewProps) {
   const data = useOverviewData({ memberId, userId, isAdmin, clients })
 
@@ -43,8 +46,6 @@ export function OverviewView({
       <div className="overview-ambient" aria-hidden="true" />
 
       <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-screen-xl mx-auto flex flex-col gap-8">
-
-        
 
         {/* Seu dia — welcome + clients */}
         <section className="flex flex-col gap-2">
@@ -64,10 +65,22 @@ export function OverviewView({
           </div>
         </section>
 
-        {/* Foco do dia — full width, shown only when there are critical/today items */}
+        {/* Foco + Plano do dia — 7/5 cols */}
         {hasFocus && (
           <section className="flex flex-col gap-2">
-            <FocoDoDia subtasks={data.subtasks} loading={data.loading} />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-stretch">
+              <div className="lg:col-span-7 lg:flex lg:flex-col">
+                <FocoDoDia subtasks={data.subtasks} loading={data.loading} />
+              </div>
+              <div className="lg:col-span-5 lg:flex lg:flex-col">
+                <DayPlannerCard
+                  subtasks={data.subtasks}
+                  blockedTasks={data.blockedTasks}
+                  loading={data.loading}
+                  onNavigateToPlanning={onNavigateToPlanning}
+                />
+              </div>
+            </div>
           </section>
         )}
 
@@ -76,11 +89,11 @@ export function OverviewView({
           <span className="overview-section-label">Atenção agora</span>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
             <PriorityList subtasks={data.subtasks} loading={data.loading} />
-            <InboxCard
+            {/* <InboxCard
               notifications={notifications}
               loading={notificationsLoading}
               onMarkAsRead={onMarkNotificationAsRead}
-            />
+            /> */}
           </div>
         </section>
 

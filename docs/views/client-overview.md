@@ -126,7 +126,16 @@ Todas as subtarefas de tasks abertas com `end_date ≤ hoje+7d`, ordenadas por d
 
 ### Membros
 
-Agrega `subtask_assignees` das tasks abertas em `Map` por `member_id`, contando `subtaskCount`. Ordenados por carga decrescente.
+Agrega `subtask_assignees` das tasks abertas em `Map` por `member_id`, contando `subtaskCount` e `lateCount` (subtarefas com `isLate = true` atribuídas ao membro). Ordenados por carga decrescente.
+
+```ts
+interface ClientMember {
+  id, name, role, avatarUrl
+  capacity: number       // teto individual (members.capacity, default 6)
+  subtaskCount: number   // total de subtarefas ativas atribuídas neste cliente
+  lateCount: number      // subtarefas atrasadas atribuídas
+}
+```
 
 ## Componentes
 
@@ -153,7 +162,18 @@ Lista de tasks abertas agrupadas em seções Críticas / Importantes / Backlog. 
 Subtarefas dos próximos 7 dias (incluindo atrasadas), agrupadas por `daysFromNow`: "Hoje", "Amanhã", "Em N dias", "Nd de atraso". Atrasadas ficam em vermelho. Empty state quando não há entregas no período.
 
 ### `ClientTeam`
-Membros alocados às subtarefas abertas, com barra de carga proporcional ao membro com mais subtarefas. Empty state com `Users`.
+Grid de cards por membro (1 col mobile, 2 cols sm, 3 cols lg). Cada card exibe avatar, nome, papel, pílula de status e a alocação `X/Y` (subtarefas alocadas / capacidade individual do membro).
+
+**Status de carga** — calculado pelo ratio `subtaskCount / capacity`:
+| Status | Condição | Visual |
+|---|---|---|
+| Disponível | ratio < 0.6 | Verde tonal |
+| Em carga | ratio 0.6–0.99 | Âmbar tonal |
+| Sobrecarregado | ratio ≥ 1.0 | Vermelho tonal |
+
+**Track de capacidade** — fila de segmentos (`capacity` divisões), preenchidos até o total alocado. Quando `subtaskCount > capacity`, os segmentos extras aparecem em vermelho à direita do track. Atrasos exibidos como contador textual `X atrasada(s)`.
+
+**Banco:** campo `members.capacity integer not null default 6` (migration `20260520000000_members_capacity.sql`). O hook busca `capacity` no join `members` e expõe em `ClientMember`. Empty state com `Users`.
 
 ## Props de `ClientOverviewView`
 

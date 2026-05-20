@@ -79,6 +79,7 @@ export function AppRouter() {
           notificationsLoading={notificationsLoading}
           onMarkNotificationAsRead={(id) => { onMarkNotificationAsRead(id).catch(() => {}) }}
           onSelectClient={(clientId) => onSelectClient(clientId)}
+          onNavigateToPlanning={() => onViewChange("calendar")}
         />
       )}
 
@@ -128,6 +129,7 @@ export function AppRouter() {
           notificationsLoading={notificationsLoading}
           onMarkNotificationAsRead={(id) => { onMarkNotificationAsRead(id).catch(() => {}) }}
           onSelectClient={(clientId) => onSelectClient(clientId)}
+          onNavigateToPlanning={() => onViewChange("calendar")}
         />
       )}
     </Suspense>

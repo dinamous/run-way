@@ -20,7 +20,7 @@ npm run lint      # ESLint
 
 **SubtaskStatus (enum):** `analise-ux` | `analise-dev` | `design` | `aprovacao-design` | `desenvolvimento` | `homologacao` | `qa` | `publicacao` — controla a cor/ícone da subtask nas views; o título é livre.
 
-**Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais), avatar_url?, email?, auth_user_id?, access_role ('admin'|'user'), is_active?, created_at?, deactivated_at?`
+**Member:** `id, name, role ('Designer'|'Developer'), avatar (iniciais), avatar_url?, email?, auth_user_id?, access_role ('admin'|'user'), is_active?, created_at?, deactivated_at?, capacity (int 1–50, def 6)`
 
 **UserPreferences:** `id, user_id (fk → members.id), theme ('light'|'dark'|'system'), language ('pt-BR'|'en'), notifications_enabled, default_view ('home'|'calendar'|'timeline'|'list'), client_order (text[]), notification_step_overdue (bool, def true), notification_task_stalled (bool, def true), notification_member_overloaded (bool, def true), stalled_days_threshold (int 1–30, def 5), overload_threshold (int 1–20, def 3), created_at, updated_at`
 
@@ -79,6 +79,7 @@ npm run lint      # ESLint
 | useFormState | [docs/hooks/form-state.md](docs/hooks/form-state.md) |
 | useNotifications, NotificationBell, fetchNotifications | [docs/hooks/notifications.md](docs/hooks/notifications.md) |
 | dateUtils, dias úteis, cascadePhases | [docs/utils/date-utils.md](docs/utils/date-utils.md) |
+| planner.ts, DayPlannerCard, generateDayPlan | [docs/views/overview.md](docs/views/overview.md) |
 | ToolsView, BriefingAnalyzerView, padrão de subview | [docs/views/tools.md](docs/views/tools.md) |
 | Convenções, padrões, env vars | [docs/guidelines.md](docs/guidelines.md) |
 | TODOs e melhorias pendentes | [docs/todo/melhorias.md](docs/todo/melhorias.md) |
