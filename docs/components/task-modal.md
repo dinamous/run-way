@@ -1,6 +1,23 @@
 # TaskModal
 
-**Ficheiro:** `src/components/TaskModal.tsx`
+**Pasta:** `src/components/TaskModal/`
+
+## Estrutura de ficheiros
+
+```
+TaskModal/
+  index.ts                    — re-export público (import via @/components/TaskModal)
+  TaskModal.tsx               — orquestrador (~155 linhas)
+  components/
+    TaskHeader.tsx            — cabeçalho: label Editar/Nova, badge #id, botão fechar
+    TaskMetadataSection.tsx   — título, link ClickUp, toggles Bloqueada/Concluída, datas condicionais
+    SubtaskList.tsx           — lista de subtasks, badge de contagem, empty state, botão "+ Nova Subtask"
+    SubtaskRow.tsx            — linha individual: grip, título, selects de status/progresso, assignees, datas, remover
+    TaskFooter.tsx            — botões Apagar demanda / Cancelar / Salvar Alterações
+  hooks/
+    useSubtasks.ts            — estado do array de subtasks + CRUD (add/remove/update/toggleAssignee); exporta SubtaskDraft
+    useTaskForm.ts            — estado do formulário (title, clickupLink, blocked, etc.) + helpers buildWeekendConfirmMessage e postponeSubtasks
+```
 
 ## Responsabilidade
 

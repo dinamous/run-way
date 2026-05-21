@@ -59,7 +59,8 @@
       "Bash(where \"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\")",
       "Read(//c/Program Files/Google/Chrome/Application\" 2>/dev/**)",
       "Bash(ls \"C:/Program Files/Google/Chrome/Application/\" 2>/dev/null | head -5 || echo \"no chrome there\")",
-      "Read(//c/Program Files/Google/Chrome/Application/**)"
+      "Read(//c/Program Files/Google/Chrome/Application/**)",
+      "Bash(del \"c:\\\\Users\\\\dinam\\\\Documents\\\\Projetos\\\\run-way\\\\src\\\\components\\\\TaskModal.tsx\")"
     ]
   },
   "hooks": {
