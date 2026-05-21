@@ -345,6 +345,7 @@ export type Database = {
           concluded_at: string | null
           concluded_by: string | null
           created_at: string
+          description: string | null
           id: string
           priority_order: number
           title: string
@@ -357,6 +358,7 @@ export type Database = {
           concluded_at?: string | null
           concluded_by?: string | null
           created_at?: string
+          description?: string | null
           id?: string
           priority_order?: number
           title: string
@@ -369,6 +371,7 @@ export type Database = {
           concluded_at?: string | null
           concluded_by?: string | null
           created_at?: string
+          description?: string | null
           id?: string
           priority_order?: number
           title?: string

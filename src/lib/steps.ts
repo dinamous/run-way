@@ -53,6 +53,7 @@ export interface TaskStatus {
 export interface Task {
   id: string;
   title: string;
+  description?: string;
   clickupLink?: string;
   clientId?: string;
   priorityOrder: number;
@@ -252,6 +253,7 @@ export function isStepBlocked(task: { status: TaskStatus }, stepStart: string): 
 export interface LegacyTask {
   id?: string;
   title?: string;
+  description?: string;
   clickupLink?: string;
   assignee?: string;
   status?: string | TaskStatus;

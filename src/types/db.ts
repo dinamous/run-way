@@ -57,6 +57,7 @@ export interface DbSubtaskRow {
 export interface DbTaskRow {
   id: string;
   title: string;
+  description: string | null;
   clickup_link: string | null;
   priority_order: number;
   blocked: boolean;

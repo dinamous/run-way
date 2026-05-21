@@ -21,6 +21,7 @@ export const DbSubtaskRowSchema = z.object({
 export const DbTaskRowSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
+  description: z.string().nullable().default(null),
   clickup_link: z.string().nullable().transform(v => v === '' ? null : v),
   priority_order: z.number().int().nonnegative().default(0),
   blocked: z.boolean(),

@@ -9,6 +9,7 @@ export function useTaskForm(task: TaskModalProps['task']) {
   const init = migrateLegacyTask(task ?? {});
 
   const [title, setTitle] = useState<string>(task?.title ?? '');
+  const [description, setDescription] = useState<string>(task?.description ?? '');
   const [clickupLink, setClickupLink] = useState<string>(task?.clickupLink ?? '');
   const [blocked, setBlocked] = useState<boolean>(init.status.blocked);
   const [blockedAt, setBlockedAt] = useState<string>(
@@ -24,6 +25,7 @@ export function useTaskForm(task: TaskModalProps['task']) {
 
   return {
     title, setTitle,
+    description, setDescription,
     clickupLink, setClickupLink,
     blocked, setBlocked,
     blockedAt, setBlockedAt,

@@ -34,6 +34,7 @@ function dbRowToTask(row: DbTaskRow): Task {
   return {
     id: parsed.id,
     title: parsed.title,
+    description: parsed.description ?? undefined,
     clickupLink: parsed.clickup_link ?? undefined,
     clientId: parsed.client_id ?? undefined,
     priorityOrder: parsed.priority_order,
@@ -49,7 +50,7 @@ function dbRowToTask(row: DbTaskRow): Task {
 }
 
 const TASK_SELECT = `
-  id, title, clickup_link, priority_order, blocked, blocked_at, created_at, client_id, concluded_at, concluded_by,
+  id, title, description, clickup_link, priority_order, blocked, blocked_at, created_at, client_id, concluded_at, concluded_by,
   task_subtasks (
     id, title, status, progress_status, subtask_order, active, start_date, end_date,
     subtask_assignees ( member_id )

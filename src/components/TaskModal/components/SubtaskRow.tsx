@@ -1,5 +1,5 @@
 import React from 'react';
-import { GripVertical, Users, Calendar, X, ChevronDown } from 'lucide-react';
+import { GripVertical, Users, Calendar, X, ChevronDown, CheckCircle2, Circle } from 'lucide-react';
 import {
   STEP_META, STEP_TYPES_ORDER, SUBTASK_PROGRESS_META, SUBTASK_PROGRESS_STATUS_ORDER,
   type SubtaskStatus, type SubtaskProgressStatus,
@@ -21,10 +21,17 @@ const SubtaskRow: React.FC<Props> = ({ subtask, members, errors, updateSubtask, 
 
   return (
     <div
-      className={`group relative flex flex-col lg:flex-row lg:items-center gap-4 p-3.5 bg-muted/30 border ${meta.color} rounded-xl hover:bg-muted/50 transition-colors`}
+      className={`group relative flex flex-col gap-4 rounded-lg border border-border bg-card p-3.5 transition-colors hover:bg-muted/20 ${subtask.progressStatus === 'done' ? 'opacity-75' : ''}`}
     >
-      <div className="flex flex-1 items-center gap-3 min-w-0">
+      <div className="flex flex-1 items-start gap-3 min-w-0">
         <GripVertical className="w-4 h-4 text-muted-foreground/40 cursor-grab hover:text-muted-foreground shrink-0" />
+        <div className="pt-0.5">
+          {subtask.progressStatus === 'done' ? (
+            <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <Circle className="size-4 text-muted-foreground/60" />
+          )}
+        </div>
 
         <div className="flex-1 flex flex-col gap-2 min-w-0">
           <input
@@ -32,7 +39,7 @@ const SubtaskRow: React.FC<Props> = ({ subtask, members, errors, updateSubtask, 
             value={subtask.title}
             onChange={e => updateSubtask(subtask._tempId, 'title', e.target.value)}
             placeholder="Nome da subtask…"
-            className="w-full bg-transparent text-sm font-semibold text-foreground placeholder:text-muted-foreground/40 outline-none border-b border-transparent focus:border-border pb-0.5 transition-colors"
+            className={`w-full bg-transparent text-sm font-semibold text-foreground placeholder:text-muted-foreground/40 outline-none border-b border-transparent focus:border-border pb-0.5 transition-colors ${subtask.progressStatus === 'done' ? 'line-through decoration-muted-foreground/50' : ''}`}
           />
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -40,7 +47,7 @@ const SubtaskRow: React.FC<Props> = ({ subtask, members, errors, updateSubtask, 
               <select
                 value={subtask.status}
                 onChange={e => updateSubtask(subtask._tempId, 'status', e.target.value as SubtaskStatus)}
-                className="appearance-none bg-background border border-border text-foreground text-[11px] rounded px-2.5 py-1 pr-6 outline-none focus:ring-1 focus:ring-ring cursor-pointer transition-shadow"
+                className={`appearance-none border text-[11px] rounded-md px-2.5 py-1 pr-6 outline-none focus:ring-1 focus:ring-ring cursor-pointer transition-shadow ${meta.color}`}
               >
                 {STEP_TYPES_ORDER.map(s => (
                   <option key={s} value={s}>{STEP_META[s].label}</option>
@@ -53,7 +60,7 @@ const SubtaskRow: React.FC<Props> = ({ subtask, members, errors, updateSubtask, 
               <select
                 value={subtask.progressStatus}
                 onChange={e => updateSubtask(subtask._tempId, 'progressStatus', e.target.value as SubtaskProgressStatus)}
-                className="appearance-none bg-background border border-border text-foreground text-[11px] rounded px-2.5 py-1 pr-6 outline-none focus:ring-1 focus:ring-ring cursor-pointer transition-shadow"
+                className={`appearance-none border text-[11px] rounded-md px-2.5 py-1 pr-6 outline-none focus:ring-1 focus:ring-ring cursor-pointer transition-shadow ${SUBTASK_PROGRESS_META[subtask.progressStatus].className}`}
                 title="Status da subtask"
               >
                 {SUBTASK_PROGRESS_STATUS_ORDER.map(s => (
@@ -70,7 +77,7 @@ const SubtaskRow: React.FC<Props> = ({ subtask, members, errors, updateSubtask, 
         </div>
       </div>
 
-      <div className="flex items-center gap-4 lg:justify-end border-t border-border lg:border-none pt-3 lg:pt-0 flex-wrap">
+      <div className="flex items-center gap-4 lg:justify-end border-t border-border pt-3 flex-wrap">
         <div className="flex items-center gap-1.5">
           <Users className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <div className="flex flex-wrap gap-1">

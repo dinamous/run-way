@@ -7,17 +7,27 @@
 ```
 TaskModal/
   index.ts                    — re-export público (import via @/components/TaskModal)
-  TaskModal.tsx               — orquestrador (~155 linhas)
+  TaskModal.tsx               — orquestrador; layout duas colunas + animação Framer Motion spring
   components/
-    TaskHeader.tsx            — cabeçalho: label Editar/Nova, badge #id, botão fechar
-    TaskMetadataSection.tsx   — título, link ClickUp, toggles Bloqueada/Concluída, datas condicionais
-    SubtaskList.tsx           — lista de subtasks, badge de contagem, empty state, botão "+ Nova Subtask"
+    TaskHeader.tsx            — DESCONTINUADO (não utilizado; pode ser removido)
+    TaskMetadataSection.tsx   — DESCONTINUADO (não utilizado; pode ser removido)
+    TaskSidebar.tsx           — sidebar direita: status (Bloqueada/Concluída), datas condicionais, link ClickUp
+    SubtaskList.tsx           — lista animada (AnimatePresence) de subtasks; empty state
     SubtaskRow.tsx            — linha individual: grip, título, selects de status/progresso, assignees, datas, remover
     TaskFooter.tsx            — botões Apagar demanda / Cancelar / Salvar Alterações
   hooks/
     useSubtasks.ts            — estado do array de subtasks + CRUD (add/remove/update/toggleAssignee); exporta SubtaskDraft
     useTaskForm.ts            — estado do formulário (title, clickupLink, blocked, etc.) + helpers buildWeekendConfirmMessage e postponeSubtasks
 ```
+
+## Layout
+
+Layout de duas colunas com animação Framer Motion (spring):
+- **Esquerda** — título livre (input `text-2rem`), barra de progresso com spring physics (`useSpring`/`useTransform`), lista animada de subtasks
+- **Direita (`TaskSidebar`)** — toggles Bloqueada/Concluída, datas condicionais, link ClickUp com botão de abrir
+- **Footer** — botões Apagar / Cancelar / Salvar
+
+Overlay + modal entram com `motion.div` (spring stiffness 280 / damping 28). Subtasks entram/saem com `AnimatePresence`.
 
 ## Responsabilidade
 

@@ -82,6 +82,7 @@ function didTaskFieldsChange(prevTask: Task | undefined, nextTask: Task, resolve
 
   return (
     prevTask.title !== nextTask.title
+    || (prevTask.description ?? null) !== (nextTask.description ?? null)
     || (prevTask.clickupLink ?? null) !== (nextTask.clickupLink ?? null)
     || prevTask.priorityOrder !== nextTask.priorityOrder
     || prevTask.status.blocked !== nextTask.status.blocked
@@ -120,6 +121,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       .from('tasks')
       .insert({
         title: taskData.title,
+        description: taskData.description ?? null,
         clickup_link: taskData.clickupLink ?? null,
         priority_order: priorityOrder,
         blocked: taskData.status.blocked,
@@ -189,6 +191,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         .from('tasks')
         .update({
           title: taskData.title,
+          description: taskData.description ?? null,
           clickup_link: taskData.clickupLink ?? null,
           priority_order: taskData.priorityOrder,
           blocked: taskData.status.blocked,
