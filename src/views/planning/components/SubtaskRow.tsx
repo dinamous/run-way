@@ -32,6 +32,8 @@ interface SubtaskRowProps {
   members: Member[];
   isLast: boolean;
   onEdit: (task: Task) => void;
+  taskLabel?: string;
+  taskRank?: number;
   onUpdateSubtaskAssignees?: (task: Task, subtaskId: string, assignees: string[]) => Promise<boolean>;
   onUpdateSubtaskDates?: (task: Task, subtaskId: string, start: string, end: string) => Promise<boolean>;
   onUpdateSubtaskProgressStatus?: (task: Task, subtaskId: string, status: SubtaskProgressStatus) => Promise<boolean>;
@@ -43,6 +45,8 @@ export const SubtaskRow = memo(function SubtaskRow({
   members,
   isLast,
   onEdit,
+  taskLabel,
+  taskRank,
   onUpdateSubtaskAssignees,
   onUpdateSubtaskDates,
   onUpdateSubtaskProgressStatus,
@@ -81,9 +85,17 @@ export const SubtaskRow = memo(function SubtaskRow({
         />
       </div>
 
-      <span className="text-xs text-muted-foreground truncate py-2.5 pr-4">
-        {subtask.title}
-      </span>
+      <div className="flex flex-col justify-center py-2.5 pr-4 min-w-0">
+        {taskLabel && (
+          <span className="text-[10px] text-muted-foreground/50 truncate leading-none mb-0.5 flex items-center gap-1">
+            {taskRank !== undefined && (
+              <span className="tabular-nums font-semibold text-muted-foreground/70">#{taskRank}</span>
+            )}
+            {taskLabel}
+          </span>
+        )}
+        <span className="text-xs text-muted-foreground truncate">{subtask.title}</span>
+      </div>
 
       <div className="py-2.5 pr-4" onClick={e => e.stopPropagation()}>
         <DatesPopover subtask={subtask} task={task} onUpdate={onUpdateSubtaskDates} />

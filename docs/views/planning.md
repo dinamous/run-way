@@ -5,10 +5,10 @@
 `PlanningView` é o container de todas as visualizações de planejamento de demandas. Substitui a antiga `DashboardView` e absorveu a `TasksView` como subview `demandas`.
 
 **Arquitetura de filtros:** `PlanningView` gerencia dois conjuntos de filtros independentes, ambos como `FiltersState` local:
-- `demandasFilters` — filtros do subview `demandas`
+- `demandasFilters` — filtros do subview `demandas` (busca, status, responsável, período, bloqueadas, concluídas)
 - `calendarFilters` — filtros dos subviews `calendar`, `timeline` e `kanban`
 
-Ambos são renderizados pelo `PlanningViewHeader` via `TasksFilters` (o componente de filtros unificado). `PlanningView` aplica `calendarFilters` sobre as tasks já processadas por `useTaskFilters` antes de passar `filteredTasks` para `CalendarView` e `TimelineView`. `CalendarView` e `TimelineView` não renderizam mais filtros internamente — recebem apenas tasks já filtradas. O estado de `viewMode` (step/demand) para o calendário ainda vive em `usePlanningFiltersStore`.
+Ambos são renderizados pelo `PlanningViewHeader` via `TasksFilters`. Adicionalmente, `PlanningView` mantém `demandasSort: SortState` como estado separado — gerenciado exclusivamente pelo `TasksSortBar`, renderizado acima do `TaskTable` na subview `demandas`. `PlanningView` aplica `calendarFilters` sobre as tasks já processadas por `useTaskFilters` antes de passar `filteredTasks` para `CalendarView` e `TimelineView`. `CalendarView` e `TimelineView` não renderizam mais filtros internamente — recebem apenas tasks já filtradas. O estado de `viewMode` (step/demand) para o calendário ainda vive em `usePlanningFiltersStore`.
 
 Localização: `src/views/planning/`
 
@@ -38,10 +38,11 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | `src/views/planning/components/FilterBar.tsx` | Barra de filtros legada — não mais usada por `CalendarView` ou `TimelineView` |
 | `src/views/planning/components/MetricsBar.tsx` | Cards de métricas (saúde operacional, em andamento, bloqueadas) |
 | `src/views/planning/components/StepsLegend.tsx` | Legenda de cores das fases |
-| `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, status de subtask, responsável com avatares, período, bloqueadas, concluídas) |
-| `src/views/planning/components/TaskTable.tsx` | Componente raiz da tabela — itera tasks e delega para `TaskTableRow` |
-| `src/views/planning/components/TaskTableRow.tsx` | Linha-pai colapsável de uma task com progresso, prazo, avatares e painel de subtasks |
-| `src/views/planning/components/SubtaskRow.tsx` | Linha-filho de uma subtask com ícone de status, badge de etapa, popover de andamento, `DatesPopover` e `AssigneesPopover` |
+| `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, status de subtask, responsável com avatares, período, bloqueadas, concluídas). **Não inclui sort/group** — esses ficam em `TasksSortBar`. |
+| `src/views/planning/components/TasksSortBar.tsx` | Barra de ordenação e agrupamento exclusiva do subview `demandas`. Exporta `SortField`, `SortDirection`, `GroupBy`, `SortState`, `EMPTY_SORT_STATE`. Renderizada acima do `TaskTable` em `PlanningView`. |
+| `src/views/planning/components/TaskTable.tsx` | Componente raiz da tabela. Quando `groupBy === 'none'`: itera tasks e delega para `TaskTableRow`; prop `showRank` ativa rank numérico. Quando `groupBy !== 'none'`: achata subtasks, agrupa pelo critério e renderiza `SubtaskRow` diretamente, sem tarefa-mãe. |
+| `src/views/planning/components/TaskTableRow.tsx` | Linha-pai colapsável de uma task com progresso, prazo, avatares e painel de subtasks; prop `rank` exibe número de posição no drag handle |
+| `src/views/planning/components/SubtaskRow.tsx` | Linha-filho de uma subtask com ícone de status, badge de etapa, popover de andamento, `DatesPopover` e `AssigneesPopover`. Prop `taskLabel?: string` opcional — quando presente exibe o nome da demanda acima do título da subtask (usado no modo agrupado). |
 | `src/views/planning/components/MemberAvatars.tsx` | Avatares empilhados de membros (tamanhos `sm`/`xs`); placeholder `?` quando sem responsável |
 | `src/views/planning/components/AssigneesPopover.tsx` | Popover de atribuição de responsáveis — renderizado via `createPortal` no `document.body` |
 | `src/views/planning/components/DatesPopover.tsx` | Popover de edição de período (start/end) — renderizado via `createPortal` no `document.body` |
@@ -70,7 +71,17 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 Lista todas as demandas em **tabela hierárquica** estilo ClickUp. Não há mais toggle de modo — um único layout unifica a visão por task e por subtask.
 
 ### TaskTable
-Componente principal do subview `demandas`. Cada **task** é uma linha-pai colapsável; cada **subtask** é uma linha-filho exibida quando a task está expandida.
+Componente principal do subview `demandas`. Aceita `groupBy?: GroupBy` passado por `PlanningView` via `demandasSort.groupBy`.
+
+**Dois modos de renderização:**
+
+**Modo normal (`groupBy === 'none'):** cada **task** é uma linha-pai colapsável; cada **subtask** é uma linha-filho exibida quando a task está expandida (comportamento histórico).
+
+**Modo agrupado (`groupBy === 'step' | 'status' | 'member'):** a tarefa-mãe desaparece. O componente achata todas as subtasks de todas as tasks, agrupa pelo critério, e renderiza grupos com header + `SubtaskRow` diretamente. A coluna "Título" exibe o nome da demanda (muted, menor) acima do título da subtask para manter contexto. Subtasks com múltiplos responsáveis aparecem em todos os grupos relevantes no modo `member`. Drag-and-drop e rank de prioridade ficam desabilitados em modo agrupado.
+
+A lógica de agrupamento é um `useMemo` dentro de `TaskTable`. Ordem dos grupos: canônica por `STEP_TYPES_ORDER` / `SUBTASK_PROGRESS_STATUS_ORDER` para `step`/`status`; por ordem de aparição para `member`. Grupos vazios são omitidos.
+
+`SubtaskRow` recebe as props opcionais `taskLabel?: string` e `taskRank?: number` — quando `taskLabel` está presente, renderiza o nome da demanda acima do `subtask.title` na coluna Título (texto `text-[10px] text-muted-foreground/50`). Quando `taskRank` também está presente, exibe `#N` antes do nome da demanda (ex: `#1 Nome da Demanda`), mantendo a informação de prioridade visível mesmo no modo agrupado.
 
 **Linha da task (pai):**
 - Borda lateral colorida pela fase ativa (ou vermelha se bloqueada)
@@ -121,7 +132,7 @@ Os popovers fecham ao clicar fora ou pressionar `Escape` (hook `usePopover`). Re
 - Subtasks sem datas mostram `—` no campo Período
 
 ### TasksFilters
-Barra de filtros em três camadas animadas (Framer Motion). Interface `FiltersState`:
+Barra de filtros animada (Framer Motion). Interface `FiltersState`:
 
 ```ts
 {
@@ -134,19 +145,15 @@ Barra de filtros em três camadas animadas (Framer Motion). Interface `FiltersSt
   dateTo: string;               // YYYY-MM-DD, range personalizado
   showOnlyBlocked: boolean;
   showConcluded: boolean;
-  sortField: 'priority' | 'deadline' | 'title' | 'created';
-  sortDirection: 'asc' | 'desc';
-  groupBy: 'none' | 'step' | 'status' | 'member';
 }
 ```
 
-**Layout (3 linhas):**
-1. **Busca + Ordenação + Agrupamento** — sempre visíveis. Sort field via `SelectPill`, direção via botão toggle animado, group via `SelectPill`.
-2. **Filtros principais** — Categoria, Status, `DateRangePicker` (popover com inputs `type="date"`), separador, botão "Filtros avançados" (colapsa/expande row 3 com `AnimatePresence`), botão Limpar (aparece só quando há filtros ativos).
-3. **Filtros avançados** (colapsável) — Responsável (`MemberAvatarPicker`), Bloqueadas, Concluídas.
-4. **Chips de filtros ativos** — aparecem/somem com `AnimatePresence mode="popLayout"`; cada chip tem `×` para remoção individual.
+**Layout (2 linhas + chips):**
+1. **Busca** — input de texto com clear button animado.
+2. **Filtros principais** — Categoria, Status, `DateRangePicker`, separador, Responsável (`MemberAvatarPicker`), Bloqueadas, Concluídas, botão Limpar (aparece só quando há filtros ativos).
+3. **Chips de filtros ativos** — aparecem/somem com `AnimatePresence mode="popLayout"`; cada chip tem `×` para remoção individual.
 
-Todos os controles têm `h-9` para altura uniforme. `EMPTY_FILTERS` em `PlanningView` inicializa `dateFrom: ''`, `dateTo: ''`, `sortField: 'priority'`, `sortDirection: 'asc'`, `groupBy: 'none'`.
+Todos os controles têm `h-9` para altura uniforme.
 
 | Filtro | Campo | Implementação |
 |---|---|---|
@@ -155,15 +162,36 @@ Todos os controles têm `h-9` para altura uniforme. `EMPTY_FILTERS` em `Planning
 | Status | `selectedProgressStatuses` | Dropdown checkbox |
 | Período (range) | `dateFrom` / `dateTo` | `DateRangePicker` — popover com dois `<input type="date">` |
 | Responsável | `selectedMemberIds` | `MemberAvatarPicker` — avatares empilhados |
-| Bloqueadas | `showOnlyBlocked` | Toggle no painel avançado |
-| Concluídas | `showConcluded` | Toggle no painel avançado |
-| Ordenação | `sortField` + `sortDirection` | `SelectPill` + botão toggle com ícone animado |
-| Agrupamento | `groupBy` | `SelectPill` — a lógica de agrupamento é aplicada pela view consumidora |
+| Bloqueadas | `showOnlyBlocked` | Toggle |
+| Concluídas | `showConcluded` | Toggle |
 
 O botão **Nova Demanda** fica na row do título (alinhado à direita), não dentro da barra de filtros.
 
-### Ordenação dentro dos grupos
-Tasks ordenadas por `end` da subtask ativa no grupo — da mais atrasada para a mais recente. Sem data ficam no final.
+### TasksSortBar
+Barra de ordenação e agrupamento exclusiva do subview `demandas`. Renderizada acima do `TaskTable`, separada do `TasksFilters`. Interface `SortState`:
+
+```ts
+{
+  sortField: 'priority' | 'deadline' | 'title' | 'created';
+  sortDirection: 'asc' | 'desc';
+  groupBy: 'none' | 'step' | 'status' | 'member';
+}
+```
+
+Estado gerenciado em `PlanningView` como `demandasSort` (inicializado com `EMPTY_SORT_STATE`). A ordenação é aplicada dentro do `useMemo` de `filteredDemandasTasks`, após a filtragem, usando `[...filtered].sort(...)`:
+
+| `sortField` | Critério |
+|---|---|
+| `priority` | `task.priorityOrder` (padrão) |
+| `deadline` | Data de fim da subtask ativa (ou a primeira); tarefas sem data ficam no final |
+| `title` | `localeCompare('pt-BR')` |
+| `created` | `task.createdAt` |
+
+Controles: `SelectPill` para campo de ordenação, botão toggle animado para direção, `SelectPill` para agrupamento.
+
+**Reordenação drag-and-drop:** só fica habilitada (`onReorder` passado) quando `sortField === 'priority'` **e** `groupBy === 'none'` e não há filtros ativos — garantindo que arrastar para reordenar só funciona na ordem de prioridade sem agrupamento.
+
+**Rank numérico:** quando `sortField === 'priority'` e `groupBy === 'none'`, `TaskTable` recebe `showRank={true}` e passa `rank={idx + 1}` para cada `TaskTableRow`. O número de posição fica visível no lugar do ícone de grip em repouso; no hover, o número some e o grip aparece. Os três primeiros itens (`rank <= 3`) têm peso visual ligeiramente maior para sinalizar prioridade alta de relance. Quando o sort não é por prioridade, o rank é omitido e só o grip é exibido. **No modo agrupado** (`groupBy !== 'none'`), o rank é sempre exibido independente da ordenação: `TaskTable` constrói um `Map<taskId, rank>` ordenando as tasks filtradas por `priorityOrder` e atribuindo posições sequenciais (1, 2, 3…). Esse rank é passado via `showGroupedRank` (padrão `true`) para cada `SubtaskRow`, exibindo `#N` antes do nome da demanda na coluna Título. O valor reflete a prioridade relativa dentro do conjunto filtrado — sempre compacto e sequencial, independente dos valores brutos de `priorityOrder` no banco ou da ordenação visível da lista.
 
 ## Subview: Calendar
 

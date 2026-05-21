@@ -1,13 +1,17 @@
 import { memo, useMemo, useState } from 'react';
 import { Ban, CheckCircle2, UserPlus, X } from 'lucide-react';
-import type { SubtaskProgressStatus, Task } from '@/lib/steps';
+import { STEP_META, STEP_TYPES_ORDER, SUBTASK_PROGRESS_META, SUBTASK_PROGRESS_STATUS_ORDER, type SubtaskProgressStatus, type SubtaskStatus, type Task } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
 import { Button } from '@/components/ui/Button';
 import { TaskTableRow } from './TaskTableRow';
+import { SubtaskRow } from './SubtaskRow';
+import type { GroupBy } from './TasksSortBar';
 
 interface TaskTableProps {
   tasks: Task[];
   members: Member[];
+  showRank?: boolean;
+  showGroupedRank?: boolean;
   onToggleBlock: (task: Task) => void;
   onConclude: (task: Task) => void;
   onEdit: (task: Task) => void;
@@ -18,11 +22,14 @@ interface TaskTableProps {
   onUpdateSubtaskAssignees?: (task: Task, subtaskId: string, assignees: string[]) => Promise<boolean>;
   onUpdateSubtaskDates?: (task: Task, subtaskId: string, start: string, end: string) => Promise<boolean>;
   onUpdateSubtaskProgressStatus?: (task: Task, subtaskId: string, status: SubtaskProgressStatus) => Promise<boolean>;
+  groupBy?: GroupBy;
 }
 
 export const TaskTable = memo(function TaskTable({
   tasks,
   members,
+  showRank = false,
+  showGroupedRank = true,
   onToggleBlock,
   onConclude,
   onEdit,
@@ -33,6 +40,7 @@ export const TaskTable = memo(function TaskTable({
   onUpdateSubtaskAssignees,
   onUpdateSubtaskDates,
   onUpdateSubtaskProgressStatus,
+  groupBy = 'none',
 }: TaskTableProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -45,6 +53,59 @@ export const TaskTable = memo(function TaskTable({
     [tasks, selectedIds],
   );
   const selectedCount = selectedTasks.length;
+
+  // ── Grouped subtask view ─────────────────────────────────────────────────────
+  const groupedSubtasks = useMemo(() => {
+    if (groupBy === 'none') return null;
+
+    type SubtaskWithTask = { subtask: Task['subtasks'][number]; task: Task; taskRank: number };
+    const priorityRank = new Map(
+      [...tasks].sort((a, b) => a.priorityOrder - b.priorityOrder).map((task, idx) => [task.id, idx + 1]),
+    );
+    const flat: SubtaskWithTask[] = tasks.flatMap(task =>
+      task.subtasks.map(subtask => ({ subtask, task, taskRank: priorityRank.get(task.id) ?? 0 })),
+    );
+
+    const groups = new Map<string, { label: string; color?: string; items: SubtaskWithTask[] }>();
+
+    if (groupBy === 'step') {
+      for (const key of STEP_TYPES_ORDER) {
+        const meta = STEP_META[key];
+        groups.set(key, { label: meta.label, color: meta.tagBg, items: [] });
+      }
+      for (const entry of flat) {
+        groups.get(entry.subtask.status)?.items.push(entry);
+      }
+    } else if (groupBy === 'status') {
+      for (const key of SUBTASK_PROGRESS_STATUS_ORDER) {
+        const meta = SUBTASK_PROGRESS_META[key];
+        groups.set(key, { label: meta.label, items: [] });
+      }
+      for (const entry of flat) {
+        groups.get(entry.subtask.progressStatus)?.items.push(entry);
+      }
+    } else if (groupBy === 'member') {
+      const noOne = '__none__';
+      groups.set(noOne, { label: 'Sem responsável', items: [] });
+      for (const entry of flat) {
+        if (entry.subtask.assignees.length === 0) {
+          groups.get(noOne)!.items.push(entry);
+        } else {
+          for (const memberId of entry.subtask.assignees) {
+            if (!groups.has(memberId)) {
+              const m = members.find(m => m.id === memberId);
+              groups.set(memberId, { label: m?.name ?? memberId, items: [] });
+            }
+            groups.get(memberId)!.items.push(entry);
+          }
+        }
+      }
+    }
+
+    return [...groups.entries()]
+      .map(([key, group]) => ({ key, ...group }))
+      .filter(g => g.items.length > 0);
+  }, [groupBy, tasks, members]);
 
   if (tasks.length === 0) return null;
 
@@ -98,13 +159,67 @@ export const TaskTable = memo(function TaskTable({
     await onReorder(reordered);
   }
 
+  if (groupedSubtasks) {
+    return (
+      <div className="space-y-6 pb-24">
+        {groupedSubtasks.map(group => (
+          <div key={group.key} className="space-y-1">
+            <div className="flex items-center gap-2 pb-1">
+              {group.color && (
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${group.color}`}>
+                  {group.label}
+                </span>
+              )}
+              {!group.color && (
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/50">
+                  {group.label}
+                </span>
+              )}
+              <span className="text-[10px] text-muted-foreground/35 tabular-nums">
+                {group.items.length} etapa{group.items.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+              <div className="relative pl-10 pr-3 py-1.5 border-b border-border/30 bg-muted/5 grid grid-cols-[180px_150px_1fr_110px_90px_auto]">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40">Etapa</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40">Status</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40">Demanda · Título</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40">Período</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40">Prazo</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40 text-right">Resp.</span>
+              </div>
+              <div>
+                {group.items.map(({ subtask, task, taskRank }, idx) => (
+                  <SubtaskRow
+                    key={`${task.id}-${subtask.id}`}
+                    subtask={subtask}
+                    task={task}
+                    members={members}
+                    isLast={idx === group.items.length - 1}
+                    onEdit={onEdit}
+                    taskLabel={task.title}
+                    taskRank={showGroupedRank ? taskRank : undefined}
+                    onUpdateSubtaskAssignees={onUpdateSubtaskAssignees}
+                    onUpdateSubtaskDates={onUpdateSubtaskDates}
+                    onUpdateSubtaskProgressStatus={onUpdateSubtaskProgressStatus}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2 pb-24">
-      {tasks.map(task => (
+      {tasks.map((task, idx) => (
         <TaskTableRow
           key={task.id}
           task={task}
           members={members}
+          rank={showRank ? idx + 1 : undefined}
           onToggleBlock={onToggleBlock}
           onConclude={onConclude}
           onEdit={onEdit}

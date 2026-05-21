@@ -15,6 +15,7 @@ import { useTaskFilters } from './hooks/useTaskFilters';
 import { PlanningViewHeader } from './components/PlanningViewHeader';
 import { StepsLegend } from './components/StepsLegend';
 import { type FiltersState } from './components/TasksFilters';
+import { TasksSortBar, type SortState, EMPTY_SORT_STATE } from './components/TasksSortBar';
 import { TaskTable } from './components/TaskTable';
 import type { PlanningViewProps } from '@/types/props';
 import { useUIStore } from '@/store/useUIStore';
@@ -46,9 +47,6 @@ const EMPTY_FILTERS: FiltersState = {
   dateTo: '',
   showOnlyBlocked: false,
   showConcluded: false,
-  sortField: 'priority',
-  sortDirection: 'asc',
-  groupBy: 'none',
 };
 
 
@@ -77,6 +75,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
 
   const [demandasFilters, setDemandasFilters] = useState<FiltersState>(EMPTY_FILTERS);
   const [calendarFilters, setCalendarFilters] = useState<FiltersState>(EMPTY_FILTERS);
+  const [demandasSort, setDemandasSort] = useState<SortState>(EMPTY_SORT_STATE);
 
   const filteredTasks = useMemo(() => {
     if (subview !== 'calendar' && subview !== 'timeline') return allFilteredTasks;
@@ -145,7 +144,7 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
   const filteredDemandasTasks = useMemo(() => {
     if (subview !== 'demandas') return [];
     const { searchTerm, selectedSteps, selectedProgressStatuses, selectedMemberIds, showOnlyBlocked, selectedPeriod, showConcluded } = demandasFilters;
-    return tasks.filter(task => {
+    const filtered = tasks.filter(task => {
       const isConcluded = !!task.concludedAt;
       if (!showConcluded && isConcluded) return false;
 
@@ -179,7 +178,29 @@ const PlanningView: React.FC<PlanningViewProps> = ({ subview, onViewChange, onEd
 
       return matchSearch && matchStep && matchProgressStatus && matchMember && matchBlocked && matchPeriod;
     });
-  }, [tasks, demandasFilters, subview]);
+
+    const { sortField, sortDirection } = demandasSort;
+    const dir = sortDirection === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      if (sortField === 'priority') {
+        return (a.priorityOrder - b.priorityOrder) * dir;
+      }
+      if (sortField === 'title') {
+        return a.title.localeCompare(b.title, 'pt-BR') * dir;
+      }
+      if (sortField === 'created') {
+        return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * dir;
+      }
+      if (sortField === 'deadline') {
+        const aStep = a.subtasks.find(s => s.active) ?? a.subtasks[0];
+        const bStep = b.subtasks.find(s => s.active) ?? b.subtasks[0];
+        const aTime = aStep?.end ? new Date(aStep.end + 'T00:00:00').getTime() : Infinity;
+        const bTime = bStep?.end ? new Date(bStep.end + 'T00:00:00').getTime() : Infinity;
+        return (aTime - bTime) * dir;
+      }
+      return 0;
+    });
+  }, [tasks, demandasFilters, demandasSort, subview]);
 
 const hasDemandasActiveFilters =
     demandasFilters.searchTerm !== '' ||
@@ -268,20 +289,28 @@ const hasDemandasActiveFilters =
           </button>
         </div>
       ) : (
-        <TaskTable
-          tasks={filteredDemandasTasks}
-          members={members}
-          onToggleBlock={toggleBlock}
-          onConclude={concludeTask}
-          onEdit={onEdit}
-          onReorder={!hasDemandasActiveFilters ? updateTaskPriorityOrder : undefined}
-          onBulkAssign={handleBulkAssign}
-          onBulkBlock={blockTasks}
-          onBulkConclude={concludeTasks}
-          onUpdateSubtaskAssignees={updateSubtaskAssignees}
-          onUpdateSubtaskDates={updateSubtaskDates}
-          onUpdateSubtaskProgressStatus={updateSubtaskProgressStatus}
-        />
+        <div className="space-y-3">
+          <TasksSortBar
+            value={demandasSort}
+            onChange={next => setDemandasSort(prev => ({ ...prev, ...next }))}
+          />
+          <TaskTable
+            tasks={filteredDemandasTasks}
+            members={members}
+            showRank={demandasSort.sortField === 'priority' && demandasSort.groupBy === 'none'}
+            onToggleBlock={toggleBlock}
+            onConclude={concludeTask}
+            onEdit={onEdit}
+            onReorder={!hasDemandasActiveFilters && demandasSort.sortField === 'priority' && demandasSort.groupBy === 'none' ? updateTaskPriorityOrder : undefined}
+            onBulkAssign={handleBulkAssign}
+            onBulkBlock={blockTasks}
+            onBulkConclude={concludeTasks}
+            onUpdateSubtaskAssignees={updateSubtaskAssignees}
+            onUpdateSubtaskDates={updateSubtaskDates}
+            onUpdateSubtaskProgressStatus={updateSubtaskProgressStatus}
+            groupBy={demandasSort.groupBy}
+          />
+        </div>
       )}
     </div>
   ) : null;

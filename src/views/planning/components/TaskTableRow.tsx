@@ -11,6 +11,7 @@ import { SubtaskRow } from './SubtaskRow';
 interface TaskTableRowProps {
   task: Task;
   members: Member[];
+  rank?: number;
   onToggleBlock: (task: Task) => void;
   onConclude: (task: Task) => void;
   onEdit: (task: Task) => void;
@@ -32,6 +33,7 @@ interface TaskTableRowProps {
 export const TaskTableRow = memo(function TaskTableRow({
   task,
   members,
+  rank,
   onToggleBlock,
   onConclude,
   onEdit,
@@ -103,7 +105,7 @@ export const TaskTableRow = memo(function TaskTableRow({
           draggable={draggable}
           aria-label={`Reordenar demanda ${task.title}`}
           title={draggable ? 'Arraste para reordenar prioridade' : undefined}
-          className="px-2 py-3 text-muted-foreground/45 hover:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-30 cursor-grab active:cursor-grabbing shrink-0"
+          className="relative w-8 self-stretch flex items-center justify-center text-muted-foreground/45 hover:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-30 cursor-grab active:cursor-grabbing shrink-0 group/drag"
           disabled={!draggable}
           onClick={e => e.stopPropagation()}
           onDragStart={e => {
@@ -115,7 +117,20 @@ export const TaskTableRow = memo(function TaskTableRow({
             onDragEnd?.();
           }}
         >
-          <GripVertical className="w-3.5 h-3.5" />
+          {rank !== undefined ? (
+            <>
+              <span className={`text-[11px] font-semibold tabular-nums transition-opacity group-hover/drag:opacity-0 ${
+                rank <= 3
+                  ? 'text-foreground/70'
+                  : 'text-muted-foreground/50'
+              }`}>
+                {rank}
+              </span>
+              <GripVertical className="w-3.5 h-3.5 absolute opacity-0 group-hover/drag:opacity-100 transition-opacity" />
+            </>
+          ) : (
+            <GripVertical className="w-3.5 h-3.5" />
+          )}
         </button>
 
         <div className="pl-3 pr-1 shrink-0" onClick={e => e.stopPropagation()}>
@@ -248,6 +263,7 @@ export const TaskTableRow = memo(function TaskTableRow({
 }, (prev, next) =>
   getTaskRenderSignature(prev.task) === getTaskRenderSignature(next.task) &&
   prev.members === next.members &&
+  prev.rank === next.rank &&
   prev.selected === next.selected &&
   prev.defaultExpanded === next.defaultExpanded &&
   prev.draggable === next.draggable &&
