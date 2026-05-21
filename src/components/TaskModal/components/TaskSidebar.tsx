@@ -147,7 +147,7 @@ const TaskSidebar: React.FC<Props> = ({
             </div>
           )) : (
             <div className="rounded-md border border-dashed border-border bg-card px-3 py-3 text-xs text-muted-foreground">
-              Nenhum responsável nas tarefas-filhas.
+              Nenhum responsável nas Substasks.
             </div>
           )}
         </div>

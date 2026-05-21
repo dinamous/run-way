@@ -50,7 +50,7 @@ const SubtaskList: React.FC<Props> = ({ subtasks, members, errors, updateSubtask
         </div>
         <p className="text-sm font-medium text-foreground">Nenhuma tarefa-filha definida</p>
         <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-          Adicione tarefas-filhas para estruturar esta demanda, atribuir responsaveis e definir prazos de entrega.
+          Adicione Substasks para estruturar esta demanda, atribuir responsaveis e definir prazos de entrega.
         </p>
       </motion.div>
     )}

@@ -291,7 +291,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
 
                   <div className="rounded-lg border border-border bg-muted/20 px-3 py-3">
                     <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                      <CheckSquare className="size-3.5" /> Tarefas-filhas
+                      <CheckSquare className="size-3.5" /> Substasks
                     </span>
                     <p className="mt-1 text-sm font-semibold text-foreground">{completed}/{subtasks.length} concluídas</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{progress}% da demanda</p>
@@ -345,7 +345,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <CheckSquare className="w-3.5 h-3.5" />
-                      <h3 className="text-[12px] font-medium uppercase tracking-wider">Tarefas-filhas</h3>
+                      <h3 className="text-[12px] font-medium uppercase tracking-wider">Substasks</h3>
                     </div>
                     <Badge variant="outline" className="h-5 rounded-md px-1.5 text-[11px] font-medium text-muted-foreground">
                       {completed}/{subtasks.length}
@@ -357,7 +357,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
                     variant="outline"
                     size="sm"
                   >
-                    <Plus className="w-3 h-3" /> Adicionar filha
+                    <Plus className="w-3 h-3" /> Adicionar Subtask
                   </Button>
                 </div>
 

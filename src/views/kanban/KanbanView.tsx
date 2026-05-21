@@ -249,7 +249,7 @@ export function KanbanView({ tasks, members, onEdit, onUpdateTask }: KanbanViewP
   const stackedColumns = isDragging ? [] : COLUMNS.filter((col) => (columnsData[col.id]?.length ?? 0) === 0);
 
   return (
-    <div className="w-full overflow-x-auto bg-zinc-50 dark:bg-[#0a0a0a] p-4 rounded-2xl custom-kanban-scrollbar" style={{ height: 'calc(100vh - 4rem - 4rem - 3.5rem - 1.25rem)' }}>
+    <div className="w-full overflow-x-auto bg-zinc-50 dark:bg-[#0a0a0a] p-4 rounded-2xl" style={{ height: 'calc(100vh - 4rem - 4rem - 3.5rem - 1.25rem)' }}>
       <div className="flex gap-5 min-w-max h-full items-stretch">
         {COLUMNS.map((col) => {
           const isEmpty = (columnsData[col.id]?.length ?? 0) === 0;
@@ -313,12 +313,6 @@ export function KanbanView({ tasks, members, onEdit, onUpdateTask }: KanbanViewP
       </div>
 
       <style>{`
-        .custom-kanban-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
-        .custom-kanban-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-kanban-scrollbar::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 10px; }
-        .custom-kanban-scrollbar::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
-        .dark .custom-kanban-scrollbar::-webkit-scrollbar-thumb { background: #27272a; }
-        .dark .custom-kanban-scrollbar::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
         @keyframes wiggle {
           0%   { transform: rotate(0deg) scale(0.97); }
           25%  { transform: rotate(-1.5deg) scale(0.97); }
