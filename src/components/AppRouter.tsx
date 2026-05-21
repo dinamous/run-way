@@ -132,7 +132,7 @@ export function AppRouter() {
       )}
 
       {view === "members" && (
-        <ViewShell>
+        <ViewShell noPadding>
           <MembersView />
         </ViewShell>
       )}

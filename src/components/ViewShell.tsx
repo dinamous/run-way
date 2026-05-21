@@ -25,7 +25,7 @@ export function ViewShell({ children, subview, viewOverride, noPadding, classNam
   const showBreadcrumb = !NO_BREADCRUMB.has(activeView)
 
   return (
-    <div className={cn('flex flex-col min-h-full bg-background', className)}>
+    <div className={cn('flex flex-col h-full bg-background', className)}>
       {showBreadcrumb && (
         <div className="view-ink-strip sticky top-0 z-40 isolate">
           <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 h-14 flex items-center">

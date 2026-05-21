@@ -29,10 +29,9 @@ interface KpiTileProps {
   label: string
   icon: React.ElementType
   variant: 'default' | 'urgent' | 'warn' | 'positive'
-  loading: boolean
 }
 
-function KpiTile({ value, label, icon: Icon, variant, loading }: KpiTileProps) {
+function KpiTile({ value, label, icon: Icon, variant }: KpiTileProps) {
   const colors = {
     default: {
       wrap: 'bg-foreground/[0.04]',
@@ -61,20 +60,35 @@ function KpiTile({ value, label, icon: Icon, variant, loading }: KpiTileProps) {
     <div className={`flex flex-col gap-2 rounded-lg p-3.5 ${c.wrap} transition-colors duration-200`}>
       <div className="flex items-center justify-between">
         <Icon className={`h-4 w-4 ${c.icon}`} />
-        {loading ? (
-          <div className="h-6 w-8 animate-pulse rounded bg-muted/50" />
-        ) : (
-          <span className={`text-2xl font-semibold tabular-nums leading-none ${c.value}`}>
-            {value}
-          </span>
-        )}
+        <span className={`text-2xl font-semibold tabular-nums leading-none ${c.value}`}>
+          {value}
+        </span>
       </div>
       <span className="text-xs text-muted-foreground leading-none">{label}</span>
     </div>
   )
 }
 
+function LoadingSkeleton() {
+  return (
+    <div className="overview-card rounded-xl p-6 flex flex-col gap-5">
+      <div className="flex flex-col gap-2">
+        <div className="h-7 w-44 animate-pulse rounded bg-muted/50" />
+        <div className="h-4 w-52 animate-pulse rounded bg-muted/50" />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-[72px] animate-pulse rounded-lg bg-muted/40" />
+        ))}
+      </div>
+      <div className="h-10 animate-pulse rounded-lg bg-muted/30" />
+    </div>
+  )
+}
+
 export function WelcomeCard({ userName, kpis, accumulatedDelayDays, loading }: WelcomeCardProps) {
+  if (loading) return <LoadingSkeleton />
+
   const firstName = userName.split(' ')[0]
   const greeting = getGreeting()
 
@@ -84,39 +98,30 @@ export function WelcomeCard({ userName, kpis, accumulatedDelayDays, loading }: W
         <h2 className="text-xl font-semibold tracking-tight text-foreground">
           {greeting}, {firstName}.
         </h2>
-        {loading ? (
-          <div className="h-4 w-52 animate-pulse rounded bg-muted/50" />
-        ) : (
-          <p className="text-sm text-muted-foreground">{getContextPhrase(kpis)}</p>
-        )}
+        <p className="text-sm text-muted-foreground">{getContextPhrase(kpis)}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <KpiTile value={kpis.open} label="Em aberto" icon={Layers} variant="default" loading={loading} />
-        <KpiTile value={kpis.late} label="Atrasadas" icon={AlertTriangle} variant="urgent" loading={loading} />
-        <KpiTile value={kpis.today} label="Vencem hoje" icon={Clock} variant="warn" loading={loading} />
-        <KpiTile value={kpis.concluded} label="Concluídas" icon={CheckCircle2} variant="positive" loading={loading} />
+        <KpiTile value={kpis.open} label="Em aberto" icon={Layers} variant="default"  />
+        <KpiTile value={kpis.late} label="Atrasadas" icon={AlertTriangle} variant="urgent"  />
+        <KpiTile value={kpis.today} label="Vencem hoje" icon={Clock} variant="warn"  />
+        <KpiTile value={kpis.concluded} label="Concluídas" icon={CheckCircle2} variant="positive"  />
       </div>
 
-      {/* Carga da semana strip */}
       <div className="flex items-center gap-1.5 rounded-lg bg-foreground/[0.03] px-4 py-3 border border-border/40">
         <TrendingUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="text-xs text-muted-foreground">Carga acumulada:</span>
-        {loading ? (
-          <div className="h-3.5 w-16 animate-pulse rounded bg-muted/50" />
-        ) : (
-          <span
-            className={`text-xs font-semibold tabular-nums ${
-              accumulatedDelayDays > 0
-                ? 'text-red-600 dark:text-red-400'
-                : 'text-foreground'
-            }`}
-          >
-            {accumulatedDelayDays > 0
-              ? `${accumulatedDelayDays}d de atraso acumulado`
-              : 'Sem atraso acumulado'}
-          </span>
-        )}
+        <span
+          className={`text-xs font-semibold tabular-nums ${
+            accumulatedDelayDays > 0
+              ? 'text-red-600 dark:text-red-400'
+              : 'text-foreground'
+          }`}
+        >
+          {accumulatedDelayDays > 0
+            ? `${accumulatedDelayDays}d de atraso acumulado`
+            : 'Sem atraso acumulado'}
+        </span>
       </div>
     </div>
   )

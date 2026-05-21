@@ -103,7 +103,15 @@ Bloco lateral (5 cols) exibido ao lado do `FocoDoDia` quando há itens urgentes.
 Bloco condicional no topo (exibido quando há itens com `end <= hoje`). Mostra até 5 subtasks mais urgentes: atrasadas em ordem decrescente de dias de atraso, depois as de hoje. Cada item exibe badge vermelho (`Xd atraso`) ou âmbar (`Hoje`). Não aparece se todas as subtasks são futuras ou o usuário não tem nenhuma.
 
 ### `WelcomeCard`
-Saudação dinâmica por horário + frase contextual baseada nos KPIs + quatro **KPI tiles** em grid 2×2 + strip "Carga acumulada" na base. A strip mostra `accumulatedDelayDays` em vermelho se `> 0`, neutro caso contrário. Skeleton durante `loading`.
+Saudação dinâmica por horário + frase contextual baseada nos KPIs + quatro **KPI tiles** em grid 2×2 + barra de carga acumulada na base. Skeleton durante `loading`.
+
+**Animações (desativadas com `prefers-reduced-motion`):**
+- Greeting/header entra com `blur-fade-in` (blur 8px → 0, 350ms).
+- Cada `KpiTile` entra com `kpi-tile-in` (opacity + translateY + blur) em stagger de 80ms (0 / 80 / 160 / 240ms).
+- O número de cada tile conta de 0 até o valor real via hook `useCountUp` (600ms expo ease-out, synced ao delay do tile).
+- Tiles com variante `urgent` ou `warn` e `value > 0` recebem um sweep de shimmer único na entrada (`kpi-tile--active::after`).
+- Hover em qualquer tile: `scale(1.025)` + sombra elevada (GPU-composited, sem layout shift).
+- A strip de carga acumulada exibe uma barra de progresso proporcional (máx 30d) que anima de `width: 0%` para o valor real em 700ms ease-out. Cor vermelha quando `days > 0`.
 
 ### `PriorityList`
 Subtasks ativas agrupadas por **impacto** (não por urgência de tempo): **Crítico** (atrasadas, label vermelho), **Importante** (vencimento em até 3 dias, label âmbar), **Backlog** (demais, label muted). Cada grupo tem header com dot colorido + contagem. Paginação: 15 itens visíveis, botão "Ver mais" carrega +15. Itens entram com `overview-item-enter` (stagger de 30ms). Empty state com `CheckCircle2`.
@@ -124,6 +132,9 @@ Recebe `notifications` via prop (reutiliza o `useNotifications` subscrito no App
 | `overview-section-label` | Label de seção uppercase (ex: "Seu dia", "Atenção agora") |
 | `overview-group-label` | Label interno dos grupos da PriorityList (Atrasadas / Hoje / Próximas) |
 | `overview-item-enter` | Animação de entrada de item: `translateY(6px) → 0` em 220ms, expo-out. `prefers-reduced-motion` desativa. |
+| `kpi-tile` | Entrada animada dos KPI tiles: opacity + translateY(8px) + blur(4px) → 0, 320ms expo-out, delay via `--tile-delay`. |
+| `kpi-tile--active` | Shimmer sweep único na entrada (pseudo-element `::after`), apenas em tiles urgent/warn com `value > 0`. |
+| `welcome-card-header` | Aplica `blur-fade-in` ao header do WelcomeCard (saudação + frase contextual). |
 
 > `overview-glass`, `late-item`, `@property --late-ring-angle` e `@keyframes late-ring-spin` foram removidos.
 

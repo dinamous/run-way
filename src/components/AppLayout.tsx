@@ -108,7 +108,7 @@ export function AppLayout(props: AppLayoutProps) {
 
           <main
             key={["calendar","timeline","list","demandas","kanban"].includes(view) ? "planning" : view}
-            className="flex-1 overflow-auto animation-[blur-fade-in_300ms_ease-out_forwards]"
+            className="flex-1 h-full overflow-auto animation-[blur-fade-in_300ms_ease-out_forwards]"
           >
             <TooltipProvider>
               <AppRouter />

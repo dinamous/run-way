@@ -53,7 +53,13 @@
       "Bash(node \"c:\\\\Users\\\\dinam\\\\Documents\\\\Projetos\\\\run-way\\\\.claude\\\\skills\\\\impeccable\\\\scripts\\\\load-context.mjs\")",
       "Skill(impeccable)",
       "Skill(impeccable:*)",
-      "Bash(xargs sed -i 's/overview-card /overview-card rounded-xl /g')"
+      "Bash(xargs sed -i 's/overview-card /overview-card rounded-xl /g')",
+      "Bash(where chromium *)",
+      "Bash(where chromium-browser *)",
+      "Bash(where \"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\")",
+      "Read(//c/Program Files/Google/Chrome/Application\" 2>/dev/**)",
+      "Bash(ls \"C:/Program Files/Google/Chrome/Application/\" 2>/dev/null | head -5 || echo \"no chrome there\")",
+      "Read(//c/Program Files/Google/Chrome/Application/**)"
     ]
   },
   "hooks": {
