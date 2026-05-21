@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTasksQuery } from '@/hooks/tasks/useTasksQuery';
 import { useMembersQuery } from '@/hooks/members/useMembersQuery';
 import { useQueryClient } from '@tanstack/react-query';
@@ -42,8 +42,13 @@ const EMPTY_FILTERS: FiltersState = {
   selectedProgressStatuses: [],
   selectedMemberIds: [],
   selectedPeriod: '',
+  dateFrom: '',
+  dateTo: '',
   showOnlyBlocked: false,
   showConcluded: false,
+  sortField: 'priority',
+  sortDirection: 'asc',
+  groupBy: 'none',
 };
 
 
@@ -210,8 +215,79 @@ const hasDemandasActiveFilters =
 
   const showFilterBar = subview === 'calendar' || subview === 'timeline' || subview === 'kanban';
 
-  const content = (
+  const contentRef = useRef<HTMLDivElement>(null);
+  const prevSubview = useRef(subview);
+
+  useEffect(() => {
+    if (prevSubview.current === subview) return;
+    prevSubview.current = subview;
+
+    if (!('startViewTransition' in document)) return;
+    const el = contentRef.current;
+    if (!el) return;
+    el.style.viewTransitionName = 'planning-content';
+    document.startViewTransition(() => {
+      el.style.viewTransitionName = '';
+    });
+  }, [subview]);
+
+  const subviewContent = showFilterBar && filteredTasks.length === 0 ? (
+    <ViewState
+      icon={FilterX}
+      title="Nenhuma demanda com os filtros atuais"
+      description="Limpe os filtros para voltar a ver as demandas deste cliente."
+      actionLabel="Limpar filtros"
+      onAction={clearFilters}
+    />
+  ) : subview === 'calendar' ? (
+    <CalendarView tasks={filteredTasks} onEdit={onEdit} onUpdateTask={onUpdateTask} holidays={holidays} />
+  ) : subview === 'timeline' ? (
+    <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
+  ) : subview === 'kanban' ? (
+    <KanbanView tasks={filteredTasks} members={members} onEdit={onEdit} onUpdateTask={onUpdateTask} />
+  ) : subview === 'list' ? (
+    <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
+  ) : subview === 'demandas' ? (
     <div className="space-y-5">
+      {tasks.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border border-dashed border-border rounded-xl bg-muted/10">
+          <Search className="w-8 h-8 mb-3 text-muted-foreground/50" />
+          <p className="text-sm">Nenhuma demanda cadastrada ainda.</p>
+          <button onClick={onOpenNew} className="mt-3 text-xs text-primary hover:underline">
+            Criar primeira demanda
+          </button>
+        </div>
+      ) : filteredDemandasTasks.length === 0 && hasDemandasActiveFilters ? (
+        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+          <p className="text-sm">Nenhuma demanda encontrada com os filtros atuais.</p>
+          <button
+            onClick={() => setDemandasFilters(EMPTY_FILTERS)}
+            className="mt-2 text-xs text-primary hover:underline"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      ) : (
+        <TaskTable
+          tasks={filteredDemandasTasks}
+          members={members}
+          onToggleBlock={toggleBlock}
+          onConclude={concludeTask}
+          onEdit={onEdit}
+          onReorder={!hasDemandasActiveFilters ? updateTaskPriorityOrder : undefined}
+          onBulkAssign={handleBulkAssign}
+          onBulkBlock={blockTasks}
+          onBulkConclude={concludeTasks}
+          onUpdateSubtaskAssignees={updateSubtaskAssignees}
+          onUpdateSubtaskDates={updateSubtaskDates}
+          onUpdateSubtaskProgressStatus={updateSubtaskProgressStatus}
+        />
+      )}
+    </div>
+  ) : null;
+
+  const content = (
+    <div className="space-y-5 p-4 md:p-6 lg:p-8">
       <PlanningViewHeader
         subview={subview}
         onViewChange={onViewChange}
@@ -225,63 +301,9 @@ const hasDemandasActiveFilters =
         onClearCalendarFilters={() => setCalendarFilters(EMPTY_FILTERS)}
       />
 
-      <div key={subview} className="animation-[blur-fade-in_300ms_ease-out_forwards] space-y-5">
-        {showFilterBar && filteredTasks.length === 0 ? (
-          <ViewState
-            icon={FilterX}
-            title="Nenhuma demanda com os filtros atuais"
-            description="Limpe os filtros para voltar a ver as demandas deste cliente."
-            actionLabel="Limpar filtros"
-            onAction={clearFilters}
-          />
-        ) : subview === 'calendar' ? (
-          <CalendarView tasks={filteredTasks} onEdit={onEdit} onUpdateTask={onUpdateTask} holidays={holidays} />
-        ) : subview === 'timeline' ? (
-          <TimelineView tasks={filteredTasks} members={members} onEdit={onEdit} onDelete={onDelete} onUpdateTask={onUpdateTask} holidays={holidays} />
-        ) : subview === 'kanban' ? (
-          <KanbanView tasks={filteredTasks} members={members} onEdit={onEdit} onUpdateTask={onUpdateTask} />
-        ) : subview === 'list' ? (
-          <ListView onEdit={onEdit} onDelete={(task) => onDelete(task.id)} onOpenNew={onOpenNew} onExport={onExport} />
-        ) : subview === 'demandas' ? (
-          <div className="space-y-5">
-            {tasks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border border-dashed border-border rounded-xl bg-muted/10">
-                <Search className="w-8 h-8 mb-3 text-muted-foreground/50" />
-                <p className="text-sm">Nenhuma demanda cadastrada ainda.</p>
-                <button onClick={onOpenNew} className="mt-3 text-xs text-primary hover:underline">
-                  Criar primeira demanda
-                </button>
-              </div>
-            ) : filteredDemandasTasks.length === 0 && hasDemandasActiveFilters ? (
-              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                <p className="text-sm">Nenhuma demanda encontrada com os filtros atuais.</p>
-                <button
-                  onClick={() => setDemandasFilters(EMPTY_FILTERS)}
-                  className="mt-2 text-xs text-primary hover:underline"
-                >
-                  Limpar filtros
-                </button>
-              </div>
-            ) : (
-              <TaskTable
-                tasks={filteredDemandasTasks}
-                members={members}
-                onToggleBlock={toggleBlock}
-                onConclude={concludeTask}
-                onEdit={onEdit}
-                onReorder={!hasDemandasActiveFilters ? updateTaskPriorityOrder : undefined}
-                onBulkAssign={handleBulkAssign}
-                onBulkBlock={blockTasks}
-                onBulkConclude={concludeTasks}
-                onUpdateSubtaskAssignees={updateSubtaskAssignees}
-                onUpdateSubtaskDates={updateSubtaskDates}
-                onUpdateSubtaskProgressStatus={updateSubtaskProgressStatus}
-              />
-            )}
-          </div>
-        ) : null}
-
-        {subview !== 'demandas' && subview !== 'kanban' && <StepsLegend />}
+      <div ref={contentRef} className="space-y-5 pt-1">
+        {subviewContent}
+        {subview !== 'demandas' && subview !== 'calendar' && subview !== 'kanban' && <StepsLegend />}
       </div>
     </div>
   );

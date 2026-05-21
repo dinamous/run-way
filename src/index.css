@@ -216,3 +216,40 @@
 .view-breadcrumb-current {
   color: var(--text-crumb-current);
 }
+
+/* ── PlanningView — Ambient + Subview Transitions ───────────────── */
+
+.planning-ambient {
+  background-image:
+    radial-gradient(ellipse 80% 35% at 100% 0%, oklch(0.88 0.010 255 / 0.45) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 0% 100%, oklch(0.86 0.008 285 / 0.25) 0%, transparent 65%);
+}
+.dark .planning-ambient {
+  background-image:
+    radial-gradient(ellipse 80% 35% at 100% 0%, oklch(0.22 0.016 255 / 0.5) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 0% 100%, oklch(0.20 0.012 285 / 0.35) 0%, transparent 65%);
+}
+
+/* View transition for subview content swap */
+::view-transition-old(planning-content) {
+  animation: 120ms ease-out both planning-out;
+}
+::view-transition-new(planning-content) {
+  animation: 180ms ease-out both planning-in;
+}
+
+@keyframes planning-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes planning-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(planning-content),
+  ::view-transition-new(planning-content) {
+    animation: none;
+  }
+}

@@ -121,29 +121,44 @@ Os popovers fecham ao clicar fora ou pressionar `Escape` (hook `usePopover`). Re
 - Subtasks sem datas mostram `—` no campo Período
 
 ### TasksFilters
-Barra de filtros do subview `demandas`. Interface `FiltersState`:
+Barra de filtros em três camadas animadas (Framer Motion). Interface `FiltersState`:
 
 ```ts
 {
   searchTerm: string;
-  selectedSteps: SubtaskStatus[];           // categoria/fase
-  selectedProgressStatuses: SubtaskProgressStatus[]; // andamento
+  selectedSteps: SubtaskStatus[];
+  selectedProgressStatuses: SubtaskProgressStatus[];
   selectedMemberIds: string[];
-  selectedPeriod: string;
+  selectedPeriod: string;       // legado — mantido para compatibilidade
+  dateFrom: string;             // YYYY-MM-DD, range personalizado
+  dateTo: string;               // YYYY-MM-DD, range personalizado
   showOnlyBlocked: boolean;
   showConcluded: boolean;
+  sortField: 'priority' | 'deadline' | 'title' | 'created';
+  sortDirection: 'asc' | 'desc';
+  groupBy: 'none' | 'step' | 'status' | 'member';
 }
 ```
+
+**Layout (3 linhas):**
+1. **Busca + Ordenação + Agrupamento** — sempre visíveis. Sort field via `SelectPill`, direção via botão toggle animado, group via `SelectPill`.
+2. **Filtros principais** — Categoria, Status, `DateRangePicker` (popover com inputs `type="date"`), separador, botão "Filtros avançados" (colapsa/expande row 3 com `AnimatePresence`), botão Limpar (aparece só quando há filtros ativos).
+3. **Filtros avançados** (colapsável) — Responsável (`MemberAvatarPicker`), Bloqueadas, Concluídas.
+4. **Chips de filtros ativos** — aparecem/somem com `AnimatePresence mode="popLayout"`; cada chip tem `×` para remoção individual.
+
+Todos os controles têm `h-9` para altura uniforme. `EMPTY_FILTERS` em `PlanningView` inicializa `dateFrom: ''`, `dateTo: ''`, `sortField: 'priority'`, `sortDirection: 'asc'`, `groupBy: 'none'`.
 
 | Filtro | Campo | Implementação |
 |---|---|---|
 | Busca por texto/ID | `searchTerm` | `task.title`, `task.id` e `subtask.title` case-insensitive |
-| Categoria | `selectedSteps: SubtaskStatus[]` | Dropdown — verifica `subtask.status` de **todas** as subtasks |
-| Status | `selectedProgressStatuses: SubtaskProgressStatus[]` | Dropdown — verifica `subtask.progressStatus` de **todas** as subtasks |
-| Responsável | `selectedMemberIds` | `MemberAvatarPicker` — botão exibe avatares empilhados dos selecionados |
-| Período (prazo) | `selectedPeriod` | Tabs "Todos / 7d / 15d / 30d" — compara `end` da subtask ativa com `today + N dias` |
-| Bloqueadas | `showOnlyBlocked` | Toggle — filtra `task.status.blocked === true` |
-| Concluídas | `showConcluded` | Toggle — mostra tarefas com `task.concludedAt` preenchido (default: ocultas) |
+| Categoria | `selectedSteps` | Dropdown checkbox |
+| Status | `selectedProgressStatuses` | Dropdown checkbox |
+| Período (range) | `dateFrom` / `dateTo` | `DateRangePicker` — popover com dois `<input type="date">` |
+| Responsável | `selectedMemberIds` | `MemberAvatarPicker` — avatares empilhados |
+| Bloqueadas | `showOnlyBlocked` | Toggle no painel avançado |
+| Concluídas | `showConcluded` | Toggle no painel avançado |
+| Ordenação | `sortField` + `sortDirection` | `SelectPill` + botão toggle com ícone animado |
+| Agrupamento | `groupBy` | `SelectPill` — a lógica de agrupamento é aplicada pela view consumidora |
 
 O botão **Nova Demanda** fica na row do título (alinhado à direita), não dentro da barra de filtros.
 

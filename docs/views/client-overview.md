@@ -43,7 +43,7 @@ Sem pendências:
 Mobile: stacking vertical (1 col).
 ```
 
-Reutiliza as classes CSS `overview-root`, `overview-ambient`, `overview-card`, `overview-section-label` e `overview-item-enter` da OverviewView.
+O background (`oklch(0.955_0.004_250)` / dark `oklch(0.13_0.008_250)`) e o layer `overview-ambient` agora vivem no `ViewShell` e são aplicados globalmente a todas as views. A própria view não define wrapper de fundo: é apenas um `flex flex-col gap-6` dentro do shell. As classes `overview-card`, `overview-section-label` e `overview-item-enter` seguem disponíveis via `index.css`.
 
 ## `useClientOverviewData`
 
@@ -54,6 +54,22 @@ Recebe `clientId: string | null`. Busca em paralelo via `Promise.all`:
 1. **Info do cliente** — `clients.id, name`
 2. **Tasks do cliente** — `tasks` filtradas por `client_id`, com join em `task_subtasks (id, title, end_date, status) → subtask_assignees → members`
 3. **Membros do cliente** — `user_clients` filtrado por `client_id`, com join em `members (id, name, role, avatar_url, capacity)`
+
+### Cache em memória
+
+O hook mantém dois `Map`s no nível do módulo (compartilhados entre todas as instâncias):
+
+- `cache: Map<clientId, { data, fetchedAt }>` — TTL de **1 minuto**; na remontagem dentro desse janela os dados são aplicados sem nenhum request ao Supabase.
+- `inflight: Map<clientId, Promise<void>>` — deduplicação de fetches simultâneos; se uma requisição já está em andamento para o mesmo `clientId`, o segundo subscriber aguarda a promise e aplica os dados do cache quando ela resolver.
+
+Após qualquer mutação de dados do cliente (salvar task, concluir subtarefa, etc.), chame:
+
+```ts
+import { invalidateClientOverviewCache } from '@/views/client-overview/hooks/useClientOverviewData'
+
+invalidateClientOverviewCache(clientId)   // invalida só esse cliente
+invalidateClientOverviewCache()           // invalida todo o cache
+```
 
 **Retorna `ClientOverviewData`:**
 

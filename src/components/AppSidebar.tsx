@@ -565,12 +565,12 @@ export function AppSidebar() {
           {/* Level 1: strip */}
           {sidebar1}
 
-          {/* Level 2: nav panel */}
+          {/* Level 2: nav panel — absolute so it overlays content without pushing layout */}
           <aside
             className={cn(
-              "h-full bg-card border-r border-border flex flex-col overflow-hidden",
+              "absolute left-[52px] top-0 h-full bg-card border-r border-border flex flex-col overflow-hidden z-20",
               "transition-all duration-200 ease-out",
-              open ? "w-[220px]" : "w-0 border-r-0"
+              open ? "w-[220px] shadow-[2px_0_12px_oklch(0_0_0/0.08)]" : "w-0 border-r-0"
             )}
           >
             {open && sidebar2Content}

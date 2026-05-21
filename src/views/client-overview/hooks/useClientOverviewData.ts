@@ -1,6 +1,21 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
+const CACHE_TTL_MS = 60_000 // 1 min
+
+interface CacheEntry {
+  data: Omit<ClientOverviewData, 'loading' | 'error'>
+  fetchedAt: number
+}
+
+const cache = new Map<string, CacheEntry>()
+const inflight = new Map<string, Promise<void>>()
+
+export function invalidateClientOverviewCache(clientId?: string) {
+  if (clientId) cache.delete(clientId)
+  else cache.clear()
+}
+
 export interface ClientInfo {
   id: string
   name: string
@@ -85,6 +100,25 @@ function calcHealth(lateTasks: number, criticalTasks: number, dueSoonTasks: numb
   return 'healthy'
 }
 
+function applyData(
+  entry: Omit<ClientOverviewData, 'loading' | 'error'>,
+  setClient: (v: ClientInfo | null) => void,
+  setKpis: (v: ClientOverviewKpis) => void,
+  setHealth: (v: ClientHealth) => void,
+  setFocusTasks: (v: ClientTask[]) => void,
+  setTasks: (v: ClientTask[]) => void,
+  setMembers: (v: ClientMember[]) => void,
+  setTimeline: (v: TimelineEntry[]) => void,
+) {
+  setClient(entry.client)
+  setKpis(entry.kpis)
+  setHealth(entry.health)
+  setFocusTasks(entry.focusTasks)
+  setTasks(entry.tasks)
+  setMembers(entry.members)
+  setTimeline(entry.timeline)
+}
+
 export function useClientOverviewData(clientId: string | null): ClientOverviewData {
   const [client, setClient] = useState<ClientInfo | null>(null)
   const [kpis, setKpis] = useState<ClientOverviewKpis>({
@@ -102,10 +136,17 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
   const [timeline, setTimeline] = useState<TimelineEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
   useEffect(() => {
     if (!clientId) {
       setLoading(false)
+      return
+    }
+
+    const cached = cache.get(clientId)
+    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+      applyData(cached.data, setClient, setKpis, setHealth, setFocusTasks, setTasks, setMembers, setTimeline)
+      setLoading(false)
+      setError(null)
       return
     }
 
@@ -276,50 +317,68 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
 
         const healthStatus = calcHealth(lateTasks.length, criticalTasks.length, dueSoonTasks.length)
 
-        if (!cancelled) {
-          setClient({ id: clientResult.data.id, name: clientResult.data.name })
-          setKpis({
+        const allClientMembers = (clientMembersResult.data ?? [])
+          .map((row) => row.members as { id: string; name: string; role: string; avatar_url: string | null; capacity: number } | null)
+          .filter(Boolean) as { id: string; name: string; role: string; avatar_url: string | null; capacity: number }[]
+
+        for (const m of allClientMembers) {
+          if (!memberMap.has(m.id)) {
+            memberMap.set(m.id, {
+              id: m.id,
+              name: m.name,
+              role: m.role,
+              avatarUrl: m.avatar_url,
+              capacity: m.capacity ?? 6,
+              subtaskCount: 0,
+              lateCount: 0,
+            })
+          }
+        }
+
+        const entry: Omit<ClientOverviewData, 'loading' | 'error'> = {
+          client: { id: clientResult.data.id, name: clientResult.data.name },
+          kpis: {
             openTasks: openTasks.length,
             lateTasks: lateTasks.length,
             concludedTasks: concludedTasks.length,
             totalSubtasks,
             lateSubtasks: totalLateSubtasks,
             accumulatedLateDays: totalAccumulatedDays,
-          })
-          setHealth({ status: healthStatus, lateTasks: lateTasks.length, criticalTasks: criticalTasks.length, dueSoonTasks: dueSoonTasks.length })
-          setFocusTasks(focus)
-          setTasks(taskList)
-          const allClientMembers = (clientMembersResult.data ?? [])
-            .map((row) => row.members as { id: string; name: string; role: string; avatar_url: string | null; capacity: number } | null)
-            .filter(Boolean) as { id: string; name: string; role: string; avatar_url: string | null; capacity: number }[]
+          },
+          health: { status: healthStatus, lateTasks: lateTasks.length, criticalTasks: criticalTasks.length, dueSoonTasks: dueSoonTasks.length },
+          focusTasks: focus,
+          tasks: taskList,
+          members: [...memberMap.values()].sort((a, b) => b.subtaskCount - a.subtaskCount),
+          timeline: timelineEntries,
+        }
 
-          for (const m of allClientMembers) {
-            if (!memberMap.has(m.id)) {
-              memberMap.set(m.id, {
-                id: m.id,
-                name: m.name,
-                role: m.role,
-                avatarUrl: m.avatar_url,
-                capacity: m.capacity ?? 6,
-                subtaskCount: 0,
-                lateCount: 0,
-              })
-            }
-          }
-
-          setMembers([...memberMap.values()].sort((a, b) => b.subtaskCount - a.subtaskCount))
-          setTimeline(timelineEntries)
+        if (!cancelled) {
+          cache.set(clientId!, { data: entry, fetchedAt: Date.now() })
+          applyData(entry, setClient, setKpis, setHealth, setFocusTasks, setTasks, setMembers, setTimeline)
         }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Erro ao carregar dados do cliente')
         }
       } finally {
+        inflight.delete(clientId!)
         if (!cancelled) setLoading(false)
       }
     }
 
-    load()
+    if (!inflight.has(clientId)) {
+      inflight.set(clientId, load())
+    } else {
+      inflight.get(clientId)!.then(() => {
+        if (cancelled) return
+        const fresh = cache.get(clientId)
+        if (fresh) {
+          applyData(fresh.data, setClient, setKpis, setHealth, setFocusTasks, setTasks, setMembers, setTimeline)
+          setLoading(false)
+          setError(null)
+        }
+      })
+    }
     return () => { cancelled = true }
   }, [clientId])
 

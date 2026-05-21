@@ -103,7 +103,7 @@ export function AppLayout(props: AppLayoutProps) {
       <div className="flex flex-col h-screen bg-background text-foreground font-sans">
         <AppHeader />
 
-        <div className="flex flex-row flex-1 overflow-hidden">
+        <div className="flex flex-row flex-1 overflow-hidden relative">
           <AppSidebar />
 
           <main

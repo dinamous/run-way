@@ -52,17 +52,7 @@ export function PlanningViewHeader({
   const showCalendarFilters = subview === 'calendar' || subview === 'timeline' || subview === 'kanban';
 
   return (
-    <div className="space-y-5">
-      <Tabs value={subview} onValueChange={v => onViewChange(v as ViewType)}>
-        <TabsList variant="underline" className="w-full justify-end gap-0">
-          {DEMAND_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} variant="underline">
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
+    <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
@@ -75,6 +65,16 @@ export function PlanningViewHeader({
           </Button>
         )}
       </div>
+
+      <Tabs value={subview} onValueChange={v => onViewChange(v as ViewType)}>
+        <TabsList variant="underline" className="w-full justify-end gap-0">
+          {DEMAND_TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value} variant="underline">
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {showDemandasFilters && (
         <TasksFilters
