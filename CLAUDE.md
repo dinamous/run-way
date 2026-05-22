@@ -14,7 +14,11 @@ npm run lint      # ESLint
 
 ## Modelo de Dados
 
-**Task:** `id, title, clickupLink?, status {blocked, blockedAt?}, subtasks: Subtask[], createdAt, concludedAt?, concludedBy?, clientId?`
+**Task:** `id, title, clickupLink?, status {blocked, blockedAt?}, subtasks: Subtask[], createdAt, concludedAt?, concludedBy?, clientId?, expectedHours?, complexity? (TaskComplexity), taskType? (TaskType), dueDate?, startedAt?`
+
+**TaskComplexity (enum):** `baixa` | `media` | `alta` | `avancada` | `extrema`
+
+**TaskType (enum):** `feature` | `bug` | `support` | `meeting`
 
 **Subtask:** `id, title (livre, obrigatório), status (SubtaskStatus), start (YYYY-MM-DD), end (YYYY-MM-DD), assignees (member ids), active, order` — substitui o antigo `Step`. Tabela: `task_subtasks` + `subtask_assignees`.
 

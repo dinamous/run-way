@@ -31,6 +31,11 @@ export const DbTaskRowSchema = z.object({
   concluded_by: z.string().nullable(),
   client_id: z.string().nullable(),
   task_subtasks: z.array(DbSubtaskRowSchema).default([]),
+  expected_hours: z.number().nullable().optional(),
+  complexity: z.enum(['baixa', 'media', 'alta', 'avancada', 'extrema']).nullable().optional(),
+  task_type: z.enum(['feature', 'bug', 'support', 'meeting']).nullable().optional(),
+  due_date: z.string().nullable().optional(),
+  started_at: z.string().nullable().optional(),
 })
 
 export type ValidatedDbTaskRow = z.infer<typeof DbTaskRowSchema>
