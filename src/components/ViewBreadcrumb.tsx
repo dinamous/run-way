@@ -47,11 +47,11 @@ const PARENT_VIEW: Partial<Record<ViewType, ViewType>> = {
   'tools-import': 'tools',
   'tools-export': 'tools',
   'tools-integrations': 'tools',
-  calendar: 'home',
-  timeline: 'home',
+  calendar: 'demandas',
+  timeline: 'demandas',
   list: 'home',
-  demandas: 'home',
-  kanban: 'home',
+  demandas: 'client-overview',
+  kanban: 'demandas',
 }
 
 function buildCrumbs(
@@ -61,11 +61,17 @@ function buildCrumbs(
 ): BreadcrumbItem[] {
   const crumbs: BreadcrumbItem[] = []
 
-  const parent = PARENT_VIEW[view]
-  if (parent) {
+  const ancestors: ViewType[] = []
+  let current: ViewType | undefined = PARENT_VIEW[view]
+  while (current) {
+    ancestors.unshift(current)
+    current = PARENT_VIEW[current]
+  }
+
+  for (const ancestor of ancestors) {
     crumbs.push({
-      label: VIEW_LABELS[parent] ?? parent,
-      onClick: onNavigate ? () => onNavigate(parent) : undefined,
+      label: VIEW_LABELS[ancestor] ?? ancestor,
+      onClick: onNavigate ? () => onNavigate(ancestor) : undefined,
     })
   }
 

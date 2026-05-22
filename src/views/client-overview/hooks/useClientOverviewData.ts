@@ -105,7 +105,7 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
   const [tasks, setTasks] = useState<ClientTask[]>([])
   const [members, setMembers] = useState<ClientMember[]>([])
   const [timeline, setTimeline] = useState<TimelineEntry[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -123,14 +123,21 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
 
     const cached = cache.get(clientId)
     if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+      setError(null)
       applyData(cached.data)
       setLoading(false)
-      setError(null)
       return
     }
 
     setLoading(true)
     setError(null)
+    setClient(null)
+    setTasks([])
+    setMembers([])
+    setTimeline([])
+    setFocusTasks([])
+    setHealth(EMPTY_HEALTH)
+    setKpis(EMPTY_KPIS)
 
     let cancelled = false
 

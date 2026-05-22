@@ -85,10 +85,9 @@ export function useAppOrchestrator() {
   const selectClient = useCallback(
     (clientId: string | null | undefined) => {
       if (!clientId) return;
-      sidebar.openSidebar();
       selectClientWithTransition(clientId);
     },
-    [selectClientWithTransition, sidebar]
+    [selectClientWithTransition]
   );
 
   const handleViewChange = useCallback(
