@@ -221,6 +221,15 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 
 ---
 
+## ADR-026: Modelo de workload orientado a fluxo com estimativas em horas
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** migrar o cálculo de carga de trabalho de contagem simples de subtasks para um modelo baseado em fluxo real. Cinco colunas adicionadas à tabela `tasks`: `expected_hours` (estimativa em horas), `complexity` (enum baixa/media/alta/avancada/extrema), `task_type` (feature/bug/support/meeting), `due_date` (prazo ao cliente) e `started_at` (timestamp da primeira subtask em progresso). Um engine puro (`workloadEngine.ts`) calcula `pressureScore` composto (0–1) combinando load ratio, delay factor, stuck factor e time factor. Planning poker via chips Fibonacci no TaskModal.
+**Racional:** `subtaskCount / capacity` trata uma task de 30min igual a uma travada há semanas. O novo modelo detecta travamento (`ageHours > expectedHours * 1.5`), gera previsão de conclusão via throughput dos últimos 7 dias, e produz insights automáticos por membro. Todos os novos campos são nullable — dados existentes não quebram.
+**Consequências:** `MemberWorkloadMetrics` estendido com `pressureScore`, `stuckTasksCount`, `throughput7dHours`, `estimatedCompletionDate`; `overviewWorkload.ts` reescrito consumindo o engine; UI do `CapacityTeam` atualizada; testes unitários obrigatórios para o engine.
+
+---
+
 ## ADR-025: AppSidebar — tonal stratification, active rail e motion
 
 **Status:** Aceito (Mai 2026)
