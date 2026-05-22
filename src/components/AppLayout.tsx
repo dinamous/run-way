@@ -1,3 +1,4 @@
+import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { AppHeader } from "@/components/AppHeader"
 import { AppSidebar } from "@/components/AppSidebar"
@@ -106,14 +107,17 @@ export function AppLayout(props: AppLayoutProps) {
         <div className="flex flex-row flex-1 overflow-hidden relative">
           <AppSidebar />
 
-          <main
+          <motion.main
             key={["calendar","timeline","list","demandas","kanban"].includes(view) ? "planning" : view}
-            className="flex-1 h-full overflow-auto animation-[blur-fade-in_300ms_ease-out_forwards]"
+            initial={{ opacity: 0, filter: "blur(8px)" }}
+            animate={{ opacity: 1, filter: "blur(0px)" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="flex-1 h-full overflow-auto"
           >
             <TooltipProvider>
               <AppRouter />
             </TooltipProvider>
-          </main>
+          </motion.main>
         </div>
       </div>
     </LayoutContext.Provider>

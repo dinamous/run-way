@@ -1,4 +1,5 @@
 import { Users } from 'lucide-react'
+import { MotionItem } from '@/components/ui'
 import type { ClientMember } from '../hooks/useClientOverviewData'
 
 interface ClientTeamProps {
@@ -169,10 +170,10 @@ export function ClientTeam({ members, loading }: ClientTeamProps) {
             const pillCls = STATUS_PILL[status]
 
             return (
-              <div
+              <MotionItem
                 key={member.id}
-                className="overview-item-enter flex flex-col gap-3 rounded-lg border border-border/60 bg-background/40 p-4"
-                style={{ animationDelay: `${i * 40}ms` }}
+                className="flex flex-col gap-3 rounded-lg border border-border/60 bg-background/40 p-4"
+                delay={i * 40}
               >
                 <div className="flex items-center gap-3">
                   <MemberAvatar member={member} />
@@ -219,7 +220,7 @@ export function ClientTeam({ members, loading }: ClientTeamProps) {
                     status={status}
                   />
                 </div>
-              </div>
+              </MotionItem>
             )
           })}
         </div>

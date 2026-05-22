@@ -1,4 +1,5 @@
 import { Flame } from 'lucide-react'
+import { MotionItem } from '@/components/ui'
 import type { SubtaskRow } from '../hooks/useOverviewData'
 
 interface FocoDoDiaProps {
@@ -106,10 +107,10 @@ export function FocoDoDia({ subtasks, loading }: FocoDoDiaProps) {
           const isHoje = item.priority === 'hoje'
 
           return (
-            <div
+            <MotionItem
               key={item.sub.id}
-              className="overview-item-enter flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors duration-150 hover:bg-foreground/[0.04]"
-              style={{ animationDelay: `${i * 25}ms` }}
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors duration-150 hover:bg-foreground/[0.04]"
+              delay={i * 25}
             >
               <div
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${clientColor(item.sub.clientName)}`}
@@ -136,7 +137,7 @@ export function FocoDoDia({ subtasks, loading }: FocoDoDiaProps) {
                   Hoje
                 </span>
               )}
-            </div>
+            </MotionItem>
           )
         })}
       </div>

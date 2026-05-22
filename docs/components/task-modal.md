@@ -27,7 +27,7 @@ Layout de duas colunas com animação Framer Motion (spring):
 - **Direita (`TaskSidebar`)** — toggles Bloqueada/Concluída, datas condicionais, link ClickUp com botão de abrir
 - **Footer** — botões Apagar / Cancelar / Salvar
 
-Overlay + modal entram com `motion.div` (spring stiffness 280 / damping 28). Subtasks entram/saem com `AnimatePresence`.
+Overlay + modal são `motion.div` (spring stiffness 280 / damping 28) com animação de entrada/saída. O `AnimatePresence` que controla o mount/unmount do modal fica em `AppModals` — não dentro do `TaskModal`. Subtasks entram/saem com `AnimatePresence` interno ao `SubtaskList`.
 
 ## Responsabilidade
 

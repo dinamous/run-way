@@ -1,3 +1,4 @@
+import { motion } from "framer-motion"
 import { LayoutDashboard, LogOut, Sun, Moon, UserCircle } from "lucide-react"
 import {
   DropdownMenu,
@@ -107,13 +108,18 @@ export function ClientPickerLayout({
           </div>
         </aside>
 
-        <main className="flex-1 overflow-auto animation-[blur-fade-in_300ms_ease-out_forwards] p-0">
+        <motion.main
+          initial={{ opacity: 0, filter: "blur(8px)" }}
+          animate={{ opacity: 1, filter: "blur(0px)" }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="flex-1 overflow-auto p-0"
+        >
           <ClientPickerView
             userName={userName}
             clients={clients}
             onSelectClient={onSelectClient}
           />
-        </main>
+        </motion.main>
       </div>
 
     </div>

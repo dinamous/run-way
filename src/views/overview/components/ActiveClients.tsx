@@ -1,3 +1,4 @@
+import { MotionItem } from '@/components/ui'
 import type { ClientSummary } from '../hooks/useOverviewData'
 
 interface ActiveClientsProps {
@@ -96,12 +97,11 @@ export function ActiveClients({ clients, loading, onSelectClient }: ActiveClient
       ) : (
         <div className="flex flex-col gap-0.5">
           {visible.map((client, i) => (
-            <button
-              key={client.id}
-              onClick={() => onSelectClient(client.id)}
-              className="overview-item-enter flex items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors duration-150 hover:bg-foreground/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              style={{ animationDelay: `${i * 40}ms` }}
-            >
+            <MotionItem key={client.id} delay={i * 40}>
+              <button
+                onClick={() => onSelectClient(client.id)}
+                className="w-full flex items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors duration-150 hover:bg-foreground/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
               <div
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${clientColor(client.name)}`}
               >
@@ -122,7 +122,8 @@ export function ActiveClients({ clients, loading, onSelectClient }: ActiveClient
                 </p>
               </div>
               <RiskDot risk={client.risk} />
-            </button>
+              </button>
+            </MotionItem>
           ))}
         </div>
       )}

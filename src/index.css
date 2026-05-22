@@ -136,19 +136,6 @@
   --color-text-crumb-current: var(--text-crumb-current);
 }
 
-@keyframes blur-fade-in {
-  from {
-    opacity: 0;
-    filter: blur(8px);
-  }
-  to {
-    opacity: 1;
-    filter: blur(0);
-  }
-}
-
-
-
 /* ── Overview ──────────────────────────────────────────────────── */
 
 /* Single subtle gradient — just a hint of depth, no noise */
@@ -173,25 +160,6 @@
 }
 .dark .overview-card {
   box-shadow: 0 1px 3px oklch(0 0 0 / 0.25), 0 2px 8px oklch(0 0 0 / 0.15);
-}
-
-/* Staggered fade-in for list items */
-@keyframes item-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.overview-item-enter {
-  animation: item-in 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  opacity: 0;
-}
-
-
-@media (prefers-reduced-motion: reduce) {
-  .overview-item-enter {
-    animation: none;
-    opacity: 1;
-  }
 }
 
 /* ── AppHeader ──────────────────────────────────────────────────── */
@@ -315,3 +283,4 @@
     animation: none;
   }
 }
+

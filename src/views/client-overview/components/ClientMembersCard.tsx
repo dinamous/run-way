@@ -1,4 +1,5 @@
 import { Users } from 'lucide-react'
+import { MotionItem } from '@/components/ui'
 import type { ClientMember } from '../hooks/useClientOverviewData'
 
 interface ClientMembersCardProps {
@@ -68,10 +69,10 @@ export function ClientMembersCard({ members, loading }: ClientMembersCardProps) 
       ) : (
         <div className="flex flex-col gap-0.5">
           {members.map((member, i) => (
-            <div
+            <MotionItem
               key={member.id}
-              className="overview-item-enter flex items-center gap-2.5 rounded-lg px-2 py-1.5"
-              style={{ animationDelay: `${i * 30}ms` }}
+              className="flex items-center gap-2.5 rounded-lg px-2 py-1.5"
+              delay={i * 30}
             >
               <MemberAvatar member={member} />
               <div className="min-w-0 flex-1">
@@ -83,7 +84,7 @@ export function ClientMembersCard({ members, loading }: ClientMembersCardProps) 
               <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                 {member.subtaskCount} {member.subtaskCount === 1 ? 'subtarefa' : 'subtarefas'}
               </span>
-            </div>
+            </MotionItem>
           ))}
         </div>
       )}

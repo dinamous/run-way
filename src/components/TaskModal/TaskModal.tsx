@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
+import { motion, useSpring, useTransform } from 'framer-motion';
 import {
   X, MoreHorizontal, CheckSquare, Plus, ChevronRight, FileText, Calendar,
   Users, AlertCircle, CheckCircle2, Link as LinkIcon, CircleDot,
@@ -79,6 +79,11 @@ function TeamStack({ members }: { members: Member[] }) {
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClose, onSave, onDelete, holidays }) => {
+  const [isExiting, setIsExiting] = React.useState(false);
+
+  const triggerClose = React.useCallback(() => setIsExiting(true), []);
+  const handleExitComplete = () => onClose();
+
   const { effectiveClientId } = useClients();
   const { data: storeMembers = [] } = useMembersQuery(effectiveClientId);
   const resolvedMembers = storeMembers.length > 0 ? storeMembers : propMembers;
@@ -103,7 +108,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
   const { isDirty, submitting, withSubmit } = useFormState(formSnapshot, !task, title.length >= 3);
 
   const handleRequestClose = () => {
-    if (!isDirty) { onClose(); return; }
+    if (!isDirty) { triggerClose(); return; }
     setShowDirtyCloseConfirm(true);
   };
 
@@ -191,23 +196,21 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
 
   return (
     <>
-      <AnimatePresence>
-        <motion.div
+      <motion.div
+          animate={isExiting ? { opacity: 0 } : { opacity: 1 }}
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
+          onAnimationComplete={() => { if (isExiting) handleExitComplete(); }}
           onClick={handleRequestClose}
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px]"
+          className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-[6px]"
         />
 
         <motion.div
+          animate={isExiting ? { opacity: 0, scale: 0.97, y: 8 } : { opacity: 1, scale: 1, y: 0 }}
           initial={{ opacity: 0, scale: 0.97, y: 8 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.97, y: 8 }}
           transition={{ type: 'spring', stiffness: 280, damping: 28, mass: 0.9 }}
           onClick={e => e.stopPropagation()}
-          className="fixed z-50 inset-3 sm:inset-6 md:inset-[4vh_auto] md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-6xl md:max-h-[92vh] bg-card border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden"
+          className="fixed z-[90] inset-3 sm:inset-6 md:inset-[4vh_auto] md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-6xl md:max-h-[92vh] bg-card border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden"
           style={{ transformOrigin: 'center center' }}
         >
           {/* Header */}
@@ -419,12 +422,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
               message="Você tem alterações não guardadas. Tem certeza que quer fechar?"
               confirmLabel="Descartar e fechar"
               cancelLabel="Continuar editando"
-              onConfirm={() => { setShowDirtyCloseConfirm(false); onClose(); }}
+              onConfirm={() => { setShowDirtyCloseConfirm(false); triggerClose(); }}
               onCancel={() => setShowDirtyCloseConfirm(false)}
             />
           )}
         </motion.div>
-      </AnimatePresence>
     </>
   );
 };

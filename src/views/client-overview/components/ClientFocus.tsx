@@ -1,4 +1,5 @@
 import { Flame, ExternalLink } from 'lucide-react'
+import { MotionItem } from '@/components/ui'
 import type { ClientTask } from '../hooks/useClientOverviewData'
 
 interface ClientFocusProps {
@@ -11,9 +12,9 @@ function FocusItem({ task, index }: { task: ClientTask; index: number }) {
   const isImportant = task.priority === 'important'
 
   return (
-    <div
-      className="overview-item-enter flex items-center gap-3 py-2.5 border-b border-border/30 last:border-0"
-      style={{ animationDelay: `${index * 30}ms` }}
+    <MotionItem
+      className="flex items-center gap-3 py-2.5 border-b border-border/30 last:border-0"
+      delay={index * 30}
     >
       <div className={`h-2 w-2 shrink-0 rounded-full ${isCritical ? 'bg-red-500' : isImportant ? 'bg-amber-500' : 'bg-muted-foreground/30'}`} />
 
@@ -48,7 +49,7 @@ function FocusItem({ task, index }: { task: ClientTask; index: number }) {
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
       )}
-    </div>
+    </MotionItem>
   )
 }
 

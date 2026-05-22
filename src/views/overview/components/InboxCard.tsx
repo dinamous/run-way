@@ -9,6 +9,7 @@ import {
   Megaphone,
   CheckCircle2,
 } from 'lucide-react'
+import { MotionItem } from '@/components/ui'
 import type { Notification, NotificationType } from '@/types/notification'
 
 interface InboxCardProps {
@@ -96,11 +97,10 @@ export function InboxCard({ notifications, loading, onMarkAsRead }: InboxCardPro
           {unread.map((n, i) => {
             const Icon = TYPE_ICONS[n.type] ?? Bell
             return (
+              <MotionItem key={n.id} delay={i * 35}>
               <button
-                key={n.id}
                 onClick={() => onMarkAsRead(n.id)}
-                className="overview-item-enter group flex items-start gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors duration-150 hover:bg-foreground/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                style={{ animationDelay: `${i * 35}ms` }}
+                className="w-full group flex items-start gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors duration-150 hover:bg-foreground/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-foreground/[0.06] transition-colors duration-150 group-hover:bg-foreground/[0.10]">
                   <Icon className="h-3.5 w-3.5 text-muted-foreground" />
@@ -117,6 +117,7 @@ export function InboxCard({ notifications, loading, onMarkAsRead }: InboxCardPro
                   {formatTime(n.created_at)}
                 </span>
               </button>
+              </MotionItem>
             )
           })}
         </div>

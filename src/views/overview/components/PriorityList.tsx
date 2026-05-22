@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CheckCircle2 } from 'lucide-react'
-import { Badge } from '@/components/ui'
+import { Badge, MotionItem } from '@/components/ui'
 import type { SubtaskRow } from '../hooks/useOverviewData'
 
 interface PriorityListProps {
@@ -105,9 +105,9 @@ function SubtaskRowItem({ sub, impact, index }: SubtaskRowItemProps) {
   const meta = GROUP_META[impact]
 
   return (
-    <div
-      className="overview-item-enter flex items-center gap-3 py-2.5 border-b border-border/30 last:border-0"
-      style={{ animationDelay: `${index * 30}ms` }}
+    <MotionItem
+      className="flex items-center gap-3 py-2.5 border-b border-border/30 last:border-0"
+      delay={index * 30}
     >
       {impact === 'critico' && (
         <span className={`flex h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot} ml-0.5`} aria-hidden="true" />
@@ -132,7 +132,7 @@ function SubtaskRowItem({ sub, impact, index }: SubtaskRowItemProps) {
       >
         {deadlineLabel(sub.end)}
       </span>
-    </div>
+    </MotionItem>
   )
 }
 

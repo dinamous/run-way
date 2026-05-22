@@ -1,4 +1,5 @@
 import { ExternalLink, CheckCircle2, GitBranch } from 'lucide-react'
+import { MotionItem } from '@/components/ui'
 import type { ClientTask } from '../hooks/useClientOverviewData'
 
 interface ClientTaskListProps {
@@ -13,9 +14,9 @@ function TaskRow({ task, index }: { task: ClientTask; index: number }) {
   const haslate = task.lateSubtaskCount > 0
 
   return (
-    <div
-      className="overview-item-enter flex items-center gap-3 py-2.5 border-b border-border/30 last:border-0"
-      style={{ animationDelay: `${index * 25}ms` }}
+    <MotionItem
+      className="flex items-center gap-3 py-2.5 border-b border-border/30 last:border-0"
+      delay={index * 25}
     >
       <CheckCircle2
         className={`h-4 w-4 shrink-0 ${isOpen ? 'text-muted-foreground/40' : 'text-emerald-500 dark:text-emerald-400'}`}
@@ -60,7 +61,7 @@ function TaskRow({ task, index }: { task: ClientTask; index: number }) {
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
       )}
-    </div>
+    </MotionItem>
   )
 }
 
