@@ -74,6 +74,10 @@
     scrollbar-width: thin;
   }
 
+  button, [role="button"], a, label[for], select, [tabindex]:not([tabindex="-1"]) {
+    cursor: pointer;
+  }
+
   *::-webkit-scrollbar {
     width: 8px;
     height: 8px;

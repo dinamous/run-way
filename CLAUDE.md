@@ -50,6 +50,7 @@ npm run lint      # ESLint
 - **Migrations:** toda alteração de schema no Supabase requer um arquivo SQL em `supabase/migrations/`. Nomenclatura: `YYYYMMDD<seq>_<descricao>.sql` — seq começa em `000000`; se houver mais de uma migration no mesmo dia, incrementar a seq (`000001`, `000002`, …). Nunca alterar migrations já aplicadas.
 - **ADRs:** toda decisão arquitetural aceita (nova feature, mudança de stack, padrão novo) deve ser registrada em `docs/decisions.md` com status, decisão, racional e consequências. Usar o próximo número sequencial disponível.
 - **Animações:** usar exclusivamente `framer-motion` (`motion.*`, `AnimatePresence`). Proibido `@keyframes` + `animation:` no CSS para animações de componentes — `index.css` reservado a tokens, pseudo-elementos, View Transitions API e scrollbar styling. Para listas com stagger usar `<MotionItem delay={i * 30}>` de `@/components/ui`.
+- **Cursor pointer:** todo elemento clicável (`button`, `[role="button"]`, `a`, `select`) deve exibir `cursor: pointer`. A regra global está em `src/index.css` (`@layer base`). Em componentes Tailwind adicionar `cursor-pointer` quando necessário para garantir contra overrides.
 
 ## CI/CD (.github/workflows/)
 

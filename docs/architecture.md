@@ -223,7 +223,7 @@ Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de aut
 4. Cada view ao montar lê tasks/members dos stores (já em loading ou com cache)
 ```
 
-**Chave:** `App.tsx` usa `AuthContext.clients` diretamente (não `useUserClients`). `useUserClients` existe apenas em `UserClientsView` para `linkToClient`/`unlinkFromClient`.
+**Chave:** `App.tsx` usa `AuthContext.clients` diretamente. `UserClientsView` recebe `client`, `isAdmin` e `onViewChange` via props do `AppRouter`, e busca dados do cliente com `useTasksQuery` + `useMembersQuery` diretamente — funciona como dashboard de resumo/navegação, não como lista de clientes.
 
 ## Leitura do clientSlug na URL
 

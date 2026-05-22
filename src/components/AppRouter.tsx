@@ -106,7 +106,11 @@ export function AppRouter() {
 
       {view === "clients" && (
         <ViewShell>
-          <UserClientsView client={selectedClient ?? null} />
+          <UserClientsView
+            client={selectedClient ?? null}
+            isAdmin={isAdmin}
+            onViewChange={onViewChange}
+          />
         </ViewShell>
       )}
 

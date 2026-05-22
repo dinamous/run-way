@@ -29,7 +29,7 @@ const VIEW_LABELS: Partial<Record<ViewType, string>> = {
   'reports-membros': 'Membros',
   'reports-alertas': 'Alertas',
   admin: 'Admin',
-  clients: 'Clientes',
+  clients: 'Informaçoes do Cliente',
   tools: 'Ferramentas',
   'tools-briefing-analyzer': 'Analisador de Briefing',
   'tools-import': 'Importar',

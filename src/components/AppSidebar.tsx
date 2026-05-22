@@ -75,7 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operações",
     items: [
-      { label: "Clientes", Icon: Briefcase, view: "clients", requiresClient: true },
+      { label: "Cliente", Icon: Briefcase, view: "clients", requiresClient: true },
       // {
       //   label: "Ferramentas",
       //   Icon: Zap,
