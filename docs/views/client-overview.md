@@ -9,7 +9,9 @@ src/views/client-overview/
 ├── index.ts
 ├── ClientOverviewView.tsx
 ├── hooks/
-│   └── useClientOverviewData.ts
+│   ├── useClientOverviewData.ts       # hook: cache + estado + orquestração
+│   ├── clientOverviewService.ts       # queries Supabase (fetchClientOverviewRaw)
+│   └── clientOverviewTransformers.ts  # funções puras de transformação (testáveis)
 └── components/
     ├── ClientOverviewHeader.tsx
     ├── ClientHealth.tsx
@@ -47,7 +49,23 @@ A view gerencia seu próprio layout interno: background (`oklch(0.955_0.004_250)
 
 ## `useClientOverviewData`
 
-**Arquivo:** `src/views/client-overview/hooks/useClientOverviewData.ts`
+**Arquivos:**
+- `src/views/client-overview/hooks/useClientOverviewData.ts` — hook React: gerencia estado, cache e orquestra o fetch
+- `src/views/client-overview/hooks/clientOverviewTransformers.ts` — funções puras de transformação extraídas do hook; sem dependências React, totalmente testáveis com Vitest
+
+O hook é responsável apenas por estado + cache + fetch. Toda a lógica de parsing e derivação fica nos transformers:
+
+| Função | Responsabilidade |
+|---|---|
+| `parseSubtask` | Converte `RawSubtask` → `ClientSubtask`; trata `end_date` nulo e `capacity ≤ 0` |
+| `calcAccumulatedLateDays` | Soma dias de atraso por subtarefa |
+| `calcTaskPriority` | Deriva `critical \| important \| backlog` |
+| `buildTaskList` | Itera tasks brutas, monta `ClientTask[]` e acumula `memberMap` |
+| `mergeClientMembers` | Funde membros de `user_clients` no `memberMap` e ordena por carga |
+| `buildTimeline` | Filtra subtarefas abertas com `end_date ≤ hoje+7d` |
+| `buildFocusTasks` | Top 5 tasks abertas ordenadas por prioridade e atraso |
+| `calcKpis` | Agrega `ClientOverviewKpis` a partir de `taskList` |
+| `buildHealth` | Deriva `ClientHealth` (status + contagens) a partir das tasks abertas |
 
 Recebe `clientId: string | null`. Busca em paralelo via `Promise.all`:
 
@@ -55,12 +73,19 @@ Recebe `clientId: string | null`. Busca em paralelo via `Promise.all`:
 2. **Tasks do cliente** — `tasks` filtradas por `client_id`, com join em `task_subtasks (id, title, end_date, status) → subtask_assignees → members`
 3. **Membros do cliente** — `user_clients` filtrado por `client_id`, com join em `members (id, name, role, avatar_url, capacity)`
 
+### Reset ao trocar de cliente
+
+Quando `clientId` muda (ou passa a ser `null`), o hook faz reset imediato de todos os estados locais (dados zerados, `loading: true`) **antes** de iniciar o fetch. Isso evita que os dados do cliente anterior permaneçam visíveis durante a transição.
+
 ### Cache em memória
 
-O hook mantém dois `Map`s no nível do módulo (compartilhados entre todas as instâncias):
+O hook mantém um `Map` no nível do módulo (compartilhado entre todas as instâncias):
 
 - `cache: Map<clientId, { data, fetchedAt }>` — TTL de **1 minuto**; na remontagem dentro desse janela os dados são aplicados sem nenhum request ao Supabase.
-- `inflight: Map<clientId, Promise<void>>` — deduplicação de fetches simultâneos; se uma requisição já está em andamento para o mesmo `clientId`, o segundo subscriber aguarda a promise e aplica os dados do cache quando ela resolver.
+
+Cada execução do `useEffect` chama `load()` diretamente e declara `let cancelled = false`. O cleanup do efeito seta `cancelled = true`, descartando resultados de fetches de efeitos anteriores (ex: cliente trocado antes do fetch terminar). Isso substitui o antigo `inflight` Map, que tinha uma race condition onde a promise podia resolver antes do `.then()` ser registrado, deixando `loading` preso em `true`.
+
+O `loading: true` é sinalizado imediatamente ao entrar no efeito (antes do fetch), garantindo feedback visual correto tanto na visita inicial quanto na troca de cliente.
 
 Após qualquer mutação de dados do cliente (salvar task, concluir subtarefa, etc.), chame:
 
