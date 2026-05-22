@@ -27,7 +27,7 @@
   1. Tokens de design (variáveis CSS `--*`) em `@layer base` e `@theme inline`
   2. `@keyframes` e classes de animação que dependem deles (ex: `.overview-item-enter`). Animações simples usam `animation-[nome_duração_easing_forwards]` inline via Tailwind arbitrary values (ex: `animation-[blur-fade-in_300ms_ease-out_forwards]`)
   3. Pseudo-elementos (`::after`/`::before`) com hover/transition que Tailwind não consegue expressar (ex: `.view-breadcrumb-ancestor::after`)
-  4. Classes com `radial-gradient` ou valores `oklch` precisos fora dos tokens mapeados (ex: `.overview-ambient`, `.view-ink-strip`, `.overview-card`). Dentro dessas classes, **todas as propriedades expressáveis em Tailwind** (position, inset, z-index, border-radius, pointer-events, etc.) devem ser movidas para o elemento via `className` — o CSS guarda só o que não tem equivalente Tailwind
+  4. Classes com `radial-gradient` ou valores `oklch` precisos fora dos tokens mapeados (ex: `.overview-ambient`, `.view-ink-strip`, `.overview-card`, `.app-header`, `.app-header-logo-box`, `.app-header-wordmark`). Dentro dessas classes, **todas as propriedades expressáveis em Tailwind** (position, inset, z-index, border-radius, pointer-events, etc.) devem ser movidas para o elemento via `className` — o CSS guarda só o que não tem equivalente Tailwind
   5. `@media (prefers-reduced-motion)` aplicado a keyframes globais
 - Nunca adicionar CSS global para estilos que são expressáveis com classes Tailwind (cores, spacing, typography, flex, grid, shadow, border, etc.)
 - Valores `oklch` hardcoded no CSS devem ser promovidos a tokens em `:root`/`.dark` e mapeados no `@theme inline` — use `var(--*)` no corpo das classes, não oklch inline. Exceção: gradientes com alfa variável (`oklch(... / 0.5)`) e sombras pretas/brancas puras sem semântica de token
@@ -38,7 +38,7 @@ Além dos tokens base do design system, existem tokens de superfície com matiz 
 
 | Token | Classe Tailwind | Uso |
 |---|---|---|
-| `--surface-tinted` | `bg-surface-tinted` | Background do ink strip (ViewShell) |
+| `--surface-tinted` | `bg-surface-tinted` | Background do AppHeader e do ink strip (ViewShell) — superfície contínua |
 | `--surface-tinted-card` | `bg-surface-tinted-card` | Background dos overview cards |
 | `--border-tinted` | `border-border-tinted` | Borda dos overview cards |
 | `--border-strip` | — | Sombra/borda inferior do ink strip (só via CSS) |

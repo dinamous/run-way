@@ -70,7 +70,7 @@ export function AppRouter() {
   return (
     <Suspense fallback={<ViewSkeleton />}>
       {(view === "home" || !view) && !selectedClient && (
-        <ViewShell viewOverride="home" noPadding>
+        <ViewShell viewOverride="home" >
           <OverviewView
             userName={displayName}
             userId={userId}
@@ -87,13 +87,13 @@ export function AppRouter() {
       )}
 
       {view === "home" && selectedClient && (
-        <ViewShell viewOverride="home" noPadding>
+        <ViewShell viewOverride="home" >
           <ClientOverviewView clientId={effectiveClientId ?? null} />
         </ViewShell>
       )}
 
       {view === "client-overview" && (
-        <ViewShell noPadding>
+        <ViewShell >
           <ClientOverviewView clientId={effectiveClientId ?? null} />
         </ViewShell>
       )}
@@ -111,7 +111,7 @@ export function AppRouter() {
       )}
 
       {PLANNING_VIEWS.has(view) && (
-        <ViewShell noPadding>
+        <ViewShell>
           <PlanningView
             subview={view as PlanningSubview}
             onViewChange={onViewChange}
@@ -132,7 +132,7 @@ export function AppRouter() {
       )}
 
       {view === "members" && (
-        <ViewShell noPadding>
+        <ViewShell >
           <MembersView />
         </ViewShell>
       )}

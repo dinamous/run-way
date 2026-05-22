@@ -25,12 +25,12 @@ export function ViewShell({ children, subview, viewOverride, noPadding, classNam
   const showBreadcrumb = !NO_BREADCRUMB.has(activeView)
 
   return (
-    <div className={cn('flex flex-col h-full bg-[oklch(0.955_0.004_250)] dark:bg-[oklch(0.13_0.008_250)] relative', className)}>
+    <div className={cn('flex flex-col min-h-full bg-surface-tinted relative', className)}>
       <div className="overview-ambient absolute inset-0 pointer-events-none" aria-hidden="true" />
 
       {showBreadcrumb && (
-        <div className="view-ink-strip sticky top-0 z-40 isolate">
-          <div className="max-w-screen-xl mx-auto w-full px-4 md:px-6 lg:px-8 h-14 flex items-center">
+        <div className="view-ink-strip bg-surface-tinted sticky top-0 z-40 isolate shadow-[0_1px_0_var(--border-strip)]">
+          <div className="w-full md:pl-[90px] px-4 md:pr-6 lg:pr-8 h-14 flex items-center">
             <ViewBreadcrumb
               view={activeView}
               clientName={selectedClient?.name}
@@ -41,7 +41,7 @@ export function ViewShell({ children, subview, viewOverride, noPadding, classNam
         </div>
       )}
 
-      <div className={cn('relative z-10 flex-1 max-w-screen-xl mx-auto w-full', !noPadding && 'p-4 md:p-6 lg:p-8')}>
+      <div className={cn('relative z-10 flex-1 w-full', !noPadding && 'p-4 md:pl-[90px] md:pr-6 md:py-6 lg:pr-8 lg:py-8')}>
         {children}
       </div>
     </div>

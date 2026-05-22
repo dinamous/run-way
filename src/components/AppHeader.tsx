@@ -20,7 +20,7 @@ export function AppHeader() {
   } } = useLayoutContext()
 
   return (
-    <header className="bg-neutral-100 dark:bg-neutral-950 border-b border-border sticky top-0 z-10 print:hidden">
+    <header className="app-header bg-surface-tinted sticky top-0 z-10 border-b border-border-strip print:hidden">
       <div className="px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
@@ -30,11 +30,11 @@ export function AppHeader() {
           >
             <Menu className="w-4 h-4" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="bg-black dark:bg-white p-2 rounded-lg">
+          <div className="app-header-logo-group flex items-center gap-2">
+            <div className="app-header-logo-box bg-black dark:bg-white p-2 rounded-lg">
               <LayoutDashboard className="w-5 h-5 text-white dark:text-black" />
             </div>
-            <h1 className="text-xl text-foreground hidden sm:block" style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>
+            <h1 className="app-header-wordmark text-xl text-foreground hidden sm:block" style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>
               Run/Way
             </h1>
           </div>

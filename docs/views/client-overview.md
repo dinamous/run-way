@@ -43,7 +43,7 @@ Sem pendências:
 Mobile: stacking vertical (1 col).
 ```
 
-O background (`oklch(0.955_0.004_250)` / dark `oklch(0.13_0.008_250)`) e o layer `overview-ambient` agora vivem no `ViewShell` e são aplicados globalmente a todas as views. A própria view não define wrapper de fundo: é apenas um `flex flex-col gap-6` dentro do shell. As classes `overview-card`, `overview-section-label` e `overview-item-enter` seguem disponíveis via `index.css`.
+A view gerencia seu próprio layout interno: background (`oklch(0.955_0.004_250)` / dark `oklch(0.13_0.008_250)`), layer `overview-ambient` e padding (`p-4 md:p-6 lg:p-8`), seguindo o mesmo padrão do `MembersView`. O `ViewShell` é invocado com `noPadding` e cuida apenas do breadcrumb. As classes `overview-card`, `overview-section-label` e `overview-item-enter` seguem disponíveis via `index.css`.
 
 ## `useClientOverviewData`
 

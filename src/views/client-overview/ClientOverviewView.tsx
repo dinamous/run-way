@@ -1,5 +1,4 @@
 import { useClientOverviewData } from './hooks/useClientOverviewData'
-import { ClientOverviewHeader } from './components/ClientOverviewHeader'
 import { ClientHealth } from './components/ClientHealth'
 import { ClientFocus } from './components/ClientFocus'
 import { ClientMetrics } from './components/ClientMetrics'
@@ -16,8 +15,6 @@ export function ClientOverviewView({ clientId }: ClientOverviewViewProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <ClientOverviewHeader client={data.client} loading={data.loading} />
-
       <ClientMetrics kpis={data.kpis} loading={data.loading} />
 
       {(() => {

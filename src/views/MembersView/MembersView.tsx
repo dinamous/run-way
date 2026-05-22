@@ -100,17 +100,8 @@ const MembersView: React.FC = () => {
     return () => ro.disconnect();
   }, [computeLines]);
 
-  const shell = (content: React.ReactNode) => (
-    <div className="bg-[oklch(0.955_0.004_250)] dark:bg-[oklch(0.13_0.008_250)] relative min-h-full">
-      <div className="overview-ambient absolute inset-0 pointer-events-none" aria-hidden="true" />
-      <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-screen-xl mx-auto flex flex-col gap-6">
-        {content}
-      </div>
-    </div>
-  );
-
   if (isLoading) {
-    return shell(
+    return (
       <div className="space-y-5">
         <div>
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">Membros</h2>
@@ -124,7 +115,7 @@ const MembersView: React.FC = () => {
   }
 
   if (activeMembers.length === 0) {
-    return shell(
+    return (
       <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground">
         <UserCircle2 className="w-12 h-12 mb-2 opacity-50" />
         <p>Nenhum membro encontrado.</p>
@@ -135,7 +126,7 @@ const MembersView: React.FC = () => {
   const lineLength = (l: LineSegment) =>
     Math.sqrt(Math.pow(l.x2 - l.x1, 2) + Math.pow(l.y2 - l.y1, 2));
 
-  return shell(
+  return (
     <div className="space-y-5">
       <div>
         <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">Membros</h2>

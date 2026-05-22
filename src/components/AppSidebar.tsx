@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react"
+import { motion, AnimatePresence, useSpring } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import {
   Users,
@@ -8,7 +9,6 @@ import {
   Briefcase,
   Settings,
   LogOut,
-  Zap,
   CalendarRange,
   UserCircle,
   Plus,
@@ -56,7 +56,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { label: "Visão Geral", Icon: LayoutGrid, view: "client-overview", requiresClient: true },
-      { label: "Planejamento", Icon: CalendarRange, view: "demandas", requiresClient: true },
+      { label: "Demandas", Icon: CalendarRange, view: "demandas", requiresClient: true },
       { label: "Membros", Icon: Users, view: "members", requiresClient: true },
       {
         label: "Relatórios",
@@ -76,17 +76,17 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Operações",
     items: [
       { label: "Clientes", Icon: Briefcase, view: "clients", requiresClient: true },
-      {
-        label: "Ferramentas",
-        Icon: Zap,
-        requiresClient: true,
-        children: [
-          { view: "tools-briefing-analyzer", label: "Analisador de Briefing" },
-          { view: "tools-import", label: "Importação" },
-          { view: "tools-export", label: "Exportação" },
-          { view: "tools-integrations", label: "Integrações" },
-        ],
-      },
+      // {
+      //   label: "Ferramentas",
+      //   Icon: Zap,
+      //   requiresClient: true,
+      //   children: [
+      //     { view: "tools-briefing-analyzer", label: "Analisador de Briefing" },
+      //     { view: "tools-import", label: "Importação" },
+      //     { view: "tools-export", label: "Exportação" },
+      //     { view: "tools-integrations", label: "Integrações" },
+      //   ],
+      // },
     ],
   },
   {
@@ -181,7 +181,60 @@ export function AppSidebar() {
   const reducedMotion = usePrefersReducedMotion()
   const [helpOpen, setHelpOpen] = useState(false)
   const prevOpenRef = useRef(open)
+  const desktopSidebarRef = useRef<HTMLDivElement>(null)
   const [panelJustOpened, setPanelJustOpened] = useState(false)
+
+  /* ── Morph toggle tab ────────────────────────────────────────── */
+  const springY = useSpring(0, { stiffness: 180, damping: 24, mass: 0.6 })
+  const springOpacity = useSpring(0, { stiffness: 160, damping: 20, mass: 0.5 })
+  const springExtraScale = useSpring(1, { stiffness: 200, damping: 22, mass: 0.5 })
+
+  useEffect(() => {
+    if (reducedMotion) return
+    const sidebar2El = desktopSidebarRef.current
+    if (!sidebar2El) return
+
+    const PROXIMITY_ZONE = 140
+    let rafId: number | null = null
+    let lastX = 0
+    let lastY = 0
+
+    const onMove = (e: MouseEvent) => {
+      lastX = e.clientX
+      lastY = e.clientY
+      if (rafId !== null) return
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        const rect = sidebar2El.getBoundingClientRect()
+        const inVertical = lastY >= rect.top && lastY <= rect.bottom
+
+        if (inVertical) {
+          springY.set(lastY - rect.top)
+        }
+
+        const dist = lastX - rect.right
+        const progress = Math.max(0, Math.min(1, 1 - dist / PROXIMITY_ZONE))
+
+        if (inVertical) {
+          springOpacity.set(progress)
+          springExtraScale.set(1 + progress * 0.15)
+        } else {
+          springOpacity.set(0)
+        }
+      })
+    }
+
+    window.addEventListener("mousemove", onMove, { passive: true })
+    return () => {
+      window.removeEventListener("mousemove", onMove)
+      if (rafId !== null) cancelAnimationFrame(rafId)
+    }
+  }, [reducedMotion, springY, springOpacity, springExtraScale])
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onToggle()
+  }
 
   useEffect(() => {
     if (!prevOpenRef.current && open) {
@@ -192,6 +245,20 @@ export function AppSidebar() {
     }
     prevOpenRef.current = open
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const isDesktop = window.matchMedia("(min-width: 768px)").matches
+      if (!isDesktop) return
+      if (event.target instanceof Node && desktopSidebarRef.current?.contains(event.target)) return
+      onToggle()
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => document.removeEventListener("pointerdown", handlePointerDown)
+  }, [onToggle, open])
 
   const [openGroups, setOpenGroups] = useState<string[]>(() => {
     const initial: string[] = []
@@ -239,6 +306,11 @@ export function AppSidebar() {
 
   /* Track stagger index across groups */
   let staggerIdx = 0
+
+  const isItemActive = (item: NavItem) => {
+    if (item.children) return item.children.some((child) => child.view === view)
+    return item.view === "demandas" ? PLANNING_VIEWS.includes(view) : view === item.view
+  }
 
   /* ── Nav item ─────────────────────────────────────────────── */
   const renderNavItem = (item: NavItem, itemIdx: number) => {
@@ -316,8 +388,7 @@ export function AppSidebar() {
       )
     }
 
-    const isActive =
-      item.view === "demandas" ? PLANNING_VIEWS.includes(view) : view === item.view
+    const isActive = isItemActive(item)
 
     return (
       <button
@@ -342,6 +413,54 @@ export function AppSidebar() {
         <item.Icon className={cn("w-[15px] h-[15px] shrink-0", isActive ? "opacity-100" : "opacity-60 group-hover:opacity-100 transition-opacity duration-150")} />
         <span>{item.label}</span>
       </button>
+    )
+  }
+
+  const renderCollapsedNavItem = (item: NavItem) => {
+    const isDisabled = item.requiresClient && !hasClient
+    const isActive = isItemActive(item)
+
+    const handleClick = () => {
+      if (isDisabled) return
+
+      if (item.children) {
+        setOpenGroups((prev) => (
+          prev.includes(item.label) ? prev : [...prev, item.label]
+        ))
+        if (!open) onToggle()
+        return
+      }
+
+      onViewChange(item.view!)
+      onCloseMobile?.()
+    }
+
+    return (
+      <Tooltip key={item.view ?? item.label}>
+        <TooltipTrigger asChild>
+          <button
+            onClick={handleClick}
+            className={cn(
+              "relative flex h-11 w-full flex-col items-center justify-center gap-0.5 rounded-md px-1 text-[8px] font-medium leading-none transition-colors duration-150",
+              isActive
+                ? "bg-foreground/[0.09] text-foreground"
+                : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground",
+              isDisabled && "cursor-not-allowed opacity-40"
+            )}
+            aria-label={item.children ? `Abrir ${item.label}` : item.label}
+            aria-current={isActive ? "page" : undefined}
+          >
+            {isActive && (
+              <span className="absolute left-0 top-1/2 h-6 w-[2px] -translate-y-1/2 rounded-full bg-foreground" />
+            )}
+            <item.Icon className={cn("h-[15px] w-[15px] shrink-0", isActive ? "opacity-100" : "opacity-65")} />
+            <span className="max-w-full truncate">{item.label}</span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          {item.children ? `Abrir ${item.label}` : item.label}
+        </TooltipContent>
+      </Tooltip>
     )
   }
 
@@ -393,9 +512,9 @@ export function AppSidebar() {
   const sidebar1 = (
     <aside
       className={cn(
-        "w-[52px] h-full flex flex-col items-center py-3 z-30 shrink-0 border-r",
+        "w-[52px] h-full flex flex-col items-center py-3 z-[70] shrink-0 border-r",
         /* strip is one tone darker than the card surface */
-        "bg-[oklch(0.975_0_0)] dark:bg-[oklch(0.175_0_0)] border-border"
+        "bg-[oklch(0.948_0.005_250)] dark:bg-[oklch(0.138_0.009_250)] border-border"
       )}
     >
       {/* Logo / Home */}
@@ -433,7 +552,7 @@ export function AppSidebar() {
                     "w-9 h-9 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0",
                     "transition-all duration-200",
                     isActive
-                      ? "bg-foreground text-background shadow-sm ring-2 ring-foreground/15 ring-offset-2 ring-offset-[oklch(0.975_0_0)] dark:ring-offset-[oklch(0.175_0_0)]"
+                      ? "bg-foreground text-background shadow-sm ring-2 ring-foreground/15 ring-offset-2 ring-offset-[oklch(0.948_0.005_250)] dark:ring-offset-[oklch(0.138_0.009_250)]"
                       : "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.12] hover:text-foreground"
                   )}
                   style={{
@@ -472,21 +591,6 @@ export function AppSidebar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={onToggle}
-              className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground/60 hover:bg-foreground/[0.06] hover:text-foreground transition-colors duration-150"
-              aria-label={open ? "Recolher painel" : "Expandir painel"}
-            >
-              {open
-                ? <ChevronLeft className="w-[17px] h-[17px]" />
-                : <ChevronRight className="w-[17px] h-[17px]" />}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">{open ? "Recolher" : "Expandir"}</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
               onClick={() => setHelpOpen(true)}
               className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground/60 hover:bg-foreground/[0.06] hover:text-foreground transition-colors duration-150"
               aria-label="Ajuda"
@@ -505,7 +609,7 @@ export function AppSidebar() {
                 "w-9 h-9 rounded-md flex items-center justify-center text-[11px] font-bold overflow-hidden shrink-0",
                 "bg-foreground text-background",
                 "hover:opacity-80 transition-opacity duration-150",
-                "ring-2 ring-foreground/10 ring-offset-1 ring-offset-[oklch(0.975_0_0)] dark:ring-offset-[oklch(0.175_0_0)]"
+                "ring-2 ring-foreground/10 ring-offset-1 ring-offset-[oklch(0.948_0.005_250)] dark:ring-offset-[oklch(0.138_0.009_250)]"
               )}
               aria-label="Menu do utilizador"
             >
@@ -552,7 +656,7 @@ export function AppSidebar() {
         {/* MOBILE SIDEBAR */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 w-[260px] bg-card border-r z-50 md:hidden flex flex-col",
+            "fixed inset-y-0 left-0 w-[260px] bg-[oklch(0.970_0.003_250)] dark:bg-[oklch(0.155_0.007_250)] border-r z-50 md:hidden flex flex-col",
             "transition-transform duration-250 ease-out",
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           )}
@@ -561,19 +665,82 @@ export function AppSidebar() {
         </aside>
 
         {/* DESKTOP: dual-level sidebar */}
-        <div className="hidden md:flex h-full">
+        <div ref={desktopSidebarRef} className="hidden md:flex h-full">
           {/* Level 1: strip */}
           {sidebar1}
 
           {/* Level 2: nav panel — absolute so it overlays content without pushing layout */}
           <aside
             className={cn(
-              "absolute left-[52px] top-0 h-full bg-card border-r border-border flex flex-col overflow-hidden z-20",
+              "group/sidebar2 absolute left-[52px] top-0 h-full bg-[oklch(0.970_0.003_250)] dark:bg-[oklch(0.155_0.007_250)] border-r border-border flex flex-col overflow-visible z-[60]",
               "transition-all duration-200 ease-out",
-              open ? "w-[220px] shadow-[2px_0_12px_oklch(0_0_0/0.08)]" : "w-0 border-r-0"
+              open ? "w-[220px] shadow-[2px_0_12px_oklch(0_0_0/0.08)]" : "w-[68px] shadow-[2px_0_10px_oklch(0_0_0/0.05)]"
             )}
           >
-            {open && sidebar2Content}
+            {open ? sidebar2Content : (
+              <>
+                <div className="flex h-14 shrink-0 items-center justify-center border-b border-border/60 px-1">
+                  <span className="max-w-full truncate text-[9px] font-semibold uppercase leading-none tracking-wide text-muted-foreground/60">
+                    Menu
+                  </span>
+                </div>
+                <nav className="flex-1 overflow-y-auto px-1.5 py-2">
+                  <div className="flex flex-col gap-1">
+                    {filteredGroups.flatMap((group) => group.items).map(renderCollapsedNavItem)}
+                  </div>
+                </nav>
+              </>
+            )}
+            <TooltipProvider delayDuration={600}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {reducedMotion ? (
+                    <button
+                      onClick={handleToggle}
+                      className={cn(
+                        "absolute right-0 top-1/2 z-[55] flex h-20 w-10 -translate-y-1/2 translate-x-full items-center justify-start overflow-hidden",
+                        "rounded-r-full border-y border-r border-border bg-[oklch(0.970_0.003_250)] dark:bg-[oklch(0.155_0.007_250)] text-muted-foreground",
+                        "shadow-[2px_0_8px_oklch(0_0_0/0.10)]",
+                        "opacity-0 transition-[opacity,color,background-color] duration-150 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "group-hover/sidebar2:opacity-100"
+                      )}
+                      aria-label={open ? "Recolher navegação" : "Expandir navegação"}
+                    >
+                      {open ? <ChevronLeft className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+                    </button>
+                  ) : (
+                    <motion.button
+                      onClick={handleToggle}
+                      style={{ top: springY, opacity: springOpacity, scale: springExtraScale, translateY: "-50%", translateX: "100%", originX: 0, originY: 0.5 }}
+                      whileTap={{ scale: 1.0 }}
+                      className={cn(
+                        "absolute right-0 z-[55] flex h-12 w-6 items-center justify-start overflow-hidden",
+                        "rounded-r-full border-y border-r border-border bg-[oklch(0.970_0.003_250)] dark:bg-[oklch(0.155_0.007_250)] text-muted-foreground",
+                        "shadow-[2px_0_8px_oklch(0_0_0/0.10)]",
+                        "hover:bg-foreground hover:text-background hover:border-foreground",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "transition-[color,background-color,border-color] duration-150",
+                      )}
+                      aria-label={open ? "Recolher navegação" : "Expandir navegação"}
+                    >
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.span
+                          key={open ? "left" : "right"}
+                          initial={{ opacity: 0, x: open ? 4 : -4 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: open ? -4 : 4 }}
+                          transition={{ duration: 0.15, ease: [0.25, 1, 0.5, 1] }}
+                          className="flex items-center justify-center shrink-0"
+                        >
+                          {open ? <ChevronLeft className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                        </motion.span>
+                      </AnimatePresence>
+                    </motion.button>
+                  )}
+                </TooltipTrigger>
+                <TooltipContent side="right">{open ? "Recolher navegação" : "Expandir navegação"}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </aside>
         </div>
       </>

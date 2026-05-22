@@ -194,20 +194,53 @@
   }
 }
 
+/* ── AppHeader ──────────────────────────────────────────────────── */
+
+/* Continuous tinted surface — merges visually with the ink strip below */
+.app-header {
+  background-image:
+    radial-gradient(ellipse 100% 200% at 0% 0%, oklch(0.91 0.014 255 / 0.6) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 180% at 100% 50%, oklch(0.89 0.010 285 / 0.3) 0%, transparent 60%);
+}
+
+.dark .app-header {
+  background-image:
+    radial-gradient(ellipse 100% 200% at 0% 0%, oklch(0.22 0.020 255 / 0.55) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 180% at 100% 50%, oklch(0.20 0.015 285 / 0.35) 0%, transparent 60%);
+}
+
+/* Logo icon box — faint halo using the brand hue */
+.app-header-logo-box {
+  box-shadow: 0 0 0 1px oklch(0.75 0.010 250 / 0.35), 0 2px 8px oklch(0.50 0.012 250 / 0.15);
+}
+.dark .app-header-logo-box {
+  box-shadow: 0 0 0 1px oklch(0.35 0.014 250 / 0.5), 0 2px 8px oklch(0 0 0 / 0.35);
+}
+
+/* Wordmark — letter-spacing expands when hovering anywhere on the logo group */
+.app-header-wordmark {
+  letter-spacing: 0em;
+  transition: letter-spacing 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.app-header-logo-group:hover .app-header-wordmark {
+  letter-spacing: 0.03em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-header-wordmark { transition: none; }
+}
+
 /* ── ViewShell — Ink Strip + Zoned Background ───────────────────── */
 
 /* The ink strip — ambient surface band that holds the breadcrumb */
 /* sticky/top-0/z-40/isolate set via Tailwind on the element */
 .view-ink-strip {
-  background-color: var(--surface-tinted);
   background-image:
-    radial-gradient(ellipse 120% 300% at 0% 50%, oklch(0.88 0.012 255 / 0.55) 0%, transparent 60%);
-  box-shadow: 0 1px 0 var(--border-strip);
+    radial-gradient(ellipse 120% 300% at 0% 50%, oklch(0.88 0.012 255 / 0.45) 0%, transparent 60%);
 }
 
 .dark .view-ink-strip {
   background-image:
-    radial-gradient(ellipse 120% 300% at 0% 50%, oklch(0.22 0.018 255 / 0.5) 0%, transparent 60%);
+    radial-gradient(ellipse 120% 300% at 0% 50%, oklch(0.22 0.018 255 / 0.4) 0%, transparent 60%);
 }
 
 /* ── ViewBreadcrumb ──────────────────────────────────────────────── */

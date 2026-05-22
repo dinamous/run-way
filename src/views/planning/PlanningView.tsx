@@ -316,7 +316,7 @@ const hasDemandasActiveFilters =
   ) : null;
 
   const content = (
-    <div className="space-y-5 p-4 md:p-6 lg:p-8">
+    <div className="space-y-5">
       <PlanningViewHeader
         subview={subview}
         onViewChange={onViewChange}
