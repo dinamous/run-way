@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { fetchNotifications } from '@/lib/notifications'
+import { buildPersonalWorkload, type PersonalWorkload } from './overviewWorkload'
 import type { Notification } from '@/types/notification'
 import type { ClientOption } from '@/contexts/AuthContext'
 import type { BlockedTask } from '@/utils/planner'
@@ -43,6 +44,7 @@ export interface OverviewData {
   blockedTasks: BlockedTask[]
   notifications: Notification[]
   clients: ClientSummary[]
+  personalWorkload: PersonalWorkload
   accumulatedDelayDays: number
   loading: boolean
   error: string | null
@@ -59,6 +61,7 @@ export function useOverviewData({ memberId, userId, isAdmin, clients }: UseOverv
   const [subtasks, setSubtasks] = useState<SubtaskRow[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [clientSummaries, setClientSummaries] = useState<ClientSummary[]>([])
+  const [personalWorkload, setPersonalWorkload] = useState<PersonalWorkload>({ member: null, insights: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,21 +71,28 @@ export function useOverviewData({ memberId, userId, isAdmin, clients }: UseOverv
     async function load() {
       setLoading(true)
       setError(null)
+      setPersonalWorkload({ member: null, insights: [] })
 
       try {
         const clientIds = clients.map((c) => c.id)
 
-        const [subtasksResult, notificationsResult, clientsResult] = await Promise.all([
+        const [subtasksResult, notificationsResult, clientsResult, memberResult, personalSubtasksResult] = await Promise.all([
           isAdmin ? fetchAllSubtasks(clientIds) : fetchSubtasks(memberId),
           fetchNotifications(userId, clientIds),
           fetchClientSummaries(clientIds, isAdmin),
+          fetchMemberProfile(memberId),
+          isAdmin ? fetchSubtasks(memberId) : Promise.resolve(null),
         ])
 
         if (cancelled) return
 
+        const today = new Date().toISOString().slice(0, 10)
+        const personalRows = personalSubtasksResult ?? subtasksResult
+
         setSubtasks(subtasksResult)
         setNotifications(notificationsResult)
         setClientSummaries(clientsResult)
+        setPersonalWorkload(buildPersonalWorkload(memberResult, personalRows, today))
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
@@ -144,6 +154,7 @@ export function useOverviewData({ memberId, userId, isAdmin, clients }: UseOverv
     blockedTasks: derived.blockedTasks,
     notifications,
     clients: derived.enrichedClients,
+    personalWorkload,
     accumulatedDelayDays: derived.accumulatedDelayDays,
     loading,
     error,
@@ -286,4 +297,29 @@ async function fetchClientSummaries(clientIds: string[], isAdmin: boolean): Prom
     lateSubtaskCount: 0,
     risk: 'healthy' as ClientRisk,
   }))
+}
+
+async function fetchMemberProfile(memberId: string): Promise<{
+  id: string
+  name: string
+  role: string
+  avatarUrl: string | null
+  capacity: number
+} | null> {
+  const { data, error } = await supabase
+    .from('members')
+    .select('id, name, role, avatar_url, capacity')
+    .eq('id', memberId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+
+  return {
+    id: data.id,
+    name: data.name,
+    role: data.role,
+    avatarUrl: data.avatar_url,
+    capacity: Math.max(1, data.capacity ?? 6),
+  }
 }

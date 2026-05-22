@@ -12,16 +12,16 @@ src/views/overview/
 │   └── useOverviewData.ts
 └── components/
     ├── WelcomeCard.tsx
-    ├── FocoDoDia.tsx
     ├── DayPlannerCard.tsx
     ├── PriorityList.tsx
     ├── ActiveClients.tsx
+    ├── PersonalWorkload (via shared CapacityTeam)
     └── InboxCard.tsx
 ```
 
 ## Layout
 
-O layout é organizado em três seções semânticas. A seção "Foco + Plano do dia" só aparece quando há itens críticos ou com vencimento hoje.
+O layout é organizado em duas seções semânticas.
 
 ```
 "Seu dia"
@@ -30,21 +30,18 @@ O layout é organizado em três seções semânticas. A seção "Foco + Plano do
 │  + carga acumulada)          │ ents        │
 └──────────────────────────────┴─────────────┘
 
-[Foco + Plano do dia — condicional, grid 7/5 cols]
-┌───────────────────────────┬────────────────┐
-│  FocoDoDia (7 cols)       │ DayPlannerCard │
-│  até 5 itens priorizados  │ (5 cols)       │
-└───────────────────────────┴────────────────┘
-
 "Atenção agora"
-┌──────────────────────────────┬─────────────┐
-│  PriorityList                │ InboxCard   │
-└──────────────────────────────┴─────────────┘
+┌───────────────────────────┬────────────────┐
+│  PriorityList (7 cols)    │ DayPlannerCard │
+│                           │ (5 cols)       │
+└───────────────────────────┴────────────────┘
 
 Mobile: stacking vertical (1 col).
 ```
 
-"Seu dia" usa `grid-cols-[1fr_300px]`; "Atenção agora" usa `grid-cols-[1fr_320px]`; "Foco + Plano" usa `grid-cols-12` com `col-span-7` / `col-span-5`. O `overview-root` envolve tudo com um fundo levemente colorido (oklch com chroma baixo ~0.004 em light, ~0.008 em dark). O overlay `overview-ambient` usa dois gradientes radiais sutis (chroma máx 0.018) sem filtro de ruído.
+"Sua carga" entra entre "Seu dia" e "Atenção agora", em largura total, usando o componente compartilhado `CapacityTeam` com o título "Sua carga de trabalho atual". A visão é sempre individual: mesmo para admin, a carga é calculada a partir das subtasks atribuídas ao `memberId` logado.
+
+"Seu dia" usa `grid-cols-[1fr_300px]`; "Atenção agora" usa `grid-cols-12` com `col-span-7` / `col-span-5`. O `overview-root` envolve tudo com um fundo levemente colorido (oklch com chroma baixo ~0.004 em light, ~0.008 em dark). O overlay `overview-ambient` usa dois gradientes radiais sutis (chroma máx 0.018) sem filtro de ruído.
 
 ## `useOverviewData`
 
@@ -71,6 +68,7 @@ KPIs, `enrichedClients` e `blockedTasks` são calculados via `useMemo` dependent
 - `ClientSummary.lateSubtaskCount` — subtasks atrasadas pertencentes ao cliente (cruzado com `subtasks` localmente)
 - `ClientSummary.risk` — `'critical'` (≥2 atrasadas) | `'attention'` (1 atrasada) | `'healthy'` (nenhuma)
 - `blockedTasks: BlockedTask[]` — tasks únicas (por `taskId`) com `blocked = true` e não concluídas; usadas pelo `DayPlannerCard`
+- `personalWorkload` — membro logado com `subtaskCount`, `lateCount`, `capacity` e até 3 insights textuais sobre carga individual
 
 **`SubtaskRow` — campos:**
 ```ts
@@ -87,7 +85,7 @@ interface SubtaskRow {
 ## Componentes
 
 ### `DayPlannerCard`
-Bloco lateral (5 cols) exibido ao lado do `FocoDoDia` quando há itens urgentes. Gera um plano do dia textual com base nos dados de `useOverviewData`, usando `generateDayPlan` de `src/utils/planner.ts`.
+Bloco lateral (5 cols) exibido ao lado do `PriorityList` na seção "Atenção agora". Gera um plano do dia textual com base nos dados de `useOverviewData`, usando `generateDayPlan` de `src/utils/planner.ts`.
 
 **Métricas no topo:** Atrasadas / Hoje / Esta semana (contadores numéricos com cores: vermelho / âmbar / azul).
 
@@ -98,9 +96,6 @@ Bloco lateral (5 cols) exibido ao lado do `FocoDoDia` quando há itens urgentes.
 **Estado vazio:** quando não há itens críticos, exibe mensagem motivacional (não oculta o bloco).
 
 **Escopo por perfil:** admin recebe todas as subtasks da equipe; user recebe apenas as suas — controlado em `useOverviewData`.
-
-### `FocoDoDia`
-Bloco condicional no topo (exibido quando há itens com `end <= hoje`). Mostra até 5 subtasks mais urgentes: atrasadas em ordem decrescente de dias de atraso, depois as de hoje. Cada item exibe badge vermelho (`Xd atraso`) ou âmbar (`Hoje`). Não aparece se todas as subtasks são futuras ou o usuário não tem nenhuma.
 
 ### `WelcomeCard`
 Saudação dinâmica por horário + frase contextual baseada nos KPIs + quatro **KPI tiles** em grid 2×2 + barra de carga acumulada na base. Skeleton durante `loading`.
@@ -118,6 +113,15 @@ Subtasks ativas agrupadas por **impacto** (não por urgência de tempo): **Crít
 
 ### `ActiveClients`
 Lista vertical de clientes ordenada por risco: crítico (≥2 subtasks atrasadas) → atenção (1 atrasada) → saudável. Cada item mostra avatar + nome + contagem de tarefas + dot de risco (`🔴/🟡/🟢` em CSS: `bg-red-500/amber-400/emerald-400`). Header exibe contagem de críticos e atenção quando não-zero. Itens entram com `overview-item-enter` (stagger de 40ms). Clique chama `onSelectClient(clientId)`.
+
+### `PersonalWorkload`
+Bloco "Sua carga de trabalho atual" dentro da `OverviewView`, renderizado com `CapacityTeam` de `src/components/workload/CapacityTeam.tsx`. Mostra apenas o membro logado. Quando `members.length === 1`, o `CapacityTeam` usa um layout horizontal compacto (avatar + nome/role + barra de capacidade + pill de status + contador `X/Y` em uma única linha), evitando espaço vazio desnecessário. Para múltiplos membros, mantém o grid card-based (`sm:grid-cols-2 lg:grid-cols-3`). Abaixo do card entram insights curtos, por exemplo:
+
+- se a pessoa está acima da capacidade, em atenção ou com margem
+- quais demandas ocupam a maior parte da capacidade
+- quantas subtarefas da carga individual estão atrasadas
+
+O cálculo filtra apenas subtarefas `active` e de tasks não concluídas. Para admin, `useOverviewData` faz uma busca pessoal separada com `fetchSubtasks(memberId)` para não misturar a carga individual com a visão agregada da equipe.
 
 ### `InboxCard`
 Recebe `notifications` via prop (reutiliza o `useNotifications` subscrito no App). Filtra `read = false`, exibe as 6 mais recentes ordenadas por `created_at DESC`. Timestamp relativo calculado em `formatTime` (sem interval/timer); lista envolvida em `useMemo` para evitar recálculo desnecessário. Itens entram com `overview-item-enter` (stagger de 35ms). Clique em notificação → `onMarkAsRead(id)`.
