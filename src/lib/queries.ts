@@ -46,11 +46,17 @@ function dbRowToTask(row: DbTaskRow): Task {
     concludedAt: parsed.concluded_at ?? undefined,
     concludedBy: parsed.concluded_by ?? undefined,
     subtasks,
+    expectedHours: parsed.expected_hours ?? undefined,
+    complexity: parsed.complexity ?? undefined,
+    taskType: parsed.task_type ?? undefined,
+    dueDate: parsed.due_date ?? undefined,
+    startedAt: parsed.started_at ?? undefined,
   }
 }
 
 const TASK_SELECT = `
   id, title, description, clickup_link, priority_order, blocked, blocked_at, created_at, client_id, concluded_at, concluded_by,
+  expected_hours, complexity, task_type, due_date, started_at,
   task_subtasks (
     id, title, status, progress_status, subtask_order, active, start_date, end_date,
     subtask_assignees ( member_id )
@@ -79,6 +85,81 @@ export async function fetchTasksFromDb(
     .order('priority_order', { ascending: true })
     .order('created_at', { ascending: false })
 
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(dbRowToTask)
+}
+
+// ─── Throughput Queries ────────────────────────────────────────────────────────
+
+const CONCLUDED_TASK_SELECT = `
+  id, concluded_at, expected_hours, client_id,
+  task_subtasks ( subtask_assignees ( member_id ) )
+` as const
+
+export interface ConcludedTaskRow {
+  id: string
+  concludedAt: string
+  expectedHours: number | null
+  clientId: string | null
+  memberIds: string[]
+}
+
+export async function fetchConcludedTasksSince(
+  since: string,
+  clientId: string | null,
+  isAdmin: boolean
+): Promise<ConcludedTaskRow[]> {
+  if (clientId === null && !isAdmin) return []
+
+  let query = supabase
+    .from('tasks')
+    .select(CONCLUDED_TASK_SELECT)
+    .not('concluded_at', 'is', null)
+    .gte('concluded_at', since)
+
+  if (clientId !== null) {
+    query = query.eq('client_id', clientId)
+  }
+
+  const { data, error } = await query
+  if (error) throw new Error(error.message)
+
+  type RawRow = {
+    id: string
+    concluded_at: string
+    expected_hours: number | null
+    client_id: string | null
+    task_subtasks: Array<{ subtask_assignees: Array<{ member_id: string }> }>
+  }
+
+  return (data as RawRow[] ?? []).map(row => ({
+    id: row.id,
+    concludedAt: row.concluded_at,
+    expectedHours: row.expected_hours,
+    clientId: row.client_id,
+    memberIds: Array.from(
+      new Set(row.task_subtasks.flatMap(s => s.subtask_assignees.map(a => a.member_id)))
+    ),
+  }))
+}
+
+export async function fetchActiveTasksWithHours(
+  clientId: string | null,
+  isAdmin: boolean
+): Promise<Task[]> {
+  if (clientId === null && !isAdmin) return []
+
+  let query = supabase
+    .from('tasks')
+    .select(TASK_SELECT)
+    .is('concluded_at', null)
+    .not('started_at', 'is', null)
+
+  if (clientId !== null) {
+    query = query.eq('client_id', clientId)
+  }
+
+  const { data, error } = await query
   if (error) throw new Error(error.message)
   return (data ?? []).map(dbRowToTask)
 }

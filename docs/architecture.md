@@ -79,6 +79,7 @@ src/
 │   ├── validators.ts          # Schemas Zod para rows do banco (DbTaskRowSchema, DbStepRowSchema, DbStepAssigneeSchema)
 │   ├── clientSlug.ts          # clientToSlug, nameToSlug, slugToClient — converte entre ClientOption e slug de URL
 │   ├── steps.ts               # Definição e lógica de steps
+│   ├── workloadEngine.ts      # Engine pura de workload: MemberWorkloadInput/Metrics, computeMemberWorkload — zero imports React/Supabase; calcula pressureScore, throughput, stuck detection, estimatedCompletionDate e insights
 │   └── utils.ts               # Utilitários gerais
 ├── types/
 │   ├── props.ts               # Props de componentes

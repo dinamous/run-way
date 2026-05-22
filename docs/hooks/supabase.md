@@ -81,3 +81,24 @@ queryKeys.members(clientId)         // ['members', clientId ?? 'all']
 ```
 
 Para invalidar tudo sem saber o clientId exato: `queryClient.invalidateQueries({ queryKey: ['tasks'] })`
+
+## Funções de Fetch (`src/lib/queries.ts`)
+
+Além de `fetchTasksFromDb` e `fetchMembersFromDb`, o módulo expõe duas funções especializadas para o workload engine:
+
+| Função | Descrição |
+|---|---|
+| `fetchConcludedTasksSince(since, clientId, isAdmin)` | Busca tasks concluídas a partir de uma data ISO (`since`). Retorna `ConcludedTaskRow[]` com `id`, `concludedAt`, `expectedHours`, `clientId` e `memberIds` (union de todos os assignees das subtasks). Usado para calcular `throughput7dHours` / `throughput14dHours`. |
+| `fetchActiveTasksWithHours(clientId, isAdmin)` | Busca tasks ativas (sem `concluded_at`) que já têm `started_at` preenchido. Retorna `Task[]` completo incluindo os novos campos de fluxo. Usado para calcular `ageHours` e detectar travamento no workload engine. |
+
+### Campos mapeados por `dbRowToTask`
+
+`TASK_SELECT` e `dbRowToTask` incluem agora os campos de fluxo adicionados na migration `20260522000000_task_flow_fields.sql`:
+
+| DB | TS |
+|---|---|
+| `expected_hours` | `expectedHours` |
+| `complexity` | `complexity` |
+| `task_type` | `taskType` |
+| `due_date` | `dueDate` |
+| `started_at` | `startedAt` |
