@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { fetchNotifications } from '@/lib/notifications'
+import { fetchActiveTasksWithHours, fetchConcludedTasksSince } from '@/lib/queries'
 import { buildPersonalWorkload, type PersonalWorkload } from './overviewWorkload'
 import type { Notification } from '@/types/notification'
 import type { ClientOption } from '@/contexts/AuthContext'
@@ -61,7 +62,7 @@ export function useOverviewData({ memberId, userId, isAdmin, clients }: UseOverv
   const [subtasks, setSubtasks] = useState<SubtaskRow[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [clientSummaries, setClientSummaries] = useState<ClientSummary[]>([])
-  const [personalWorkload, setPersonalWorkload] = useState<PersonalWorkload>({ member: null, insights: [] })
+  const [personalWorkload, setPersonalWorkload] = useState<PersonalWorkload>({ member: null, metrics: null, insights: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -71,28 +72,35 @@ export function useOverviewData({ memberId, userId, isAdmin, clients }: UseOverv
     async function load() {
       setLoading(true)
       setError(null)
-      setPersonalWorkload({ member: null, insights: [] })
+      setPersonalWorkload({ member: null, metrics: null, insights: [] })
 
       try {
         const clientIds = clients.map((c) => c.id)
+        const today = new Date().toISOString().slice(0, 10)
+        const since14d = (() => {
+          const d = new Date(today + 'T00:00:00')
+          d.setDate(d.getDate() - 14)
+          return d.toISOString().split('T')[0]
+        })()
 
-        const [subtasksResult, notificationsResult, clientsResult, memberResult, personalSubtasksResult] = await Promise.all([
+        // clientId null = all clients (admin); use first client or null
+        const queryClientId = isAdmin ? null : (clientIds[0] ?? null)
+
+        const [subtasksResult, notificationsResult, clientsResult, memberResult, activeTasksResult, concludedTasksResult] = await Promise.all([
           isAdmin ? fetchAllSubtasks(clientIds) : fetchSubtasks(memberId),
           fetchNotifications(userId, clientIds),
           fetchClientSummaries(clientIds, isAdmin),
           fetchMemberProfile(memberId),
-          isAdmin ? fetchSubtasks(memberId) : Promise.resolve(null),
+          fetchActiveTasksWithHours(queryClientId, isAdmin),
+          fetchConcludedTasksSince(since14d, queryClientId, isAdmin),
         ])
 
         if (cancelled) return
 
-        const today = new Date().toISOString().slice(0, 10)
-        const personalRows = personalSubtasksResult ?? subtasksResult
-
         setSubtasks(subtasksResult)
         setNotifications(notificationsResult)
         setClientSummaries(clientsResult)
-        setPersonalWorkload(buildPersonalWorkload(memberResult, personalRows, today))
+        setPersonalWorkload(buildPersonalWorkload(memberResult, activeTasksResult, concludedTasksResult, today))
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Erro ao carregar dados')

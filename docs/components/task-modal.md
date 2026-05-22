@@ -11,20 +11,20 @@ TaskModal/
   components/
     TaskHeader.tsx            — DESCONTINUADO (não utilizado; pode ser removido)
     TaskMetadataSection.tsx   — DESCONTINUADO (não utilizado; pode ser removido)
-    TaskSidebar.tsx           — sidebar direita: status (Bloqueada/Concluída), datas condicionais, link ClickUp
+    TaskSidebar.tsx           — sidebar direita: status (Bloqueada/Concluída), datas condicionais, estimativa (horas + chips poker), tipo, complexidade, prazo ao cliente, link ClickUp
     SubtaskList.tsx           — lista animada (AnimatePresence) de subtasks; empty state
     SubtaskRow.tsx            — linha individual: grip, título, selects de status/progresso, assignees, datas, remover
     TaskFooter.tsx            — botões Apagar demanda / Cancelar / Salvar Alterações
   hooks/
     useSubtasks.ts            — estado do array de subtasks + CRUD (add/remove/update/toggleAssignee); exporta SubtaskDraft
-    useTaskForm.ts            — estado do formulário (title, clickupLink, blocked, etc.) + helpers buildWeekendConfirmMessage e postponeSubtasks
+    useTaskForm.ts            — estado do formulário (title, clickupLink, blocked, expectedHours, complexity, taskType, dueDate, etc.) + helpers buildWeekendConfirmMessage e postponeSubtasks
 ```
 
 ## Layout
 
 Layout de duas colunas com animação Framer Motion (spring):
 - **Esquerda** — título livre (input `text-2rem`), barra de progresso com spring physics (`useSpring`/`useTransform`), lista animada de subtasks
-- **Direita (`TaskSidebar`)** — toggles Bloqueada/Concluída, datas condicionais, link ClickUp com botão de abrir
+- **Direita (`TaskSidebar`)** — toggles Bloqueada/Concluída, datas condicionais, estimativa em horas com chips Planning Poker, tipo (`feature`/`bug`/`support`/`meeting`), complexidade (`baixa`→`extrema`), prazo ao cliente (`dueDate`), link ClickUp com botão de abrir
 - **Footer** — botões Apagar / Cancelar / Salvar
 
 Overlay + modal são `motion.div` (spring stiffness 280 / damping 28) com animação de entrada/saída. O `AnimatePresence` que controla o mount/unmount do modal fica em `AppModals` — não dentro do `TaskModal`. Subtasks entram/saem com `AnimatePresence` interno ao `SubtaskList`.
@@ -45,6 +45,17 @@ Cada subtask tem:
 - Botão "+ Adicionar subtask" no rodapé da lista
 
 Nova demanda começa **sem subtasks**. O usuário adiciona livremente.
+
+## Campos de planejamento (TaskSidebar)
+
+| Campo | Tipo | Comportamento |
+|---|---|---|
+| `expectedHours` | `number?` | Input numérico + chips Planning Poker (`0.5h`–`13h`); clicar chip novamente deseleciona |
+| `taskType` | `TaskType?` | Chips `Feature` / `Bug` / `Suporte` / `Reunião`; toggle (deseleciona ao clicar novamente) |
+| `complexity` | `TaskComplexity?` | Chips `Baixa` → `Extrema`; toggle |
+| `dueDate` | `string?` | Date picker `YYYY-MM-DD`; prazo de entrega ao cliente |
+
+Todos opcionais — tasks existentes sem esses campos não bloqueam save.
 
 ## Validação
 

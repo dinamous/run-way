@@ -95,6 +95,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
     blocked, setBlocked,
     blockedAt, setBlockedAt,
     concludedAt, setConcludedAt,
+    expectedHours, setExpectedHours,
+    complexity, setComplexity,
+    taskType, setTaskType,
+    dueDate, setDueDate,
     errors, setErrors,
     pendingSubmitData, setPendingSubmitData,
     confirmMessage, setConfirmMessage,
@@ -104,7 +108,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
 
   const { subtasks, addSubtask, removeSubtask, updateSubtask, toggleAssignee } = useSubtasks(initialSubtasks);
 
-  const formSnapshot = { title, description, clickupLink, blocked, blockedAt, subtasks, concludedAt };
+  const formSnapshot = { title, description, clickupLink, blocked, blockedAt, subtasks, concludedAt, expectedHours, complexity, taskType, dueDate };
   const { isDirty, submitting, withSubmit } = useFormState(formSnapshot, !task, title.length >= 3);
 
   const handleRequestClose = () => {
@@ -136,7 +140,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
       start: s.start, end: s.end, assignees: s.assignees, active: s.active, order: i,
     }));
     const status: TaskStatus = { blocked, blockedAt: blocked ? blockedAt : undefined };
-    return { ...task, title, description, clickupLink, status, subtasks: finalSubtasks, concludedAt } as TaskModalPayload;
+    return { ...task, title, description, clickupLink, status, subtasks: finalSubtasks, concludedAt, expectedHours, complexity, taskType, dueDate } as TaskModalPayload;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -393,6 +397,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, members: propMembers, onClo
               setBlockedAt={setBlockedAt}
               concludedAt={concludedAt}
               setConcludedAt={setConcludedAt}
+              expectedHours={expectedHours}
+              setExpectedHours={setExpectedHours}
+              complexity={complexity}
+              setComplexity={setComplexity}
+              taskType={taskType}
+              setTaskType={setTaskType}
+              dueDate={dueDate}
+              setDueDate={setDueDate}
               errors={errors}
             />
           </div>

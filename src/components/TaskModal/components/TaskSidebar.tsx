@@ -1,9 +1,19 @@
 import React from 'react';
-import { Link as LinkIcon, Calendar, AlertCircle, CheckCircle2, ExternalLink, Users, CircleDot } from 'lucide-react';
+import { Link as LinkIcon, Calendar, AlertCircle, CheckCircle2, ExternalLink, Users, CircleDot, Clock, Tag, Layers } from 'lucide-react';
 import { Badge, Input } from '../../ui';
-import { STEP_META, SUBTASK_PROGRESS_META, type Task } from '../../../lib/steps';
+import { STEP_META, SUBTASK_PROGRESS_META, TASK_COMPLEXITY_VALUES, TASK_TYPE_VALUES, type Task, type TaskComplexity, type TaskType } from '../../../lib/steps';
 import type { Member } from '../../../hooks/infra/useSupabase';
 import type { SubtaskDraft } from '../hooks/useSubtasks';
+
+const COMPLEXITY_LABEL: Record<TaskComplexity, string> = {
+  baixa: 'Baixa', media: 'Média', alta: 'Alta', avancada: 'Avançada', extrema: 'Extrema',
+};
+
+const TASK_TYPE_LABEL: Record<TaskType, string> = {
+  feature: 'Feature', bug: 'Bug', support: 'Suporte', meeting: 'Reunião',
+};
+
+const POKER_CHIPS = [0.5, 1, 2, 3, 5, 8, 13];
 
 interface Props {
   task: Task | null;
@@ -17,6 +27,14 @@ interface Props {
   setBlockedAt: (v: string) => void;
   concludedAt: string | undefined;
   setConcludedAt: (v: string | undefined) => void;
+  expectedHours: number | undefined;
+  setExpectedHours: (v: number | undefined) => void;
+  complexity: TaskComplexity | undefined;
+  setComplexity: (v: TaskComplexity | undefined) => void;
+  taskType: TaskType | undefined;
+  setTaskType: (v: TaskType | undefined) => void;
+  dueDate: string | undefined;
+  setDueDate: (v: string | undefined) => void;
   errors: Record<string, string>;
 }
 
@@ -43,6 +61,10 @@ const TaskSidebar: React.FC<Props> = ({
   blocked, setBlocked,
   blockedAt, setBlockedAt,
   concludedAt, setConcludedAt,
+  expectedHours, setExpectedHours,
+  complexity, setComplexity,
+  taskType, setTaskType,
+  dueDate, setDueDate,
   errors,
 }) => {
   const activeSubtasks = subtasks.filter(s => s.active);
@@ -220,6 +242,109 @@ const TaskSidebar: React.FC<Props> = ({
             <span className="text-[12px] font-medium tabular-nums text-foreground">{formatDateLabel(task.createdAt.split('T')[0])}</span>
           </div>
         )}
+      </div>
+    </div>
+
+    <div className="h-px bg-border" />
+
+    {/* Estimativa */}
+    <div className="space-y-2.5">
+      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+        <Clock className="w-3 h-3" /> Estimativa (horas)
+      </span>
+      <Input
+        type="number"
+        min={0.5}
+        step={0.5}
+        value={expectedHours ?? ''}
+        onChange={e => setExpectedHours(e.target.value ? Number(e.target.value) : undefined)}
+        placeholder="Ex: 3"
+        className="text-[12px]"
+      />
+      <div className="flex flex-wrap gap-1.5">
+        {POKER_CHIPS.map(chip => (
+          <button
+            key={chip}
+            type="button"
+            onClick={() => setExpectedHours(expectedHours === chip ? undefined : chip)}
+            className={`px-2 py-0.5 rounded-md border text-[11px] font-medium transition-colors cursor-pointer ${
+              expectedHours === chip
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            {chip}h
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div className="h-px bg-border" />
+
+    {/* Tipo e Complexidade */}
+    <div className="space-y-4">
+      <div className="space-y-2.5">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <Tag className="w-3 h-3" /> Tipo
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {TASK_TYPE_VALUES.map(type => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setTaskType(taskType === type ? undefined : type)}
+              className={`px-2 py-0.5 rounded-md border text-[11px] font-medium transition-colors cursor-pointer ${
+                taskType === type
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {TASK_TYPE_LABEL[type]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <Layers className="w-3 h-3" /> Complexidade
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {TASK_COMPLEXITY_VALUES.map(c => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setComplexity(complexity === c ? undefined : c)}
+              className={`px-2 py-0.5 rounded-md border text-[11px] font-medium transition-colors cursor-pointer ${
+                complexity === c
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {COMPLEXITY_LABEL[c]}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <div className="h-px bg-border" />
+
+    {/* Prazo */}
+    <div className="space-y-2.5">
+      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+        <Calendar className="w-3 h-3" /> Prazo ao cliente
+      </span>
+      <div className="bg-card border border-border rounded-md overflow-hidden">
+        <div className="flex justify-between items-center px-3 py-2.5">
+          <span className="text-[12px] text-muted-foreground">Data</span>
+          <input
+            type="date"
+            value={dueDate ?? ''}
+            onChange={e => setDueDate(e.target.value || undefined)}
+            className="bg-transparent text-[12px] font-medium tabular-nums text-foreground focus:outline-none cursor-pointer"
+          />
+        </div>
       </div>
     </div>
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { migrateLegacyTask, type Subtask } from '../../../lib/steps';
+import { migrateLegacyTask, type Subtask, type TaskComplexity, type TaskType } from '../../../lib/steps';
 import { isWeekendOrHoliday, getHolidayName, nextNonHolidayBusinessDay, type Holiday } from '../../../utils/holidayUtils';
 import { draftFromSubtask, type SubtaskDraft } from './useSubtasks';
 import type { TaskModalProps, TaskModalPayload } from '../../../types/props';
@@ -16,6 +16,10 @@ export function useTaskForm(task: TaskModalProps['task']) {
     init.status.blockedAt ?? new Date().toISOString().split('T')[0]
   );
   const [concludedAt, setConcludedAt] = useState<string | undefined>(task?.concludedAt);
+  const [expectedHours, setExpectedHours] = useState<number | undefined>(task?.expectedHours);
+  const [complexity, setComplexity] = useState<TaskComplexity | undefined>(task?.complexity);
+  const [taskType, setTaskType] = useState<TaskType | undefined>(task?.taskType);
+  const [dueDate, setDueDate] = useState<string | undefined>(task?.dueDate);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pendingSubmitData, setPendingSubmitData] = useState<TaskModalPayload | null>(null);
   const [confirmMessage, setConfirmMessage] = useState('');
@@ -30,6 +34,10 @@ export function useTaskForm(task: TaskModalProps['task']) {
     blocked, setBlocked,
     blockedAt, setBlockedAt,
     concludedAt, setConcludedAt,
+    expectedHours, setExpectedHours,
+    complexity, setComplexity,
+    taskType, setTaskType,
+    dueDate, setDueDate,
     errors, setErrors,
     pendingSubmitData, setPendingSubmitData,
     confirmMessage, setConfirmMessage,
