@@ -51,6 +51,10 @@ export interface ClientMember {
   capacity: number
   subtaskCount: number
   lateCount: number
+  stuckTasksCount?: number
+  pressureScore?: number
+  status?: 'available' | 'busy' | 'overloaded'
+  estimatedCompletionDate?: string | null
 }
 
 export interface ClientOverviewKpis {

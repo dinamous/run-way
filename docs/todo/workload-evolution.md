@@ -132,7 +132,7 @@ Fase 4  Workload engine     → paralela com 2 e 3 (funções puras)
 Fase 3  Query layer         → depende de 1 + 2
 Fase 5  Hook rewrite        → depende de 3 + 4
 Fase 6  TaskModal UI        → depende de 2 + 3
-Fase 7  CapacityTeam UI     → depende de 5
+Fase 7  CapacityTeam UI     → ✅ concluída
 Fase 8  Testes              → começa após 4, completa após 5–7
 Fase 9  ADR                 → escrever junto com 1, finalizar após 8
 ```

@@ -56,6 +56,10 @@ export function buildPersonalWorkload(
     ...member,
     subtaskCount: metrics.totalActiveSubtasks,
     lateCount: metrics.lateCount,
+    stuckTasksCount: metrics.stuckTasksCount,
+    pressureScore: metrics.pressureScore,
+    status: metrics.status,
+    estimatedCompletionDate: metrics.estimatedCompletionDate,
   }
 
   return {

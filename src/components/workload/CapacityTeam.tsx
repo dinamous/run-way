@@ -9,6 +9,10 @@ export interface WorkloadMember {
   capacity: number
   subtaskCount: number
   lateCount: number
+  stuckTasksCount?: number
+  pressureScore?: number
+  status?: 'available' | 'busy' | 'overloaded'
+  estimatedCompletionDate?: string | null
 }
 
 interface CapacityTeamProps {
@@ -22,8 +26,9 @@ interface CapacityTeamProps {
 
 type LoadStatus = 'available' | 'busy' | 'overloaded'
 
-function getLoadStatus(subtaskCount: number, capacity: number): LoadStatus {
-  const ratio = subtaskCount / capacity
+function getLoadStatus(member: WorkloadMember): LoadStatus {
+  if (member.status) return member.status
+  const ratio = member.subtaskCount / member.capacity
   if (ratio >= 1) return 'overloaded'
   if (ratio >= 0.6) return 'busy'
   return 'available'
@@ -172,7 +177,7 @@ export function CapacityTeam({
 
   if (isSingle) {
     const member = members[0]
-    const status = getLoadStatus(member.subtaskCount, member.capacity)
+    const status = getLoadStatus(member)
     const cfg = STATUS_CONFIG[status]
     const pillCls = STATUS_PILL[status]
 
@@ -211,8 +216,24 @@ export function CapacityTeam({
                 {member.lateCount} atrasad{member.lateCount === 1 ? 'a' : 'as'}
               </span>
             )}
+            {(member.stuckTasksCount ?? 0) > 0 && (
+              <span className="text-[10px] font-semibold tabular-nums text-[oklch(0.50_0.14_75)]">
+                {member.stuckTasksCount} travad{member.stuckTasksCount === 1 ? 'a' : 'as'}
+              </span>
+            )}
           </div>
         </div>
+
+        {member.estimatedCompletionDate && (
+          <div className="mt-2 border-t border-border/40 pt-2">
+            <span className="text-[10px] text-muted-foreground">
+              Previsão de conclusão:{' '}
+              <span className="font-semibold tabular-nums text-foreground">
+                {member.estimatedCompletionDate.split('-').reverse().join('/')}
+              </span>
+            </span>
+          </div>
+        )}
 
         {insights.length > 0 && (
           <div className="mt-3 grid gap-2 border-t border-border/50 pt-3 sm:grid-cols-2">
@@ -251,7 +272,7 @@ export function CapacityTeam({
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {members.map((member, i) => {
-              const status = getLoadStatus(member.subtaskCount, member.capacity)
+              const status = getLoadStatus(member)
               const cfg = STATUS_CONFIG[status]
               const pillCls = STATUS_PILL[status]
 
@@ -293,11 +314,18 @@ export function CapacityTeam({
                           /{member.capacity}
                         </span>
                       </span>
-                      {member.lateCount > 0 && (
-                        <span className="text-xs font-semibold tabular-nums text-[oklch(0.50_0.20_20)]">
-                          {member.lateCount} atrasad{member.lateCount === 1 ? 'a' : 'as'}
-                        </span>
-                      )}
+                      <div className="flex flex-col items-end gap-0.5">
+                        {member.lateCount > 0 && (
+                          <span className="text-xs font-semibold tabular-nums text-[oklch(0.50_0.20_20)]">
+                            {member.lateCount} atrasad{member.lateCount === 1 ? 'a' : 'as'}
+                          </span>
+                        )}
+                        {(member.stuckTasksCount ?? 0) > 0 && (
+                          <span className="text-xs font-semibold tabular-nums text-[oklch(0.50_0.14_75)]">
+                            {member.stuckTasksCount} travad{member.stuckTasksCount === 1 ? 'a' : 'as'}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <CapacityTrack
@@ -305,6 +333,15 @@ export function CapacityTeam({
                       capacity={member.capacity}
                       status={status}
                     />
+
+                    {member.estimatedCompletionDate && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Previsão:{' '}
+                        <span className="font-semibold tabular-nums text-foreground">
+                          {member.estimatedCompletionDate.split('-').reverse().join('/')}
+                        </span>
+                      </span>
+                    )}
                   </div>
                 </MotionItem>
               )

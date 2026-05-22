@@ -123,6 +123,11 @@ Bloco "Sua carga de trabalho atual" dentro da `OverviewView`, renderizado com `C
 
 O cálculo filtra apenas subtarefas `active` e de tasks não concluídas. Para admin, `useOverviewData` faz uma busca pessoal separada com `fetchSubtasks(memberId)` para não misturar a carga individual com a visão agregada da equipe.
 
+**Campos adicionais (workload engine):** o `WorkloadMember` passado ao `CapacityTeam` inclui agora `stuckTasksCount`, `pressureScore`, `status` e `estimatedCompletionDate`, calculados pelo `workloadEngine.ts` via `buildPersonalWorkload` em `overviewWorkload.ts`. O componente exibe:
+- Badge "N travada(s)" (cor âmbar) quando `stuckTasksCount > 0`
+- Linha "Previsão de conclusão: DD/MM/YYYY" quando `estimatedCompletionDate` está presente
+- `status` do engine (`available`/`busy`/`overloaded`) sobrepõe o cálculo local por ratio
+
 ### `InboxCard`
 Recebe `notifications` via prop (reutiliza o `useNotifications` subscrito no App). Filtra `read = false`, exibe as 6 mais recentes ordenadas por `created_at DESC`. Timestamp relativo calculado em `formatTime` (sem interval/timer); lista envolvida em `useMemo` para evitar recálculo desnecessário. Itens entram com `overview-item-enter` (stagger de 35ms). Clique em notificação → `onMarkAsRead(id)`.
 
