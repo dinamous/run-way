@@ -88,12 +88,12 @@ Além de `fetchTasksFromDb` e `fetchMembersFromDb`, o módulo expõe duas funç�
 
 | Função | Descrição |
 |---|---|
-| `fetchConcludedTasksSince(since, clientId, isAdmin)` | Busca tasks concluídas a partir de uma data ISO (`since`). Retorna `ConcludedTaskRow[]` com `id`, `concludedAt`, `expectedHours`, `clientId` e `memberIds` (union de todos os assignees das subtasks). Usado para calcular `throughput7dHours` / `throughput14dHours`. |
-| `fetchActiveTasksWithHours(clientId, isAdmin)` | Busca tasks ativas (sem `concluded_at`) que já têm `started_at` preenchido. Retorna `Task[]` completo incluindo os novos campos de fluxo. Usado para calcular `ageHours` e detectar travamento no workload engine. |
+| `fetchConcludedTasksSince(since, clientIds, isAdmin)` | Busca tasks concluídas a partir de uma data ISO (`since`). `clientIds` é `string[] \| null` — `null` para admin (sem filtro), array com todos os clientes do usuário para não-admin. Retorna `ConcludedTaskRow[]` com `id`, `concludedAt`, `expectedHours`, `clientId` e `memberIds` (union de todos os assignees das subtasks). Usado para calcular `throughput7dHours` / `throughput14dHours`. |
+| `fetchActiveTasksWithHours(clientIds, isAdmin)` | Busca todas as tasks ativas (sem `concluded_at`). `clientIds` é `string[] \| null` — `null` para admin (sem filtro), array com todos os clientes do usuário para não-admin (usa `.in()`). Usa `WORKLOAD_TASK_SELECT` (com join `clients(id, name)`) e `workloadRowToTask`, que popula `Task.clientName`. Retorna `Task[]` com todos os campos de fluxo e `clientName`. |
 
 ### Campos mapeados por `dbRowToTask`
 
-`TASK_SELECT` e `dbRowToTask` incluem agora os campos de fluxo adicionados na migration `20260522000000_task_flow_fields.sql`:
+`TASK_SELECT` e `dbRowToTask` incluem os campos de fluxo adicionados na migration `20260522000000_task_flow_fields.sql`. **Não incluem `clientName`** — apenas `workloadRowToTask` (via `WORKLOAD_TASK_SELECT`) faz o join com `clients`.
 
 | DB | TS |
 |---|---|

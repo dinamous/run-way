@@ -83,21 +83,20 @@ export function useOverviewData({ memberId, userId, isAdmin, clients }: UseOverv
           return d.toISOString().split('T')[0]
         })()
 
-        // clientId null = all clients (admin); use first client or null
-        const queryClientId = isAdmin ? null : (clientIds[0] ?? null)
+        const queryClientIds = isAdmin ? null : clientIds
 
         const [subtasksResult, notificationsResult, clientsResult, memberResult, activeTasksResult, concludedTasksResult] = await Promise.all([
           isAdmin ? fetchAllSubtasks(clientIds) : fetchSubtasks(memberId),
           fetchNotifications(userId, clientIds),
           fetchClientSummaries(clientIds, isAdmin),
           fetchMemberProfile(memberId),
-          fetchActiveTasksWithHours(queryClientId, isAdmin),
-          fetchConcludedTasksSince(since14d, queryClientId, isAdmin),
+          fetchActiveTasksWithHours(queryClientIds, isAdmin),
+          fetchConcludedTasksSince(since14d, queryClientIds, isAdmin),
         ])
 
         if (cancelled) return
 
-        setSubtasks(subtasksResult)
+setSubtasks(subtasksResult)
         setNotifications(notificationsResult)
         setClientSummaries(clientsResult)
         setPersonalWorkload(buildPersonalWorkload(memberResult, activeTasksResult, concludedTasksResult, today))

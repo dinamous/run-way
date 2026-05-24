@@ -123,10 +123,28 @@ Bloco "Sua carga de trabalho atual" dentro da `OverviewView`, renderizado com `C
 
 O cálculo filtra apenas subtarefas `active` e de tasks não concluídas. Para admin, `useOverviewData` faz uma busca pessoal separada com `fetchSubtasks(memberId)` para não misturar a carga individual com a visão agregada da equipe.
 
-**Campos adicionais (workload engine):** o `WorkloadMember` passado ao `CapacityTeam` inclui agora `stuckTasksCount`, `pressureScore`, `status` e `estimatedCompletionDate`, calculados pelo `workloadEngine.ts` via `buildPersonalWorkload` em `overviewWorkload.ts`. O componente exibe:
+**Campos adicionais (workload engine):** o `WorkloadMember` passado ao `CapacityTeam` inclui agora `totalActiveHours`, `weekHours`, `monthHours`, `stuckTasksCount`, `pressureScore`, `status`, `estimatedCompletionDate`, `segments: WorkloadSegment[]` e `weekSegments: WorkloadSegment[]`, calculados pelo `workloadEngine.ts` via `buildPersonalWorkload` em `overviewWorkload.ts`. O componente exibe:
+- **Toggle Semana / Mês** — pill no canto direito do card individual; alterna o período exibido na barra e no número grande. Estado padrão: Semana.
+- **Barra segmentada por subtask** — quando `segments`/`weekSegments` está presente, `CapacityTrack` renderiza um segmento por subtask com largura proporcional às suas horas (`businessDaysBetween × 8h`). Na visão **Semana** usa `weekSegments` (subtasks com sobreposição à semana atual, horas clampadas ao intervalo); na visão **Mês** usa `segments` (todas as subtasks ativas). Cada segmento tem cor distinta (paleta `SEGMENT_COLORS`) e exibe um tooltip no hover com: cliente, título da task, título da subtask e horas alocadas. Se sem segmentos, cai para barra contínua proporcional a `totalActiveHours / (capacity × 8h)`. Se sem horas, usa slots por contagem.
 - Badge "N travada(s)" (cor âmbar) quando `stuckTasksCount > 0`
 - Linha "Previsão de conclusão: DD/MM/YYYY" quando `estimatedCompletionDate` está presente
 - `status` do engine (`available`/`busy`/`overloaded`) sobrepõe o cálculo local por ratio
+
+**`WorkloadSegment` (`src/components/workload/CapacityTeam.tsx`):**
+```ts
+interface WorkloadSegment {
+  taskId: string
+  taskTitle: string
+  clientName?: string
+  subtaskTitle: string
+  hours: number
+}
+```
+Montado em `buildPersonalWorkload` iterando `memberActiveTasks` → subtasks `active` atribuídas ao membro.
+
+**`clientName` em `Task` (`src/lib/steps.ts`):** campo opcional adicionado ao tipo `Task`. Populado apenas por `workloadRowToTask` (via `WORKLOAD_TASK_SELECT` com join `clients(id, name)`). O `TASK_SELECT` e `dbRowToTask` usados pelo restante da app não incluem esse join.
+
+**Cálculo de horas por período (`overviewWorkload.ts`):** `weekHours` e `monthHours` são calculados em `buildPersonalWorkload` clampando `start`/`end` de cada subtask ativa ao intervalo do período (`startOfWeek`/`endOfWeek`, `startOfMonth`/`endOfMonth`) antes de multiplicar por dias úteis × 8h. Semana começa na segunda-feira.
 
 ### `InboxCard`
 Recebe `notifications` via prop (reutiliza o `useNotifications` subscrito no App). Filtra `read = false`, exibe as 6 mais recentes ordenadas por `created_at DESC`. Timestamp relativo calculado em `formatTime` (sem interval/timer); lista envolvida em `useMemo` para evitar recálculo desnecessário. Itens entram com `overview-item-enter` (stagger de 35ms). Clique em notificação → `onMarkAsRead(id)`.

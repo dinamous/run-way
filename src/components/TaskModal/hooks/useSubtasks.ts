@@ -38,11 +38,12 @@ export function useSubtasks(initial: SubtaskDraft[]) {
   const updateSubtask = <K extends keyof SubtaskDraft>(id: string, field: K, value: SubtaskDraft[K]) =>
     setSubtasks(prev => prev.map(s => s._tempId === id ? { ...s, [field]: value } : s));
 
+  // Each subtask has exactly one assignee — clicking again deselects
   const toggleAssignee = (id: string, memberId: string) =>
     setSubtasks(prev => prev.map(s => {
       if (s._tempId !== id) return s;
-      const has = s.assignees.includes(memberId);
-      return { ...s, assignees: has ? s.assignees.filter(mid => mid !== memberId) : [...s.assignees, memberId] };
+      const current = s.assignees[0];
+      return { ...s, assignees: current === memberId ? [] : [memberId] };
     }));
 
   return { subtasks, addSubtask, removeSubtask, updateSubtask, toggleAssignee };

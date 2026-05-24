@@ -15,6 +15,79 @@ export const queryKeys = {
 
 // ─── Task Queries ──────────────────────────────────────────────────────────────
 
+const WORKLOAD_TASK_SELECT = `
+  id, title, priority_order, blocked, blocked_at, created_at, client_id, concluded_at, concluded_by,
+  expected_hours, complexity, task_type, due_date, started_at,
+  clients ( id, name ),
+  task_subtasks (
+    id, title, status, progress_status, subtask_order, active, start_date, end_date,
+    subtask_assignees ( member_id )
+  )
+` as const
+
+type WorkloadTaskRow = {
+  id: string
+  title: string
+  priority_order: number
+  blocked: boolean
+  blocked_at: string | null
+  created_at: string
+  client_id: string | null
+  concluded_at: string | null
+  concluded_by: string | null
+  expected_hours: number | null
+  complexity: string | null
+  task_type: string | null
+  due_date: string | null
+  started_at: string | null
+  clients: { id: string; name: string } | null
+  task_subtasks: Array<{
+    id: string
+    title: string
+    status: string
+    progress_status: string
+    subtask_order: number
+    active: boolean
+    start_date: string | null
+    end_date: string | null
+    subtask_assignees: Array<{ member_id: string }>
+  }>
+}
+
+function workloadRowToTask(row: WorkloadTaskRow): Task {
+  const subtasks: Subtask[] = row.task_subtasks
+    .sort((a, b) => a.subtask_order - b.subtask_order)
+    .map(s => ({
+      id: s.id,
+      title: s.title,
+      status: s.status as SubtaskStatus,
+      progressStatus: s.progress_status as SubtaskProgressStatus,
+      order: s.subtask_order,
+      active: s.active,
+      start: s.start_date ?? '',
+      end: s.end_date ?? '',
+      assignees: s.subtask_assignees.map(a => a.member_id),
+    }))
+
+  return {
+    id: row.id,
+    title: row.title,
+    clientId: row.client_id ?? undefined,
+    clientName: row.clients?.name ?? undefined,
+    priorityOrder: row.priority_order,
+    status: { blocked: row.blocked, blockedAt: row.blocked_at ?? undefined },
+    createdAt: row.created_at,
+    concludedAt: row.concluded_at ?? undefined,
+    concludedBy: row.concluded_by ?? undefined,
+    subtasks,
+    expectedHours: row.expected_hours ?? undefined,
+    complexity: row.complexity as Task['complexity'] ?? undefined,
+    taskType: row.task_type as Task['taskType'] ?? undefined,
+    dueDate: row.due_date ?? undefined,
+    startedAt: row.started_at ?? undefined,
+  }
+}
+
 function dbRowToTask(row: DbTaskRow): Task {
   const parsed = DbTaskRowSchema.parse(row)
   const subtasks: Subtask[] = parsed.task_subtasks
@@ -106,10 +179,10 @@ export interface ConcludedTaskRow {
 
 export async function fetchConcludedTasksSince(
   since: string,
-  clientId: string | null,
+  clientIds: string[] | null,
   isAdmin: boolean
 ): Promise<ConcludedTaskRow[]> {
-  if (clientId === null && !isAdmin) return []
+  if (!isAdmin && (!clientIds || clientIds.length === 0)) return []
 
   let query = supabase
     .from('tasks')
@@ -117,8 +190,8 @@ export async function fetchConcludedTasksSince(
     .not('concluded_at', 'is', null)
     .gte('concluded_at', since)
 
-  if (clientId !== null) {
-    query = query.eq('client_id', clientId)
+  if (!isAdmin && clientIds && clientIds.length > 0) {
+    query = query.in('client_id', clientIds)
   }
 
   const { data, error } = await query
@@ -144,24 +217,23 @@ export async function fetchConcludedTasksSince(
 }
 
 export async function fetchActiveTasksWithHours(
-  clientId: string | null,
+  clientIds: string[] | null,
   isAdmin: boolean
 ): Promise<Task[]> {
-  if (clientId === null && !isAdmin) return []
+  if (!isAdmin && (!clientIds || clientIds.length === 0)) return []
 
   let query = supabase
     .from('tasks')
-    .select(TASK_SELECT)
+    .select(WORKLOAD_TASK_SELECT)
     .is('concluded_at', null)
-    .not('started_at', 'is', null)
 
-  if (clientId !== null) {
-    query = query.eq('client_id', clientId)
+  if (!isAdmin && clientIds && clientIds.length > 0) {
+    query = query.in('client_id', clientIds)
   }
 
   const { data, error } = await query
   if (error) throw new Error(error.message)
-  return (data ?? []).map(dbRowToTask)
+  return (data as unknown as WorkloadTaskRow[] ?? []).map(workloadRowToTask)
 }
 
 // ─── Member Queries ────────────────────────────────────────────────────────────

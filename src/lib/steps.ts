@@ -62,6 +62,7 @@ export interface Task {
   description?: string;
   clickupLink?: string;
   clientId?: string;
+  clientName?: string;
   priorityOrder: number;
   status: TaskStatus;
   subtasks: Subtask[];

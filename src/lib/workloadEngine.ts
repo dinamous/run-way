@@ -1,4 +1,5 @@
 import type { Task } from './steps';
+import { businessDaysBetween } from '@/utils/dateUtils';
 
 export interface MemberWorkloadInput {
   memberId: string;
@@ -12,6 +13,7 @@ export interface MemberWorkloadMetrics {
   memberId: string;
   tasksInProgress: number;
   totalActiveSubtasks: number;
+  totalActiveHours: number;
   lateCount: number;
   stuckTasksCount: number;
   avgTaskAgeHours: number;
@@ -24,6 +26,7 @@ export interface MemberWorkloadMetrics {
   insights: string[];
 }
 
+const HOURS_PER_DAY = 8;
 const EXPECTED_CYCLE_HOURS = 40; // baseline for timeFactor when no expectedHours
 
 function ageHours(startedAt: string, today: string): number {
@@ -48,12 +51,23 @@ function throughputHours(tasks: Task[], today: string, days: number): number {
     .reduce((sum, t) => sum + (t.expectedHours ?? 1), 0);
 }
 
+/**
+ * Subtask load in hours = business days between start and end × HOURS_PER_DAY.
+ * Falls back to HOURS_PER_DAY (1 day) when dates are missing.
+ */
+function subtaskHours(start: string, end: string): number {
+  if (!start || !end) return HOURS_PER_DAY;
+  return businessDaysBetween(start, end) * HOURS_PER_DAY;
+}
+
 export function computeMemberWorkload(input: MemberWorkloadInput): MemberWorkloadMetrics {
   const { memberId, capacity, activeTasks, concludedTasks, today } = input;
 
-  const totalActiveSubtasks = activeTasks.reduce((sum, t) => {
-    return sum + t.subtasks.filter(s => s.active && s.assignees.includes(memberId)).length;
-  }, 0);
+  const memberSubtasks = activeTasks.flatMap(t =>
+    t.subtasks.filter(s => s.active && s.assignees.includes(memberId))
+  );
+  const totalActiveSubtasks = memberSubtasks.length;
+  const totalActiveHours = memberSubtasks.reduce((sum, s) => sum + subtaskHours(s.start, s.end), 0);
 
   const todayDate = new Date(today + 'T00:00:00');
 
@@ -74,7 +88,9 @@ export function computeMemberWorkload(input: MemberWorkloadInput): MemberWorkloa
   const throughput7dHours = throughputHours(concludedTasks, today, 7);
   const throughput14dHours = throughputHours(concludedTasks, today, 14);
 
-  const loadRatio = capacity > 0 ? totalActiveSubtasks / capacity : 0;
+  // loadRatio: active hours vs available daily hours (capacity × 8h/day)
+  const capacityHours = capacity * HOURS_PER_DAY;
+  const loadRatio = capacityHours > 0 ? totalActiveHours / capacityHours : 0;
   const delayFactor = Math.min(lateCount * 0.15, 1);
   const stuckFactor = Math.min(stuckTasksCount * 0.20, 1);
   const timeFactor = Math.min(avgTaskAgeHours / EXPECTED_CYCLE_HOURS, 1);
@@ -116,6 +132,7 @@ export function computeMemberWorkload(input: MemberWorkloadInput): MemberWorkloa
     memberId,
     tasksInProgress: activeTasks.length,
     totalActiveSubtasks,
+    totalActiveHours,
     lateCount,
     stuckTasksCount,
     avgTaskAgeHours,

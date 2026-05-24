@@ -30,12 +30,15 @@ describe('computeMemberWorkload', () => {
     expect(result.tasksInProgress).toBe(0);
   });
 
-  it('counts active subtasks assigned to member', () => {
+  it('counts active subtasks and hours assigned to member', () => {
     const task = makeTask({
       subtasks: [
-        { id: 's1', title: 'A', status: 'design', progressStatus: 'in-progress', start: TODAY, end: TODAY, assignees: ['m1'], active: true, order: 0 },
-        { id: 's2', title: 'B', status: 'qa', progressStatus: 'todo', start: TODAY, end: TODAY, assignees: ['m2'], active: true, order: 1 },
-        { id: 's3', title: 'C', status: 'desenvolvimento', progressStatus: 'todo', start: TODAY, end: TODAY, assignees: ['m1'], active: false, order: 2 },
+        // active, m1, 1 business day → 8h
+        { id: 's1', title: 'A', status: 'design', progressStatus: 'in-progress', start: '2026-05-22', end: '2026-05-22', assignees: ['m1'], active: true, order: 0 },
+        // active but m2 → not counted for m1
+        { id: 's2', title: 'B', status: 'qa', progressStatus: 'todo', start: '2026-05-22', end: '2026-05-22', assignees: ['m2'], active: true, order: 1 },
+        // inactive → not counted
+        { id: 's3', title: 'C', status: 'desenvolvimento', progressStatus: 'todo', start: '2026-05-22', end: '2026-05-22', assignees: ['m1'], active: false, order: 2 },
       ],
     });
     const result = computeMemberWorkload({
@@ -45,7 +48,26 @@ describe('computeMemberWorkload', () => {
       concludedTasks: [],
       today: TODAY,
     });
-    expect(result.totalActiveSubtasks).toBe(1); // only active=true AND assignees includes m1
+    expect(result.totalActiveSubtasks).toBe(1);
+    expect(result.totalActiveHours).toBe(8); // 1 business day × 8h
+  });
+
+  it('sums hours across multiple subtasks with date ranges', () => {
+    const task = makeTask({
+      subtasks: [
+        // single business day = 8h each
+        { id: 's1', title: 'A', status: 'design', progressStatus: 'in-progress', start: TODAY, end: TODAY, assignees: ['m1'], active: true, order: 0 },
+        { id: 's2', title: 'B', status: 'qa', progressStatus: 'todo', start: TODAY, end: TODAY, assignees: ['m1'], active: true, order: 1 },
+      ],
+    });
+    const result = computeMemberWorkload({
+      memberId: 'm1',
+      capacity: 6,
+      activeTasks: [task],
+      concludedTasks: [],
+      today: TODAY,
+    });
+    expect(result.totalActiveHours).toBe(16); // 2 subtasks × 1 day × 8h
   });
 
   it('detects late tasks', () => {

@@ -342,12 +342,17 @@ export type Database = {
           blocked_at: string | null
           clickup_link: string | null
           client_id: string | null
+          complexity: string | null
           concluded_at: string | null
           concluded_by: string | null
           created_at: string
           description: string | null
+          due_date: string | null
+          expected_hours: number | null
           id: string
           priority_order: number
+          started_at: string | null
+          task_type: string | null
           title: string
         }
         Insert: {
@@ -355,12 +360,17 @@ export type Database = {
           blocked_at?: string | null
           clickup_link?: string | null
           client_id?: string | null
+          complexity?: string | null
           concluded_at?: string | null
           concluded_by?: string | null
           created_at?: string
           description?: string | null
+          due_date?: string | null
+          expected_hours?: number | null
           id?: string
           priority_order?: number
+          started_at?: string | null
+          task_type?: string | null
           title: string
         }
         Update: {
@@ -368,12 +378,17 @@ export type Database = {
           blocked_at?: string | null
           clickup_link?: string | null
           client_id?: string | null
+          complexity?: string | null
           concluded_at?: string | null
           concluded_by?: string | null
           created_at?: string
           description?: string | null
+          due_date?: string | null
+          expected_hours?: number | null
           id?: string
           priority_order?: number
+          started_at?: string | null
+          task_type?: string | null
           title?: string
         }
         Relationships: [

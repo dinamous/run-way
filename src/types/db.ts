@@ -68,8 +68,8 @@ export interface DbTaskRow {
   client_id: string | null;
   task_subtasks: DbSubtaskRow[];
   expected_hours?: number | null;
-  complexity?: 'baixa' | 'media' | 'alta' | 'avancada' | 'extrema' | null;
-  task_type?: 'feature' | 'bug' | 'support' | 'meeting' | null;
+  complexity?: string | null;
+  task_type?: string | null;
   due_date?: string | null;
   started_at?: string | null;
 }

@@ -1,5 +1,14 @@
+import { useState } from 'react'
 import { Users } from 'lucide-react'
 import { MotionItem } from '@/components/ui'
+
+export interface WorkloadSegment {
+  taskId: string
+  taskTitle: string
+  clientName?: string
+  subtaskTitle: string
+  hours: number
+}
 
 export interface WorkloadMember {
   id: string
@@ -8,12 +17,19 @@ export interface WorkloadMember {
   avatarUrl: string | null
   capacity: number
   subtaskCount: number
+  totalActiveHours?: number
+  weekHours?: number
+  monthHours?: number
   lateCount: number
   stuckTasksCount?: number
   pressureScore?: number
   status?: 'available' | 'busy' | 'overloaded'
   estimatedCompletionDate?: string | null
+  segments?: WorkloadSegment[]
+  weekSegments?: WorkloadSegment[]
 }
+
+type PeriodFilter = 'week' | 'month'
 
 interface CapacityTeamProps {
   members: WorkloadMember[]
@@ -86,46 +102,164 @@ function MemberAvatar({ member }: { member: WorkloadMember }) {
   )
 }
 
+const SEGMENT_COLORS = [
+  'oklch(0.55 0.15 250)',
+  'oklch(0.55 0.15 145)',
+  'oklch(0.55 0.15 310)',
+  'oklch(0.65 0.18 75)',
+  'oklch(0.55 0.15 185)',
+  'oklch(0.60 0.18 30)',
+  'oklch(0.55 0.12 270)',
+  'oklch(0.58 0.14 340)',
+]
+
+function SegmentTooltip({ seg, color }: { seg: WorkloadSegment; color: string }) {
+  return (
+    <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border/60 bg-popover px-3 py-2 shadow-lg">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        {seg.clientName ?? '—'}
+      </div>
+      <div className="mt-0.5 text-[11px] text-muted-foreground">{seg.taskTitle}</div>
+      <div className="mt-0.5 text-[10px] text-muted-foreground/80">{seg.subtaskTitle}</div>
+      <div className="mt-1 text-[11px] font-semibold tabular-nums" style={{ color }}>
+        {seg.hours.toFixed(1)}h alocadas
+      </div>
+      {/* arrow */}
+      <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-border/60" />
+      <div className="absolute left-1/2 top-full -translate-x-1/2 -translate-y-px border-4 border-transparent border-t-popover" />
+    </div>
+  )
+}
+
 function CapacityTrack({
   subtaskCount,
   capacity,
   status,
+  totalActiveHours,
+  segments = [],
 }: {
   subtaskCount: number
   capacity: number
   status: LoadStatus
+  totalActiveHours?: number
+  segments?: WorkloadSegment[]
 }) {
   const cfg = STATUS_CONFIG[status]
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+
+  // Segmented bar when we have per-subtask data
+  if (segments.length > 0 && totalActiveHours !== undefined) {
+    const capacityHours = capacity * 8
+    const totalHours = segments.reduce((s, seg) => s + seg.hours, 0)
+    const isOver = totalHours > capacityHours
+    const trackTotal = Math.max(totalHours, capacityHours)
+
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="relative flex h-[8px] w-full gap-[2px] overflow-visible rounded-[4px]">
+          {/* track background */}
+          <div className="absolute inset-0 rounded-[4px] bg-foreground/[0.10]" />
+          {/* segments */}
+          {segments.map((seg, i) => {
+            const color = isOver && seg.hours / totalHours > 0.3
+              ? STATUS_CONFIG.overloaded.trackFill
+              : SEGMENT_COLORS[i % SEGMENT_COLORS.length]
+            const widthPct = (seg.hours / trackTotal) * 100
+            const isFirst = i === 0
+            const isLast = i === segments.length - 1
+
+            return (
+              <div
+                key={`${seg.taskId}-${seg.subtaskTitle}`}
+                className="relative h-full cursor-default transition-opacity duration-150"
+                style={{
+                  width: `${widthPct}%`,
+                  backgroundColor: color,
+                  borderRadius: isFirst && isLast ? '4px' : isFirst ? '4px 0 0 4px' : isLast ? '0 4px 4px 0' : '0',
+                  opacity: hoveredIdx === null || hoveredIdx === i ? 1 : 0.4,
+                  zIndex: hoveredIdx === i ? 10 : 1,
+                }}
+                onMouseEnter={() => setHoveredIdx(i)}
+                onMouseLeave={() => setHoveredIdx(null)}
+              >
+                {hoveredIdx === i && <SegmentTooltip seg={seg} color={color} />}
+              </div>
+            )
+          })}
+        </div>
+        <div className="flex items-baseline justify-between">
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {totalHours.toFixed(1)}h
+            <span className="opacity-60"> / {capacityHours}h</span>
+          </span>
+          {isOver && (
+            <span className="text-[9px] font-semibold tabular-nums text-[oklch(0.50_0.20_20)]">
+              +{(totalHours - capacityHours).toFixed(1)}h excesso
+            </span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Fallback: single fill bar
+  if (totalActiveHours !== undefined) {
+    const capacityHours = capacity * 8
+    const fillRatio = capacityHours > 0 ? Math.min(totalActiveHours / capacityHours, 1) : 0
+    const isOver = totalActiveHours > capacityHours
+
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="relative h-[8px] w-full overflow-hidden rounded-[4px] bg-foreground/[0.10]">
+          <div
+            className="absolute inset-y-0 left-0 rounded-[4px] transition-all duration-500"
+            style={{
+              width: `${fillRatio * 100}%`,
+              backgroundColor: isOver ? STATUS_CONFIG.overloaded.trackFill : cfg.trackFill,
+            }}
+          />
+        </div>
+        <div className="flex items-baseline justify-between">
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {totalActiveHours.toFixed(1)}h
+            <span className="opacity-60"> / {capacityHours}h</span>
+          </span>
+          {isOver && (
+            <span className="text-[9px] font-semibold tabular-nums text-[oklch(0.50_0.20_20)]">
+              +{(totalActiveHours - capacityHours).toFixed(1)}h excesso
+            </span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Fallback: slot-based track
   const isOver = subtaskCount > capacity
-  const segments = capacity
+  const slotCount = capacity
   const filled = Math.min(subtaskCount, capacity)
   const overCount = isOver ? subtaskCount - capacity : 0
 
   return (
     <div className="flex items-center gap-2">
       <div className="flex flex-1 gap-[3px]">
-        {Array.from({ length: segments }).map((_, i) => {
-          const active = i < filled
-          return (
-            <div
-              key={i}
-              className="h-[8px] flex-1 rounded-[2px] transition-all duration-300"
-              style={{
-                backgroundColor: active ? cfg.trackFill : 'oklch(0.145 0 0 / 0.10)',
-                transitionDelay: `${i * 20}ms`,
-              }}
-            />
-          )
-        })}
+        {Array.from({ length: slotCount }).map((_, i) => (
+          <div
+            key={i}
+            className="h-[8px] flex-1 rounded-[2px] transition-all duration-300"
+            style={{
+              backgroundColor: i < filled ? cfg.trackFill : 'oklch(0.145 0 0 / 0.10)',
+              transitionDelay: `${i * 20}ms`,
+            }}
+          />
+        ))}
         {overCount > 0 &&
           Array.from({ length: Math.min(overCount, 6) }).map((_, i) => (
             <div
               key={`over-${i}`}
-              className="h-[8px] w-[8px] shrink-0 rounded-[2px] transition-all duration-300"
-              style={{
-                backgroundColor: STATUS_CONFIG.overloaded.overFill,
-                transitionDelay: `${(segments + i) * 20}ms`,
-              }}
+              className="h-[8px] w-[8px] shrink-0 rounded-[2px]"
+              style={{ backgroundColor: STATUS_CONFIG.overloaded.overFill }}
             />
           ))}
         {overCount > 6 && (
@@ -146,6 +280,8 @@ export function CapacityTeam({
   emptyLabel = 'Nenhum membro alocado',
   insights = [],
 }: CapacityTeamProps) {
+  const [period, setPeriod] = useState<PeriodFilter>('week')
+
   if (loading) {
     return (
       <div className="overview-card flex flex-col gap-5 rounded-xl p-6">
@@ -181,6 +317,11 @@ export function CapacityTeam({
     const cfg = STATUS_CONFIG[status]
     const pillCls = STATUS_PILL[status]
 
+    const hasHours = member.weekHours !== undefined || member.monthHours !== undefined
+    const displayHours = hasHours
+      ? (period === 'week' ? (member.weekHours ?? 0) : (member.monthHours ?? 0))
+      : member.totalActiveHours
+
     return (
       <MotionItem className="overview-card rounded-xl p-4" delay={0}>
         <div className="flex items-center gap-4">
@@ -196,21 +337,44 @@ export function CapacityTeam({
               </p>
             </div>
             <div className="mt-2">
-              <CapacityTrack subtaskCount={member.subtaskCount} capacity={member.capacity} status={status} />
+              <CapacityTrack subtaskCount={member.subtaskCount} capacity={member.capacity} status={status} totalActiveHours={displayHours} segments={period === 'week' ? (member.weekSegments ?? member.segments) : member.segments} />
             </div>
           </div>
 
           <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {hasHours && (
+              <div className="flex items-center rounded-full border border-border/60 bg-background/60 p-0.5 text-[10px] font-semibold">
+                <button
+                  onClick={() => setPeriod('week')}
+                  className={`cursor-pointer rounded-full px-2 py-0.5 transition-colors ${period === 'week' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Semana
+                </button>
+                <button
+                  onClick={() => setPeriod('month')}
+                  className={`cursor-pointer rounded-full px-2 py-0.5 transition-colors ${period === 'month' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Mês
+                </button>
+              </div>
+            )}
             <span
               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none ${pillCls}`}
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cfg.color }} />
               {cfg.label}
             </span>
-            <span className="text-xl font-bold leading-none tabular-nums" style={{ color: cfg.color }}>
-              {member.subtaskCount}
-              <span className="text-sm font-medium text-muted-foreground">/{member.capacity}</span>
-            </span>
+            {displayHours !== undefined ? (
+              <span className="text-xl font-bold leading-none tabular-nums" style={{ color: cfg.color }}>
+                {displayHours.toFixed(1)}
+                <span className="text-sm font-medium text-muted-foreground">h</span>
+              </span>
+            ) : (
+              <span className="text-xl font-bold leading-none tabular-nums" style={{ color: cfg.color }}>
+                {member.subtaskCount}
+                <span className="text-sm font-medium text-muted-foreground">/{member.capacity}</span>
+              </span>
+            )}
             {member.lateCount > 0 && (
               <span className="text-[10px] font-semibold tabular-nums text-[oklch(0.50_0.20_20)]">
                 {member.lateCount} atrasad{member.lateCount === 1 ? 'a' : 'as'}
@@ -332,6 +496,8 @@ export function CapacityTeam({
                       subtaskCount={member.subtaskCount}
                       capacity={member.capacity}
                       status={status}
+                      totalActiveHours={member.totalActiveHours}
+                      segments={member.segments}
                     />
 
                     {member.estimatedCompletionDate && (

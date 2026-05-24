@@ -37,7 +37,8 @@ Todas as colunas nullable — dados existentes não quebram.
 | Métrica | Descrição |
 |---|---|
 | `tasksInProgress` | Tasks ativas atribuídas ao membro |
-| `totalActiveSubtasks` | Subtasks ativas (base do `loadRatio`) |
+| `totalActiveSubtasks` | Contagem de subtasks ativas do membro |
+| `totalActiveHours` | Soma de horas das subtasks ativas (base do `loadRatio`) |
 | `lateCount` | Tasks com `dueDate < hoje` e não concluídas |
 | `stuckTasksCount` | Tasks onde `ageHours > expectedHours * 1.5` |
 | `avgTaskAgeHours` | Média de horas desde `startedAt` |
@@ -47,12 +48,23 @@ Todas as colunas nullable — dados existentes não quebram.
 | `pressureScore` | Score composto 0–1 (ver fórmula abaixo) |
 | `estimatedCompletionDate` | Previsão de conclusão baseada no throughput |
 
+### Carga por subtask
+
+Cada subtask tem `start` e `end` (YYYY-MM-DD) e **exatamente 1 responsável** (`assignees[0]`). A carga em horas é calculada pela task-mãe por agrupamento:
+
+```
+subtaskHours = businessDaysBetween(start, end) × 8
+totalActiveHours = Σ subtaskHours das subtasks ativas do membro
+```
+
+Fallback: se `start` ou `end` estiver ausente, usa `8h` (1 dia).
+
 ### Fórmula do Pressure Score
 
 ```
 pressureScore = (loadRatio * 0.5) + (delayFactor * 0.2) + (stuckFactor * 0.2) + (timeFactor * 0.1)
 
-loadRatio    = totalActiveSubtasks / capacity
+loadRatio    = totalActiveHours / (capacity × 8)   ← horas vs capacidade diária em horas
 delayFactor  = min(lateCount * 0.15, 1)
 stuckFactor  = min(stuckCount * 0.20, 1)
 timeFactor   = min(avgTaskAgeHours / expectedCycleHours, 1)
