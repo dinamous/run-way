@@ -9,5 +9,6 @@ export function useTasksQuery(
     queryKey: queryKeys.tasks(clientId ?? null, isAdmin),
     queryFn: () => fetchTasksFromDb(clientId ?? null, isAdmin),
     enabled: clientId !== undefined,
+    refetchOnMount: 'always',
   })
 }

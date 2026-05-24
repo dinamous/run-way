@@ -93,7 +93,9 @@ Cada execução do `useEffect` chama `load()` diretamente e declara `let cancell
 
 O `loading: true` é sinalizado imediatamente ao entrar no efeito (antes do fetch), garantindo feedback visual correto tanto na visita inicial quanto na troca de cliente.
 
-Após qualquer mutação de dados do cliente (salvar task, concluir subtarefa, etc.), chame:
+**Invalidação automática na troca de cliente:** `useClientTransition` chama `invalidateClientOverviewCache` para o cliente de saída e o de entrada imediatamente ao iniciar a transição (antes do delay de 650ms), evitando que dados stale sejam servidos ao montar a nova view.
+
+Após qualquer mutação de dados do cliente (salvar task, concluir subtarefa, etc.), chame manualmente:
 
 ```ts
 import { invalidateClientOverviewCache } from '@/views/client-overview/hooks/useClientOverviewData'

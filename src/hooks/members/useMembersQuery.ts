@@ -6,5 +6,6 @@ export function useMembersQuery(clientId: string | null | undefined) {
     queryKey: queryKeys.members(clientId),
     queryFn: () => fetchMembersFromDb(clientId),
     enabled: clientId !== undefined,
+    refetchOnMount: 'always',
   })
 }

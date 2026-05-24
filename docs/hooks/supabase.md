@@ -45,6 +45,13 @@ Usado por `PlanningView` (subview `demandas`) para alimentar os popovers inline 
 5. Se erro → queryClient.setQueryData(prev) + useTaskStore.clearOptimistic()
 ```
 
+## Campos de fluxo no insert (`createTask`)
+
+`createTask` envia todos os campos de fluxo da migration `20260522000000_task_flow_fields.sql`:
+`concluded_at`, `expected_hours`, `complexity`, `task_type`, `due_date`.
+
+> Antes desta correção, esses campos só eram persistidos em `updateTask`.
+
 ## Subtasks (`createAllSubtasks` + diff em `updateTask`)
 
 `createAllSubtasks` — função privada chamada em `createTask` e em `updateTask` (para subtasks novas):

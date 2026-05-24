@@ -167,7 +167,7 @@ clearOptimistic()             // limpa após sucesso ou rollback
 Stub de compatibilidade de imports. O fetch de members foi migrado para `useMembersQuery` (TanStack Query). Pode ser removido quando não houver mais imports.
 
 ### `useTasksQuery` / `useMembersQuery`
-Query hooks baseados em TanStack Query v5. Configuração global: `staleTime: 5min`, `gcTime: 30min`, `retry: 2`.
+Query hooks baseados em TanStack Query v5. Configuração global: `staleTime: 5min`, `gcTime: 30min`, `retry: 2`. Ambos usam `refetchOnMount: 'always'` para garantir dados frescos ao montar após troca de cliente, mesmo que o cache ainda esteja dentro do `staleTime`.
 ```ts
 // src/hooks/useTasksQuery.ts
 const { data: tasks, isLoading, error } = useTasksQuery(clientId, isAdmin)
@@ -247,16 +247,19 @@ A troca de cliente exibe um overlay de transição animado antes de efetivar a m
 
 ```
 selectClient(clientId)
+  → invalidateClientOverviewCache(clientIdSaindo)    ← limpa cache manual do ClientOverview
+  → invalidateClientOverviewCache(clientIdEntrando)  ← limpa cache manual do ClientOverview
   → setTransitionTarget({ id, name })   ← exibe ClientTransitionOverlay (~3.2s)
-  → após 650ms: queryClient.invalidateQueries(['tasks'])   ← TanStack Query refetch automático
-               queryClient.invalidateQueries(['members']) ← TanStack Query refetch automático
+  → após 650ms: queryClient.invalidateQueries(['tasks', clientId, isAdmin])  ← TanStack Query refetch
+               queryClient.invalidateQueries(['tasks'])   ← invalida todas as tasks
+               queryClient.invalidateQueries(['members']) ← invalida todos os members
                navigateToClient(client) → navigate('/:slug') → view="client-overview"
       ↓ onComplete (após fade-out do overlay)
   → toast cinza "Trocado para <Cliente>" (sonner, 3s)
   → setTransitionTarget(null)
 ```
 
-> O TanStack Query revalida automaticamente ao mudar as queries keys (clientId muda) — o `invalidateQueries` força refetch imediato mesmo que ainda esteja dentro do `staleTime`.
+> O TanStack Query revalida automaticamente ao mudar as query keys (clientId muda) — o `invalidateQueries` força refetch imediato mesmo que ainda esteja dentro do `staleTime`. O `isAdmin` correto é passado para garantir que a query key exata do admin seja invalidada (admins têm `['tasks', clientId, true]`). O cache manual do `useClientOverviewData` é limpo **antes** do delay de 650ms para evitar que dados stale sejam servidos na remontagem da view.
 
 ### `ClientTransitionOverlay` (`src/components/ClientTransitionOverlay.tsx`)
 

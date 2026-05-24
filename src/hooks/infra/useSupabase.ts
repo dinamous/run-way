@@ -112,11 +112,14 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
       .order('priority_order', { ascending: false })
       .limit(1)
 
-    const { data: lastTask } = resolvedClientId === null
+    devLog('[createTask] buscando priority_order...')
+    const priorityResult = resolvedClientId === null
       ? await priorityQuery.is('client_id', null)
       : await priorityQuery.eq('client_id', resolvedClientId)
-    const priorityOrder = (lastTask?.[0]?.priority_order ?? -1) + 1
+    devLog('[createTask] priority_order respondeu:', priorityResult.error?.message ?? 'ok')
+    const priorityOrder = (priorityResult.data?.[0]?.priority_order ?? -1) + 1
 
+    devLog('[createTask] iniciando insert...')
     const { data: taskRow, error: taskErr } = await supabase
       .from('tasks')
       .insert({
@@ -126,6 +129,11 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         priority_order: priorityOrder,
         blocked: taskData.status.blocked,
         blocked_at: taskData.status.blockedAt ?? null,
+        concluded_at: taskData.concludedAt ?? null,
+        expected_hours: taskData.expectedHours ?? null,
+        complexity: taskData.complexity ?? null,
+        task_type: taskData.taskType ?? null,
+        due_date: taskData.dueDate ?? null,
         client_id: resolvedClientId,
       })
       .select('id')

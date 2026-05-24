@@ -210,6 +210,22 @@ const hasDemandasActiveFilters =
     demandasFilters.selectedPeriod !== '' ||
     demandasFilters.showOnlyBlocked;
 
+  const contentRef = useRef<HTMLDivElement>(null);
+  const prevSubview = useRef(subview);
+
+  useEffect(() => {
+    if (prevSubview.current === subview) return;
+    prevSubview.current = subview;
+
+    if (!('startViewTransition' in document)) return;
+    const el = contentRef.current;
+    if (!el) return;
+    el.style.viewTransitionName = 'planning-content';
+    document.startViewTransition(() => {
+      el.style.viewTransitionName = '';
+    });
+  }, [subview]);
+
   if (errorMessage && !hasData) {
     return (
       <ViewState
@@ -235,22 +251,6 @@ const hasDemandasActiveFilters =
   }
 
   const showFilterBar = subview === 'calendar' || subview === 'timeline' || subview === 'kanban';
-
-  const contentRef = useRef<HTMLDivElement>(null);
-  const prevSubview = useRef(subview);
-
-  useEffect(() => {
-    if (prevSubview.current === subview) return;
-    prevSubview.current = subview;
-
-    if (!('startViewTransition' in document)) return;
-    const el = contentRef.current;
-    if (!el) return;
-    el.style.viewTransitionName = 'planning-content';
-    document.startViewTransition(() => {
-      el.style.viewTransitionName = '';
-    });
-  }, [subview]);
 
   const subviewContent = showFilterBar && filteredTasks.length === 0 ? (
     <ViewState

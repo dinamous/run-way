@@ -79,7 +79,8 @@ export function useAppOrchestrator() {
     useClientTransition(
       auth.clients,
       effectiveClientId,
-      useCallback((client: ClientOption) => nav.navigateToClient(client, true), [nav])
+      useCallback((client: ClientOption) => nav.navigateToClient(client, true), [nav]),
+      auth.isAdmin,
     );
 
   const selectClient = useCallback(
