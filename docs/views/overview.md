@@ -9,7 +9,11 @@ src/views/overview/
 ├── index.ts
 ├── OverviewView.tsx
 ├── hooks/
-│   └── useOverviewData.ts
+│   ├── useOverviewData.ts   ← módulo de tipos compartilhados (SubtaskRow, OverviewKpis, ClientSummary, ClientRisk)
+│   ├── useKpisData.ts       ← subtasks + KPIs + blockedTasks + accumulatedDelayDays
+│   ├── useClientsData.ts    ← clientes com risco enriquecido
+│   ├── useWorkloadData.ts   ← workload pessoal (membro + tarefas ativas/concluídas)
+│   └── overviewWorkload.ts
 └── components/
     ├── WelcomeCard.tsx
     ├── DayPlannerCard.tsx
@@ -43,32 +47,58 @@ Mobile: stacking vertical (1 col).
 
 "Seu dia" usa `grid-cols-[1fr_300px]`; "Atenção agora" usa `grid-cols-12` com `col-span-7` / `col-span-5`. O `overview-root` envolve tudo com um fundo levemente colorido (oklch com chroma baixo ~0.004 em light, ~0.008 em dark). O overlay `overview-ambient` usa dois gradientes radiais sutis (chroma máx 0.018) sem filtro de ruído.
 
-## `useOverviewData`
+## Hooks de dados
 
-**Arquivo:** `src/views/overview/hooks/useOverviewData.ts`
+A busca de dados é modularizada: cada grupo de cards tem o seu próprio hook com `loading`, `error` e `retry` independentes. Falhas num card não bloqueiam os demais.
 
-Busca em paralelo via `Promise.all` (3 chamadas simultâneas):
+### `useKpisData` — `src/views/overview/hooks/useKpisData.ts`
 
-1. **Subtasks** — admin: `fetchAllSubtasks(clientIds)` (todas, deduplicadas por subtask id, filtradas pelos clientIds do usuário); user: `fetchSubtasks(memberId)` (só as assignadas ao membro). Ambas buscam `active`, `blocked` da task e `clients`.
-2. **Notificações** — `fetchNotifications(userId, clientIds)` de `src/lib/notifications.ts`
-3. **Clientes com contagem de tasks ativas** — 2 queries paralelas: `clients` (filtrado por ids ou todos se admin) + `tasks` com `concluded_at IS NULL`; agregação feita em memória para evitar N+1. Admin não usa ids intermediários: busca todos os clientes diretamente.
+Busca subtasks e deriva todos os dados necessários para `WelcomeCard`, `PriorityList` e `DayPlannerCard`.
+
+**Fetch:**
+- admin: `fetchAllSubtasks(clientIds)` — todas as subtasks, deduplicadas por id, filtradas pelos clientIds do usuário
+- user: `fetchSubtasks(memberId)` — apenas as atribuídas ao membro
 
 **Derivados memoizados (`useMemo`):**
-
-KPIs, `enrichedClients` e `blockedTasks` são calculados via `useMemo` dependente de `subtasks` e `clientSummaries` — não recalculam a cada render.
-
-**KPIs calculados no client:**
-- `open` — tarefas únicas com `concluded_at IS NULL`
-- `late` — subtasks com `end_date < hoje` e tarefa não concluída
-- `today` — subtasks com `end_date = hoje` e tarefa não concluída
-- `concluded` — tarefas únicas com `concluded_at IS NOT NULL`
-
-**Campos extras calculados no client:**
+- `kpis.open` — tarefas únicas com `concluded_at IS NULL`
+- `kpis.late` — subtasks com `end_date < hoje` e tarefa não concluída
+- `kpis.today` — subtasks com `end_date = hoje` e tarefa não concluída
+- `kpis.concluded` — tarefas únicas com `concluded_at IS NOT NULL`
 - `accumulatedDelayDays` — soma dos dias de atraso de todas as subtasks atrasadas ativas
-- `ClientSummary.lateSubtaskCount` — subtasks atrasadas pertencentes ao cliente (cruzado com `subtasks` localmente)
-- `ClientSummary.risk` — `'critical'` (≥2 atrasadas) | `'attention'` (1 atrasada) | `'healthy'` (nenhuma)
-- `blockedTasks: BlockedTask[]` — tasks únicas (por `taskId`) com `blocked = true` e não concluídas; usadas pelo `DayPlannerCard`
-- `personalWorkload` — membro logado com `subtaskCount`, `lateCount`, `capacity` e até 3 insights textuais sobre carga individual
+- `blockedTasks: BlockedTask[]` — tasks únicas (por `taskId`) com `blocked = true` e não concluídas
+
+**Retorna:** `{ subtasks, kpis, blockedTasks, accumulatedDelayDays, loading, error, retry }`
+
+### `useClientsData` — `src/views/overview/hooks/useClientsData.ts`
+
+Busca clientes e enriquece com risco baseado nos `lateByClient` já calculados pelo `useKpisData` (passados como prop `subtasksLateByClient`).
+
+**Fetch (2 queries paralelas):**
+- `clients` — filtrado por ids ou todos se admin
+- `tasks` com `concluded_at IS NULL` — agrupados em memória para evitar N+1
+
+**Enriquecimento memoizado:**
+- `ClientSummary.lateSubtaskCount` — cruzado com o mapa `subtasksLateByClient`
+- `ClientSummary.risk` — `'critical'` (≥2 atrasadas) | `'attention'` (1) | `'healthy'` (0)
+
+**Retorna:** `{ clients, loading, error, retry }`
+
+### `useWorkloadData` — `src/views/overview/hooks/useWorkloadData.ts`
+
+Busca dados de carga do membro logado em paralelo via `Promise.all`.
+
+**Fetch (3 queries paralelas):**
+- `fetchMemberProfile(memberId)` — membro com `capacity`
+- `fetchActiveTasksWithHours(null, isAdmin)`
+- `fetchConcludedTasksSince(since14d, null, isAdmin)`
+
+Compõe `personalWorkload` via `buildPersonalWorkload` de `overviewWorkload.ts`.
+
+**Retorna:** `{ personalWorkload, loading, error, retry }`
+
+### `useOverviewData` — módulo de tipos
+
+`src/views/overview/hooks/useOverviewData.ts` foi reduzido a um módulo de tipos compartilhados exportados pelos hooks acima e pelos componentes da view:
 
 **`SubtaskRow` — campos:**
 ```ts
@@ -85,7 +115,7 @@ interface SubtaskRow {
 ## Componentes
 
 ### `DayPlannerCard`
-Bloco lateral (5 cols) exibido ao lado do `PriorityList` na seção "Atenção agora". Gera um plano do dia textual com base nos dados de `useOverviewData`, usando `generateDayPlan` de `src/utils/planner.ts`.
+Bloco lateral (5 cols) exibido ao lado do `PriorityList` na seção "Atenção agora". Gera um plano do dia textual com base nos dados de `useKpisData`, usando `generateDayPlan` de `src/utils/planner.ts`. Envolto em `CardShell` — aceita `error` e `onRetry`.
 
 **Métricas no topo:** Atrasadas / Hoje / Esta semana (contadores numéricos com cores: vermelho / âmbar / azul).
 
@@ -98,7 +128,7 @@ Bloco lateral (5 cols) exibido ao lado do `PriorityList` na seção "Atenção a
 **Escopo por perfil:** admin recebe todas as subtasks da equipe; user recebe apenas as suas — controlado em `useOverviewData`.
 
 ### `WelcomeCard`
-Saudação dinâmica por horário + frase contextual baseada nos KPIs + quatro **KPI tiles** em grid 2×2 + barra de carga acumulada na base. Skeleton durante `loading`.
+Saudação dinâmica por horário + frase contextual baseada nos KPIs + quatro **KPI tiles** em grid 2×2 + barra de carga acumulada na base. Envolto em `CardShell` — exibe skeleton durante `loading` e estado de erro com retry quando `error` está presente.
 
 **Animações (desativadas com `prefers-reduced-motion`):**
 - Greeting/header entra com `blur-fade-in` (blur 8px → 0, 350ms).
@@ -109,10 +139,10 @@ Saudação dinâmica por horário + frase contextual baseada nos KPIs + quatro *
 - A strip de carga acumulada exibe uma barra de progresso proporcional (máx 30d) que anima de `width: 0%` para o valor real em 700ms ease-out. Cor vermelha quando `days > 0`.
 
 ### `PriorityList`
-Subtasks ativas agrupadas por **impacto** (não por urgência de tempo): **Crítico** (atrasadas, label vermelho), **Importante** (vencimento em até 3 dias, label âmbar), **Backlog** (demais, label muted). Cada grupo tem header com dot colorido + contagem. Paginação: 15 itens visíveis, botão "Ver mais" carrega +15. Itens entram com `overview-item-enter` (stagger de 30ms). Empty state com `CheckCircle2`.
+Subtasks ativas agrupadas por **impacto** (não por urgência de tempo): **Crítico** (atrasadas, label vermelho), **Importante** (vencimento em até 3 dias, label âmbar), **Backlog** (demais, label muted). Cada grupo tem header com dot colorido + contagem. Paginação: 15 itens visíveis, botão "Ver mais" carrega +15. Itens entram com `overview-item-enter` (stagger de 30ms). Empty state com `CheckCircle2`. Envolto em `CardShell` — aceita `error` e `onRetry`.
 
 ### `ActiveClients`
-Lista vertical de clientes ordenada por risco: crítico (≥2 subtasks atrasadas) → atenção (1 atrasada) → saudável. Cada item mostra avatar + nome + contagem de tarefas + dot de risco (`🔴/🟡/🟢` em CSS: `bg-red-500/amber-400/emerald-400`). Header exibe contagem de críticos e atenção quando não-zero. Itens entram com `overview-item-enter` (stagger de 40ms). Clique chama `onSelectClient(clientId)`.
+Lista vertical de clientes ordenada por risco: crítico (≥2 subtasks atrasadas) → atenção (1 atrasada) → saudável. Cada item mostra avatar + nome + contagem de tarefas + dot de risco (`🔴/🟡/🟢` em CSS: `bg-red-500/amber-400/emerald-400`). Header exibe contagem de críticos e atenção quando não-zero. Itens entram com `overview-item-enter` (stagger de 40ms). Clique chama `onSelectClient(clientId)`. Envolto em `CardShell` — aceita `error` e `onRetry`.
 
 ### `PersonalWorkload`
 Bloco "Sua carga de trabalho atual" dentro da `OverviewView`, renderizado com `CapacityTeam` de `src/components/workload/CapacityTeam.tsx`. Mostra apenas o membro logado. Quando `members.length === 1`, o `CapacityTeam` usa um layout horizontal compacto (avatar + nome/role + barra de capacidade + pill de status + contador `X/Y` em uma única linha), evitando espaço vazio desnecessário. Para múltiplos membros, mantém o grid card-based (`sm:grid-cols-2`). Abaixo do card entram insights curtos, por exemplo:
@@ -121,7 +151,7 @@ Bloco "Sua carga de trabalho atual" dentro da `OverviewView`, renderizado com `C
 - quais demandas ocupam a maior parte da capacidade
 - quantas subtarefas da carga individual estão atrasadas
 
-O cálculo filtra apenas subtarefas `active` e de tasks não concluídas. Para admin, `useOverviewData` faz uma busca pessoal separada com `fetchSubtasks(memberId)` para não misturar a carga individual com a visão agregada da equipe.
+O cálculo filtra apenas subtarefas `active` e de tasks não concluídas. O `useWorkloadData` faz sempre busca com `memberId` — a carga individual nunca é misturada com a visão agregada da equipe. O `CapacityTeam` é envolto em `CardShell` inline na `OverviewView` para exibir skeleton e estado de erro com retry.
 
 **Campos adicionais (workload engine):** o `WorkloadMember` passado ao `CapacityTeam` inclui agora `totalActiveHours`, `weekHours`, `monthHours`, `stuckTasksCount`, `pressureScore`, `status`, `estimatedCompletionDate`, `segments: WorkloadSegment[]` e `weekSegments: WorkloadSegment[]`, calculados pelo `workloadEngine.ts` via `buildPersonalWorkload` em `overviewWorkload.ts`. O componente exibe:
 - **Toggle Semana / Mês** — pill no canto direito do card individual; alterna o período exibido na barra e no número grande. Estado padrão: Semana.

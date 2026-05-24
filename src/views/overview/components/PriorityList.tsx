@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { Badge, MotionItem } from '@/components/ui'
+import { CardShell } from '@/components/ui/CardShell'
 import type { SubtaskRow } from '../hooks/useOverviewData'
 
 interface PriorityListProps {
   subtasks: SubtaskRow[]
   loading: boolean
+  error?: string | null
+  onRetry?: () => void
 }
 
 const PAGE_SIZE = 15
@@ -162,74 +165,74 @@ function GroupSection({ group, items, globalOffset }: GroupSectionProps) {
   )
 }
 
-export function PriorityList({ subtasks, loading }: PriorityListProps) {
+const PriorityListSkeleton = (
+  <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
+    <div className="h-4 w-36 animate-pulse rounded bg-muted/50" />
+    <div className="flex flex-col gap-2.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 py-1">
+          <div className="h-6 w-6 shrink-0 animate-pulse rounded-md bg-muted/50" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-2.5 w-20 animate-pulse rounded bg-muted/40" />
+            <div className="h-3 w-48 animate-pulse rounded bg-muted/50" />
+          </div>
+          <div className="h-5 w-12 animate-pulse rounded bg-muted/40" />
+          <div className="h-5 w-14 animate-pulse rounded bg-muted/50" />
+        </div>
+      ))}
+    </div>
+  </div>
+)
+
+export function PriorityList({ subtasks, loading, error = null, onRetry }: PriorityListProps) {
   const [visible, setVisible] = useState(PAGE_SIZE)
 
   const active = subtasks.filter((s) => !s.taskConcludedAt)
   const shown = active.slice(0, visible)
   const grouped = groupSubtasks(shown)
 
-  if (loading) {
-    return (
-      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
-        <div className="h-4 w-36 animate-pulse rounded bg-muted/50" />
-        <div className="flex flex-col gap-2.5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 py-1">
-              <div className="h-6 w-6 shrink-0 animate-pulse rounded-md bg-muted/50" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-2.5 w-20 animate-pulse rounded bg-muted/40" />
-                <div className="h-3 w-48 animate-pulse rounded bg-muted/50" />
-              </div>
-              <div className="h-5 w-12 animate-pulse rounded bg-muted/40" />
-              <div className="h-5 w-14 animate-pulse rounded bg-muted/50" />
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Minhas Subtarefas</h3>
-        {active.length > 0 && (
-          <span className="text-xs tabular-nums text-muted-foreground">{active.length} ativas</span>
+    <CardShell loading={loading} error={error} onRetry={onRetry} skeleton={PriorityListSkeleton}>
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Minhas Subtarefas</h3>
+          {active.length > 0 && (
+            <span className="text-xs tabular-nums text-muted-foreground">{active.length} ativas</span>
+          )}
+        </div>
+
+        {active.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-10 text-muted-foreground">
+            <CheckCircle2 className="h-7 w-7 opacity-40" />
+            <p className="text-sm">Nenhuma subtarefa atribuída a você</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-4">
+              <GroupSection group="critico" items={grouped.critico} globalOffset={0} />
+              <GroupSection
+                group="importante"
+                items={grouped.importante}
+                globalOffset={grouped.critico.length}
+              />
+              <GroupSection
+                group="backlog"
+                items={grouped.backlog}
+                globalOffset={grouped.critico.length + grouped.importante.length}
+              />
+            </div>
+
+            {active.length > visible && (
+              <button
+                onClick={() => setVisible((v) => v + PAGE_SIZE)}
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline self-start transition-colors"
+              >
+                Ver mais ({active.length - visible} restantes)
+              </button>
+            )}
+          </>
         )}
       </div>
-
-      {active.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-10 text-muted-foreground">
-          <CheckCircle2 className="h-7 w-7 opacity-40" />
-          <p className="text-sm">Nenhuma subtarefa atribuída a você</p>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-col gap-4">
-            <GroupSection group="critico" items={grouped.critico} globalOffset={0} />
-            <GroupSection
-              group="importante"
-              items={grouped.importante}
-              globalOffset={grouped.critico.length}
-            />
-            <GroupSection
-              group="backlog"
-              items={grouped.backlog}
-              globalOffset={grouped.critico.length + grouped.importante.length}
-            />
-          </div>
-
-          {active.length > visible && (
-            <button
-              onClick={() => setVisible((v) => v + PAGE_SIZE)}
-              className="text-xs text-muted-foreground underline-offset-2 hover:underline self-start transition-colors"
-            >
-              Ver mais ({active.length - visible} restantes)
-            </button>
-          )}
-        </>
-      )}
-    </div>
+    </CardShell>
   )
 }

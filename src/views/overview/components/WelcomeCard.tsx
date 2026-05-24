@@ -1,4 +1,5 @@
 import { Layers, AlertTriangle, Clock, CheckCircle2, TrendingUp } from 'lucide-react'
+import { CardShell } from '@/components/ui/CardShell'
 import type { OverviewKpis } from '../hooks/useOverviewData'
 
 interface WelcomeCardProps {
@@ -6,6 +7,8 @@ interface WelcomeCardProps {
   kpis: OverviewKpis
   accumulatedDelayDays: number
   loading: boolean
+  error?: string | null
+  onRetry?: () => void
 }
 
 function getGreeting(): string {
@@ -86,43 +89,43 @@ function LoadingSkeleton() {
   )
 }
 
-export function WelcomeCard({ userName, kpis, accumulatedDelayDays, loading }: WelcomeCardProps) {
-  if (loading) return <LoadingSkeleton />
-
+export function WelcomeCard({ userName, kpis, accumulatedDelayDays, loading, error = null, onRetry }: WelcomeCardProps) {
   const firstName = userName.split(' ')[0]
   const greeting = getGreeting()
 
   return (
-    <div className="overview-card rounded-xl p-6 flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
-          {greeting}, {firstName}.
-        </h2>
-        <p className="text-sm text-muted-foreground">{getContextPhrase(kpis)}</p>
-      </div>
+    <CardShell loading={loading} error={error} onRetry={onRetry} skeleton={<LoadingSkeleton />}>
+      <div className="overview-card rounded-xl p-6 flex flex-col gap-5">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            {greeting}, {firstName}.
+          </h2>
+          <p className="text-sm text-muted-foreground">{getContextPhrase(kpis)}</p>
+        </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <KpiTile value={kpis.open} label="Em aberto" icon={Layers} variant="default"  />
-        <KpiTile value={kpis.late} label="Atrasadas" icon={AlertTriangle} variant="urgent"  />
-        <KpiTile value={kpis.today} label="Vencem hoje" icon={Clock} variant="warn"  />
-        <KpiTile value={kpis.concluded} label="Concluídas" icon={CheckCircle2} variant="positive"  />
-      </div>
+        <div className="grid grid-cols-2 gap-2">
+          <KpiTile value={kpis.open} label="Em aberto" icon={Layers} variant="default" />
+          <KpiTile value={kpis.late} label="Atrasadas" icon={AlertTriangle} variant="urgent" />
+          <KpiTile value={kpis.today} label="Vencem hoje" icon={Clock} variant="warn" />
+          <KpiTile value={kpis.concluded} label="Concluídas" icon={CheckCircle2} variant="positive" />
+        </div>
 
-      <div className="flex items-center gap-1.5 rounded-lg bg-foreground/[0.03] px-4 py-3 border border-border/40">
-        <TrendingUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <span className="text-xs text-muted-foreground">Carga acumulada:</span>
-        <span
-          className={`text-xs font-semibold tabular-nums ${
-            accumulatedDelayDays > 0
-              ? 'text-red-600 dark:text-red-400'
-              : 'text-foreground'
-          }`}
-        >
-          {accumulatedDelayDays > 0
-            ? `${accumulatedDelayDays}d de atraso acumulado`
-            : 'Sem atraso acumulado'}
-        </span>
+        <div className="flex items-center gap-1.5 rounded-lg bg-foreground/[0.03] px-4 py-3 border border-border/40">
+          <TrendingUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="text-xs text-muted-foreground">Carga acumulada:</span>
+          <span
+            className={`text-xs font-semibold tabular-nums ${
+              accumulatedDelayDays > 0
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-foreground'
+            }`}
+          >
+            {accumulatedDelayDays > 0
+              ? `${accumulatedDelayDays}d de atraso acumulado`
+              : 'Sem atraso acumulado'}
+          </span>
+        </div>
       </div>
-    </div>
+    </CardShell>
   )
 }

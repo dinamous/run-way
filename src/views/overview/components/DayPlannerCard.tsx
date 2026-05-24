@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { AlertTriangle, Flame, CalendarClock, Clock, Ban } from 'lucide-react'
 import { generateDayPlan, type PlanMessage } from '@/utils/planner'
+import { CardShell } from '@/components/ui/CardShell'
 import type { SubtaskRow } from '../hooks/useOverviewData'
 import type { BlockedTask } from '@/utils/planner'
 
@@ -8,6 +9,8 @@ interface DayPlannerCardProps {
   subtasks: SubtaskRow[]
   blockedTasks: BlockedTask[]
   loading: boolean
+  error?: string | null
+  onRetry?: () => void
   onNavigateToPlanning?: () => void
 }
 
@@ -79,56 +82,56 @@ function LoadingSkeleton() {
   )
 }
 
-export function DayPlannerCard({ subtasks, blockedTasks, loading, onNavigateToPlanning }: DayPlannerCardProps) {
-  if (loading) return <LoadingSkeleton />
-
+export function DayPlannerCard({ subtasks, blockedTasks, loading, error = null, onRetry, onNavigateToPlanning }: DayPlannerCardProps) {
   const plan = useMemo(() => generateDayPlan(subtasks, blockedTasks), [subtasks, blockedTasks])
 
   const urgentMessages = plan.messages.filter((m) => m.tier !== 'blocked')
   const blockedMessages = plan.messages.filter((m) => m.tier === 'blocked')
 
   return (
-    <div className="overview-card rounded-xl p-5 flex flex-col gap-4 h-full">
+    <CardShell loading={loading} error={error} onRetry={onRetry} skeleton={<LoadingSkeleton />}>
+      <div className="overview-card rounded-xl p-5 flex flex-col gap-4 h-full">
 
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-        <h3 className="text-sm font-semibold text-foreground">Plano do dia</h3>
-      </div>
-
-      {/* Metrics */}
-      <div className="flex gap-2">
-        <Metric label="Atrasadas" value={plan.lateCount} accent="text-red-500 dark:text-red-400" />
-        <Metric label="Hoje" value={plan.todayCount} accent="text-amber-500 dark:text-amber-400" />
-        <Metric label="Esta semana" value={plan.weekCount} accent="text-blue-500 dark:text-blue-400" />
-      </div>
-
-      {/* Messages */}
-      {plan.isEmpty ? (
-        <div className="flex-1 flex flex-col gap-1.5 overflow-auto">
-          <p className="text-[12.5px] text-muted-foreground px-1">
-            Nenhuma entrega crítica hoje. Bom momento para avançar nas demandas em andamento.
-          </p>
+        {/* Header */}
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <h3 className="text-sm font-semibold text-foreground">Plano do dia</h3>
         </div>
-      ) : (
-        <div className="flex-1 flex flex-col gap-1.5 overflow-auto">
-          {urgentMessages.map((msg, i) => (
-            <MessageItem key={i} msg={msg} onNavigate={onNavigateToPlanning} />
-          ))}
 
-          {blockedMessages.length > 0 && (
-            <>
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mt-1 px-0.5">
-                Bloqueadas
-              </p>
-              {blockedMessages.map((msg, i) => (
-                <MessageItem key={`b${i}`} msg={msg} onNavigate={onNavigateToPlanning} />
-              ))}
-            </>
-          )}
+        {/* Metrics */}
+        <div className="flex gap-2">
+          <Metric label="Atrasadas" value={plan.lateCount} accent="text-red-500 dark:text-red-400" />
+          <Metric label="Hoje" value={plan.todayCount} accent="text-amber-500 dark:text-amber-400" />
+          <Metric label="Esta semana" value={plan.weekCount} accent="text-blue-500 dark:text-blue-400" />
         </div>
-      )}
 
-    </div>
+        {/* Messages */}
+        {plan.isEmpty ? (
+          <div className="flex-1 flex flex-col gap-1.5 overflow-auto">
+            <p className="text-[12.5px] text-muted-foreground px-1">
+              Nenhuma entrega crítica hoje. Bom momento para avançar nas demandas em andamento.
+            </p>
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col gap-1.5 overflow-auto">
+            {urgentMessages.map((msg, i) => (
+              <MessageItem key={i} msg={msg} onNavigate={onNavigateToPlanning} />
+            ))}
+
+            {blockedMessages.length > 0 && (
+              <>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mt-1 px-0.5">
+                  Bloqueadas
+                </p>
+                {blockedMessages.map((msg, i) => (
+                  <MessageItem key={`b${i}`} msg={msg} onNavigate={onNavigateToPlanning} />
+                ))}
+              </>
+            )}
+          </div>
+        )}
+
+      </div>
+    </CardShell>
   )
 }
