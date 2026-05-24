@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchClientOverviewRaw } from './clientOverviewService'
-import { buildTaskList, buildTimeline, buildFocusTasks, calcKpis, buildHealth, mergeClientMembers } from './clientOverviewTransformers'
+import { buildTaskList, buildTimeline, buildFocusTasks, calcKpis, buildHealth, mergeClientMembers, seedMemberMap, applyOtherClientWorkload } from './clientOverviewTransformers'
 
 const CACHE_TTL_MS = 60_000
 
@@ -37,6 +37,7 @@ export interface ClientTask {
 export interface ClientSubtask {
   id: string
   title: string
+  startDate: string
   endDate: string
   status: string
   isLate: boolean
@@ -50,11 +51,16 @@ export interface ClientMember {
   avatarUrl: string | null
   capacity: number
   subtaskCount: number
+  totalActiveHours?: number
   lateCount: number
   stuckTasksCount?: number
   pressureScore?: number
   status?: 'available' | 'busy' | 'overloaded'
   estimatedCompletionDate?: string | null
+  segments?: import('@/components/workload/CapacityTeam').WorkloadSegment[]
+  weekSegments?: import('@/components/workload/CapacityTeam').WorkloadSegment[]
+  weekHours?: number
+  monthHours?: number
 }
 
 export interface ClientOverviewKpis {
@@ -93,6 +99,8 @@ export interface ClientOverviewData {
   focusTasks: ClientTask[]
   tasks: ClientTask[]
   members: ClientMember[]
+  /** Hours each member has allocated specifically to this client (member id → hours) */
+  clientHours: Map<string, number>
   timeline: TimelineEntry[]
   loading: boolean
   error: string | null
@@ -108,6 +116,7 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
   const [focusTasks, setFocusTasks] = useState<ClientTask[]>([])
   const [tasks, setTasks] = useState<ClientTask[]>([])
   const [members, setMembers] = useState<ClientMember[]>([])
+  const [clientHours, setClientHours] = useState<Map<string, number>>(new Map())
   const [timeline, setTimeline] = useState<TimelineEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -117,6 +126,7 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
       setClient(null)
       setTasks([])
       setMembers([])
+      setClientHours(new Map())
       setTimeline([])
       setFocusTasks([])
       setHealth(EMPTY_HEALTH)
@@ -138,6 +148,7 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
     setClient(null)
     setTasks([])
     setMembers([])
+    setClientHours(new Map())
     setTimeline([])
     setFocusTasks([])
     setHealth(EMPTY_HEALTH)
@@ -157,6 +168,18 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
         const openTasks = taskList.filter((t) => !t.concludedAt)
         const concludedTasks = taskList.filter((t) => t.concludedAt)
 
+        // Ensure all client members are in the map before cross-client workload is applied,
+        // so members with zero local tasks still receive their other-client segments.
+        seedMemberMap(memberMap, raw.members)
+
+        // Snapshot client-only hours before merging cross-client workload
+        const clientHoursSnapshot = new Map<string, number>()
+        for (const [id, m] of memberMap) {
+          clientHoursSnapshot.set(id, m.totalActiveHours ?? 0)
+        }
+
+        applyOtherClientWorkload(memberMap, raw.otherClientTasks, today)
+
         const entry: Omit<ClientOverviewData, 'loading' | 'error'> = {
           client: raw.client,
           kpis: calcKpis(taskList, openTasks, concludedTasks),
@@ -164,6 +187,7 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
           focusTasks: buildFocusTasks(openTasks),
           tasks: taskList,
           members: mergeClientMembers(memberMap, raw.members),
+          clientHours: clientHoursSnapshot,
           timeline: buildTimeline(openTasks, today, in7Days),
         }
 
@@ -191,8 +215,9 @@ export function useClientOverviewData(clientId: string | null): ClientOverviewDa
     setFocusTasks(entry.focusTasks)
     setTasks(entry.tasks)
     setMembers(entry.members)
+    setClientHours(entry.clientHours)
     setTimeline(entry.timeline)
   }
 
-  return { client, kpis, health, focusTasks, tasks, members, timeline, loading, error }
+  return { client, kpis, health, focusTasks, tasks, members, clientHours, timeline, loading, error }
 }

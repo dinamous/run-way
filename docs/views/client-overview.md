@@ -60,8 +60,10 @@ O hook é responsável apenas por estado + cache + fetch. Toda a lógica de pars
 | `parseSubtask` | Converte `RawSubtask` → `ClientSubtask`; trata `end_date` nulo e `capacity ≤ 0` |
 | `calcAccumulatedLateDays` | Soma dias de atraso por subtarefa |
 | `calcTaskPriority` | Deriva `critical \| important \| backlog` |
-| `buildTaskList` | Itera tasks brutas, monta `ClientTask[]` e acumula `memberMap` |
-| `mergeClientMembers` | Funde membros de `user_clients` no `memberMap` e ordena por carga |
+| `buildTaskList` | Itera tasks do cliente, monta `ClientTask[]`, acumula `memberMap` com `weekHours`/`monthHours`/`weekSegments` |
+| `seedMemberMap` | Insere membros de `user_clients` ainda ausentes no `memberMap` (com zeros); idempotente |
+| `applyOtherClientWorkload` | Adiciona horas de outros clientes ao `memberMap` já existente, marcando segmentos com `isOtherClient: true` |
+| `mergeClientMembers` | Chama `seedMemberMap` internamente e retorna array ordenado por `subtaskCount` decrescente |
 | `buildTimeline` | Filtra subtarefas abertas com `end_date ≤ hoje+7d` |
 | `buildFocusTasks` | Top 5 tasks abertas ordenadas por prioridade e atraso |
 | `calcKpis` | Agrega `ClientOverviewKpis` a partir de `taskList` |
@@ -70,8 +72,12 @@ O hook é responsável apenas por estado + cache + fetch. Toda a lógica de pars
 Recebe `clientId: string | null`. Busca em paralelo via `Promise.all`:
 
 1. **Info do cliente** — `clients.id, name`
-2. **Tasks do cliente** — `tasks` filtradas por `client_id`, com join em `task_subtasks (id, title, end_date, status) → subtask_assignees → members`
+2. **Tasks do cliente** — `tasks` filtradas por `client_id` e `concluded_at IS NULL`, com join em `task_subtasks → subtask_assignees → members` e `clients (id, name)`
 3. **Membros do cliente** — `user_clients` filtrado por `client_id`, com join em `members (id, name, role, avatar_url, capacity)`
+
+Após os três fetches paralelos, faz um quarto fetch sequencial:
+
+4. **Tasks de outros clientes** — todas as tasks ativas (`concluded_at IS NULL`, `client_id != clientId`) que tenham ao menos um assignee no conjunto de membros do cliente. Usado para calcular carga cruzada.
 
 ### Reset ao trocar de cliente
 
@@ -103,10 +109,11 @@ interface ClientOverviewData {
   client: ClientInfo | null
   kpis: ClientOverviewKpis
   health: ClientHealth
-  focusTasks: ClientTask[]   // top 5 tasks mais críticas
-  tasks: ClientTask[]        // todas as tasks
+  focusTasks: ClientTask[]            // top 5 tasks mais críticas
+  tasks: ClientTask[]                 // todas as tasks
   members: ClientMember[]
-  timeline: TimelineEntry[]  // subtasks com end_date ≤ hoje+7d
+  clientHours: Map<string, number>    // horas de cada membro alocadas SOMENTE neste cliente (memberId → horas)
+  timeline: TimelineEntry[]           // subtasks com end_date ≤ hoje+7d
   loading: boolean
   error: string | null
 }
@@ -125,7 +132,7 @@ interface ClientTask {
 }
 
 interface ClientSubtask {
-  id, title, endDate, status, isLate
+  id, title, startDate, endDate, status, isLate
   assignees: ClientMember[]
 }
 
@@ -171,23 +178,33 @@ Top 5 tasks abertas, ordenadas por prioridade (`critical → important → backl
 
 Todas as subtarefas de tasks abertas com `end_date ≤ hoje+7d`, ordenadas por data. Inclui subtarefas já atrasadas (`daysFromNow < 0`).
 
-### Membros
+### Membros e carga cruzada
 
-Lista **todos** os membros vinculados ao cliente via `user_clients`, independentemente de terem tarefas alocadas. A lógica funciona em duas etapas:
+Lista **todos** os membros vinculados ao cliente via `user_clients`. A lógica funciona em quatro etapas:
 
-1. Agrega `subtask_assignees` das tasks abertas em `Map` por `member_id`, contando `subtaskCount` e `lateCount` (subtarefas com `isLate = true` atribuídas ao membro).
-2. Itera pelos membros da query `user_clients` e insere no mapa os que ainda não estão presentes (com `subtaskCount: 0` e `lateCount: 0`).
-
-Resultado ordenado por carga decrescente (`subtaskCount`).
+1. **`buildTaskList`** — agrega `subtask_assignees` das tasks do cliente em `Map` por `member_id`, calculando `subtaskCount`, `lateCount`, `totalActiveHours`, `weekHours`, `monthHours`, `segments` e `weekSegments` (apenas horas deste cliente).
+2. **`seedMemberMap`** — insere no `memberMap` todos os membros de `user_clients` que ainda não aparecem (subtaskCount 0, zeros). Isso garante que membros sem tarefas locais já estejam presentes **antes** do passo seguinte, para que recebam corretamente os segmentos de outros clientes.
+3. **Snapshot de `clientHours`** — captura `totalActiveHours` de cada membro como "horas neste cliente" (`Map<memberId, number>`), exposto em `data.clientHours`.
+4. **`applyOtherClientWorkload`** — itera tasks de outros clientes, adiciona horas ao `totalActiveHours`/`weekHours`/`monthHours` de cada membro e injeta segmentos extras com `isOtherClient: true` — que rendem em cinza no `CapacityTeam`.
+5. **`mergeClientMembers`** — chama `seedMemberMap` internamente (idempotente) e ordena por `subtaskCount` decrescente.
 
 ```ts
 interface ClientMember {
   id, name, role, avatarUrl
-  capacity: number       // teto individual (members.capacity, default 6)
-  subtaskCount: number   // total de subtarefas ativas atribuídas neste cliente
-  lateCount: number      // subtarefas atrasadas atribuídas
+  capacity: number             // teto individual (members.capacity, default 6)
+  subtaskCount: number         // subtarefas ativas neste cliente
+  totalActiveHours?: number    // horas totais (este cliente + outros clientes)
+  weekHours?: number           // horas na semana corrente (total, todos os clientes)
+  monthHours?: number          // horas no mês corrente (total, todos os clientes)
+  lateCount: number            // subtarefas atrasadas neste cliente
+  segments?: WorkloadSegment[] // fatias para barra mensal/total; isOtherClient=true nas de outros clientes
+  weekSegments?: WorkloadSegment[] // fatias clampadas para a semana corrente
 }
 ```
+
+`WorkloadSegment` é importado de `@/components/workload/CapacityTeam` e tem a forma `{ taskId, taskTitle, clientName?, subtaskTitle, hours, isOtherClient? }`.
+
+O campo `clientHours` do `ClientOverviewData` mapeia `memberId → horas` do **cliente atual** (antes de somar outros clientes). O `CapacityTeam` usa esse mapa para exibir "Xh neste cliente" abaixo da barra e no tooltip dos segmentos.
 
 ## Componentes
 
@@ -214,7 +231,17 @@ Lista de tasks abertas agrupadas em seções Críticas / Importantes / Backlog. 
 Subtarefas dos próximos 7 dias (incluindo atrasadas), agrupadas por `daysFromNow`: "Hoje", "Amanhã", "Em N dias", "Nd de atraso". Atrasadas ficam em vermelho. Empty state quando não há entregas no período.
 
 ### `ClientTeam`
-Grid de cards por membro (1 col mobile, 2 cols sm, 3 cols lg). Cada card exibe avatar, nome, papel, pílula de status e a alocação `X/Y` (subtarefas alocadas / capacidade individual do membro).
+Wrapper fino sobre `CapacityTeam` (componente global em `src/components/workload/CapacityTeam.tsx`). Renderizado dentro de uma `<section>` com label "Carga da equipe" no `ClientOverviewView`, seguindo o mesmo padrão de seções da `OverviewView`.
+
+Passa `title="Carga de trabalho da equipe"`, `countLabel` dinâmico ("1 membro" / "N membros") e `emptyLabel="Nenhum membro alocado neste cliente"` para o `CapacityTeam`.
+
+Grid de cards por membro (1 col mobile, 2 cols sm). Cada card exibe avatar, nome, papel, pílula de status, número de horas/alocações animado e track de capacidade.
+
+**Toggle semana/mês** — quando algum membro tem `weekHours` ou `monthHours`, o `CapacityTeam` exibe um toggle global "Semana / Mês" no header. Ao trocar de período, todas as barras de capacidade reanimam em cascata. `weekHours`/`monthHours`/`weekSegments` são calculados tanto para as tarefas do cliente quanto para as de outros clientes — o toggle funciona plenamente na `ClientOverviewView`.
+
+**Carga cruzada (segmentos de outros clientes)** — segmentos com `isOtherClient: true` renderizam em cinza (`oklch(0.72 0 0)`) na barra, independentemente do estado de carga. O tooltip desses segmentos exibe o nome do outro cliente com uma badge "outro cliente". Abaixo da barra segmentada, quando `clientHours` está presente, aparece o label "Xh neste cliente" mostrando quanto das horas totais é alocado especificamente neste cliente.
+
+O `CapacityTeam` recebe a prop `clientHours: Map<string, number>` para habilitar essas informações.
 
 **Status de carga** — calculado pelo ratio `subtaskCount / capacity`:
 | Status | Condição | Visual |
@@ -223,7 +250,12 @@ Grid de cards por membro (1 col mobile, 2 cols sm, 3 cols lg). Cada card exibe a
 | Em carga | ratio 0.6–0.99 | Âmbar tonal |
 | Sobrecarregado | ratio ≥ 1.0 | Vermelho tonal |
 
-**Track de capacidade** — fila de segmentos (`capacity` divisões), preenchidos até o total alocado. Quando `subtaskCount > capacity`, os segmentos extras aparecem em vermelho à direita do track. Atrasos exibidos como contador textual `X atrasada(s)`.
+**Track de capacidade** — três modos em cascata:
+1. **Segmentado** — quando `segments` existe e `totalActiveHours` está preenchido: barra dividida por subtarefa com cores distintas e tooltip no hover.
+2. **Contínuo** — quando `totalActiveHours` existe sem segmentos: barra única proporcional a `totalActiveHours / (capacity × 8h)`.
+3. **Slots** — fallback quando não há dados de horas: fila de `capacity` divisões preenchidas por `subtaskCount`.
+
+**Empty state de período** — quando o membro não tem dados para o período selecionado (weekHours/monthHours undefined), exibe uma barra cinza com o texto "sem dados semanais/mensais" em vez de quebrar o layout.
 
 **Banco:** campo `members.capacity integer not null default 6` (migration `20260520000000_members_capacity.sql`). O hook busca `capacity` no join `members` e expõe em `ClientMember`. Empty state com `Users`.
 

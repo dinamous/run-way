@@ -115,7 +115,7 @@ Subtasks ativas agrupadas por **impacto** (não por urgência de tempo): **Crít
 Lista vertical de clientes ordenada por risco: crítico (≥2 subtasks atrasadas) → atenção (1 atrasada) → saudável. Cada item mostra avatar + nome + contagem de tarefas + dot de risco (`🔴/🟡/🟢` em CSS: `bg-red-500/amber-400/emerald-400`). Header exibe contagem de críticos e atenção quando não-zero. Itens entram com `overview-item-enter` (stagger de 40ms). Clique chama `onSelectClient(clientId)`.
 
 ### `PersonalWorkload`
-Bloco "Sua carga de trabalho atual" dentro da `OverviewView`, renderizado com `CapacityTeam` de `src/components/workload/CapacityTeam.tsx`. Mostra apenas o membro logado. Quando `members.length === 1`, o `CapacityTeam` usa um layout horizontal compacto (avatar + nome/role + barra de capacidade + pill de status + contador `X/Y` em uma única linha), evitando espaço vazio desnecessário. Para múltiplos membros, mantém o grid card-based (`sm:grid-cols-2 lg:grid-cols-3`). Abaixo do card entram insights curtos, por exemplo:
+Bloco "Sua carga de trabalho atual" dentro da `OverviewView`, renderizado com `CapacityTeam` de `src/components/workload/CapacityTeam.tsx`. Mostra apenas o membro logado. Quando `members.length === 1`, o `CapacityTeam` usa um layout horizontal compacto (avatar + nome/role + barra de capacidade + pill de status + contador `X/Y` em uma única linha), evitando espaço vazio desnecessário. Para múltiplos membros, mantém o grid card-based (`sm:grid-cols-2`). Abaixo do card entram insights curtos, por exemplo:
 
 - se a pessoa está acima da capacidade, em atenção ou com margem
 - quais demandas ocupam a maior parte da capacidade
@@ -138,9 +138,10 @@ interface WorkloadSegment {
   clientName?: string
   subtaskTitle: string
   hours: number
+  isOtherClient?: boolean   // true = tarefa de outro cliente; renderiza cinza na barra
 }
 ```
-Montado em `buildPersonalWorkload` iterando `memberActiveTasks` → subtasks `active` atribuídas ao membro.
+Montado em `buildPersonalWorkload` iterando `memberActiveTasks` → subtasks `active` atribuídas ao membro. Na `ClientOverviewView`, `applyOtherClientWorkload` injeta segmentos adicionais com `isOtherClient: true` para representar carga cross-cliente.
 
 **`clientName` em `Task` (`src/lib/steps.ts`):** campo opcional adicionado ao tipo `Task`. Populado apenas por `workloadRowToTask` (via `WORKLOAD_TASK_SELECT` com join `clients(id, name)`). O `TASK_SELECT` e `dbRowToTask` usados pelo restante da app não incluem esse join.
 

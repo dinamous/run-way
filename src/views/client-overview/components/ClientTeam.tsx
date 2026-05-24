@@ -7,5 +7,13 @@ interface ClientTeamProps {
 }
 
 export function ClientTeam({ members, loading }: ClientTeamProps) {
-  return <CapacityTeam members={members} loading={loading} />
+  return (
+    <CapacityTeam
+      members={members}
+      loading={loading}
+      title="Equipe alocada"
+      countLabel={members.length === 1 ? '1 membro' : `${members.length} membros`}
+      emptyLabel="Nenhum membro alocado neste cliente"
+    />
+  )
 }
