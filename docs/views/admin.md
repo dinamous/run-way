@@ -1,8 +1,10 @@
 # AdminView
 
 **Ficheiro:** `src/views/admin/AdminView.tsx`  
-**URL:** `/:clientSlug/admin`  
+**URL:** `/admin` (rota global, sem clientSlug)  
 **Acesso:** exclusivo para `member.access_role === 'admin'` — verificado no componente via `useAuthContext`; não requer cliente selecionado (`requiresClient: false` em `accessControl.ts`)
+
+**Acesso na sidebar:** botão com ícone `Settings` na strip lateral (sidebar-1), acima do botão de Ajuda — visível apenas para admins. O item "Admin" foi removido do nav expandido (`NAV_GROUPS`).
 
 ## Estrutura
 
@@ -40,11 +42,26 @@ supabase/functions/
                                # POST actions: linkUser, unlinkUser, setRole
 ```
 
+## ClientsPanel
+
+Lista densa estilo command-palette (sem grid de cards). Cada cliente ocupa uma linha com colunas: nome/slug, contador de usuários, status dot, ações (edit/delete visíveis no hover).
+
+**Criação inline:** o botão "Novo cliente" abre um formulário que desliza diretamente no toolbar via `AnimatePresence` (sem drawer). O slug é auto-gerado a partir do nome (normaliza acentos e caracteres especiais); se o usuário editar o campo slug manualmente, a auto-geração para. Ambos os campos exibem um preview ao vivo: `run-way.app/clients/[slug]`.
+
+**Status dots:**
+- Laranja com `animate-ping`: cliente tem usuários pendentes (sem `auth_user_id`)
+- Verde estático: todos os usuários ativos
+- Cinza: sem usuários vinculados
+
+**Edição:** abre o drawer lateral com os campos nome/slug + preview de URL. O botão "Eliminar" fica no `DrawerFooter` esquerdo.
+
+**Animações:** entrada dos itens com stagger de 25ms via Framer Motion, respeitando `prefers-reduced-motion`. O contador de clientes no toolbar faz um flip animado ao trocar de filtro (`FlipCount` componente local).
+
 ## Abas
 
 | Aba | Componente | O que faz |
 |---|---|---|
-| Clientes | `ClientsPanel` | CRUD de clientes; vínculo usuário ↔ cliente |
+| Clientes | `ClientsPanel` | CRUD de clientes; lista densa com criação inline e slug auto-gerado |
 | Usuários | `UsersPanel` | CRUD de membros; vínculo com conta Google |
 | Audit Log | `AuditLogsPanel` | Histórico de ações com filtros |
 

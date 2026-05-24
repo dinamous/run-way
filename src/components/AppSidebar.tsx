@@ -89,12 +89,6 @@ const NAV_GROUPS: NavGroup[] = [
       // },
     ],
   },
-  {
-    label: "Sistema",
-    items: [
-      { label: "Admin", Icon: Settings, view: "admin", isAdminOnly: true, homeOnly: true },
-    ],
-  },
 ]
 
 const TOOLS_VIEWS: ViewType[] = ["tools", "tools-briefing-analyzer", "tools-import", "tools-export", "tools-integrations"]
@@ -587,6 +581,26 @@ export function AppSidebar() {
       {/* Bottom actions */}
       <div className="w-full flex flex-col items-center gap-1.5 pt-3 shrink-0">
         <div className="w-5 h-px bg-border/70" />
+
+        {isAdmin && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => onViewChange("admin")}
+                className={cn(
+                  "w-9 h-9 rounded-md flex items-center justify-center transition-colors duration-150",
+                  view === "admin"
+                    ? "bg-foreground/[0.09] text-foreground"
+                    : "text-muted-foreground/60 hover:bg-foreground/[0.06] hover:text-foreground"
+                )}
+                aria-label="Admin"
+              >
+                <Settings className="w-[17px] h-[17px]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Admin</TooltipContent>
+          </Tooltip>
+        )}
 
         <Tooltip>
           <TooltipTrigger asChild>

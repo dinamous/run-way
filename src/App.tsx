@@ -12,7 +12,8 @@ export default function App() {
   const app = useAppOrchestrator();
   const isProfileView = app.view === "profile"
   const isHomeView = app.view === "home" || !app.view
-  const needsPicker = !app.effectiveClientId && !isProfileView && !isHomeView && !app.auth.loading
+  const isAdminView = app.view === "admin"
+  const needsPicker = !app.effectiveClientId && !isProfileView && !isHomeView && !isAdminView && !app.auth.loading
 
   // Quando não há cliente na URL mas há um em cache, redireciona preservando a view atual
   useEffect(() => {
