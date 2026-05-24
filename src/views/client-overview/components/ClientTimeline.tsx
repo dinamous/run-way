@@ -3,7 +3,6 @@ import type { TimelineEntry } from '../hooks/useClientOverviewData'
 
 interface ClientTimelineProps {
   timeline: TimelineEntry[]
-  loading: boolean
 }
 
 function dayLabel(daysFromNow: number): string {
@@ -23,23 +22,7 @@ function groupByDay(entries: TimelineEntry[]): Map<number, TimelineEntry[]> {
   return map
 }
 
-export function ClientTimeline({ timeline, loading }: ClientTimelineProps) {
-  if (loading) {
-    return (
-      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
-        <div className="h-4 w-28 animate-pulse rounded bg-muted/50" />
-        <div className="flex flex-col gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex flex-col gap-2">
-              <div className="h-3 w-16 animate-pulse rounded bg-muted/40" />
-              <div className="h-3.5 w-2/3 animate-pulse rounded bg-muted/50" />
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
+export function ClientTimeline({ timeline }: ClientTimelineProps) {
   if (timeline.length === 0) {
     return (
       <div className="overview-card rounded-xl p-6 flex flex-col gap-4">

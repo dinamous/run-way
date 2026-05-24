@@ -3,7 +3,6 @@ import type { ClientTask } from '../hooks/useClientOverviewData'
 
 interface ClientTasksByPriorityProps {
   tasks: ClientTask[]
-  loading: boolean
 }
 
 interface Group {
@@ -62,27 +61,8 @@ function TaskRow({ task }: { task: ClientTask }) {
   )
 }
 
-export function ClientTasksByPriority({ tasks, loading }: ClientTasksByPriorityProps) {
+export function ClientTasksByPriority({ tasks }: ClientTasksByPriorityProps) {
   const openTasks = tasks.filter((t) => !t.concludedAt)
-
-  if (loading) {
-    return (
-      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
-        <div className="h-4 w-36 animate-pulse rounded bg-muted/50" />
-        <div className="flex flex-col gap-2.5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 py-1">
-              <div className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-muted/50" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-3.5 w-3/4 animate-pulse rounded bg-muted/50" />
-                <div className="h-2.5 w-1/3 animate-pulse rounded bg-muted/40" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="overview-card rounded-xl p-6 flex flex-col gap-4">

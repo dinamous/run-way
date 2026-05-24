@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchClientOverviewRaw } from './clientOverviewService'
-import { buildTaskList, buildTimeline, buildFocusTasks, calcKpis, buildHealth, mergeClientMembers, seedMemberMap, applyOtherClientWorkload } from './clientOverviewTransformers'
+import { buildTimeline, buildFocusTasks, calcKpis, buildHealth } from './clientOverviewTransformers'
+import { buildTaskList, mergeClientMembers, seedMemberMap, applyOtherClientWorkload } from './clientOverviewWorkload'
 
 const CACHE_TTL_MS = 60_000
 

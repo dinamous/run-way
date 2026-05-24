@@ -3,7 +3,6 @@ import type { ClientHealth as ClientHealthData } from '../hooks/useClientOvervie
 
 interface ClientHealthProps {
   health: ClientHealthData
-  loading: boolean
 }
 
 const config = {
@@ -33,22 +32,7 @@ const config = {
   },
 } as const
 
-export function ClientHealth({ health, loading }: ClientHealthProps) {
-  if (loading) {
-    return (
-      <div className="overview-card rounded-xl p-5 flex flex-col gap-3 bg-foreground/[0.04]">
-        <div className="flex items-center gap-2">
-          <div className="h-1.5 w-1.5 rounded-full animate-pulse bg-muted/50" />
-          <div className="h-3 w-12 animate-pulse rounded bg-muted/50" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="h-5 w-24 animate-pulse rounded bg-muted/50" />
-          <div className="h-3.5 w-32 animate-pulse rounded bg-muted/40" />
-        </div>
-      </div>
-    )
-  }
-
+export function ClientHealth({ health }: ClientHealthProps) {
   const c = config[health.status]
   const Icon = c.icon
 

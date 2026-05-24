@@ -3,7 +3,6 @@ import type { ClientOverviewKpis } from '../hooks/useClientOverviewData'
 
 interface ClientMetricsProps {
   kpis: ClientOverviewKpis
-  loading: boolean
 }
 
 interface MetricTileProps {
@@ -11,10 +10,9 @@ interface MetricTileProps {
   label: string
   icon: React.ElementType
   variant: 'default' | 'urgent' | 'positive' | 'neutral'
-  loading: boolean
 }
 
-function MetricTile({ value, label, icon: Icon, variant, loading }: MetricTileProps) {
+function MetricTile({ value, label, icon: Icon, variant }: MetricTileProps) {
   const colors = {
     default: { wrap: 'bg-foreground/[0.04]', icon: 'text-muted-foreground', value: 'text-foreground' },
     urgent: {
@@ -27,18 +25,6 @@ function MetricTile({ value, label, icon: Icon, variant, loading }: MetricTilePr
   }
   const c = colors[variant]
 
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-2 rounded-lg p-3.5 bg-foreground/[0.04]">
-        <div className="flex items-center justify-between">
-          <div className="h-4 w-4 animate-pulse rounded bg-muted/50" />
-          <div className="h-6 w-8 animate-pulse rounded bg-muted/50" />
-        </div>
-        <div className="h-3 w-24 animate-pulse rounded bg-muted/40" />
-      </div>
-    )
-  }
-
   return (
     <div className={`flex flex-col gap-2 rounded-lg p-3.5 ${c.wrap} transition-colors duration-200`}>
       <div className="flex items-center justify-between">
@@ -50,19 +36,15 @@ function MetricTile({ value, label, icon: Icon, variant, loading }: MetricTilePr
   )
 }
 
-export function ClientMetrics({ kpis, loading }: ClientMetricsProps) {
+export function ClientMetrics({ kpis }: ClientMetricsProps) {
   return (
     <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
-      {loading ? (
-        <div className="h-4 w-16 animate-pulse rounded bg-muted/50" />
-      ) : (
-        <h3 className="text-sm font-semibold text-foreground">Métricas</h3>
-      )}
+      <h3 className="text-sm font-semibold text-foreground">Métricas</h3>
       <div className="grid grid-cols-2 gap-2">
-        <MetricTile value={kpis.openTasks} label="Demandas abertas" icon={Layers} variant="default" loading={loading} />
-        <MetricTile value={kpis.lateTasks} label="Com atraso" icon={AlertTriangle} variant="urgent" loading={loading} />
-        <MetricTile value={kpis.concludedTasks} label="Concluídas" icon={CheckCircle2} variant="positive" loading={loading} />
-        <MetricTile value={kpis.accumulatedLateDays} label="Dias de atraso acumulado" icon={Clock} variant="neutral" loading={loading} />
+        <MetricTile value={kpis.openTasks} label="Demandas abertas" icon={Layers} variant="default" />
+        <MetricTile value={kpis.lateTasks} label="Com atraso" icon={AlertTriangle} variant="urgent" />
+        <MetricTile value={kpis.concludedTasks} label="Concluídas" icon={CheckCircle2} variant="positive" />
+        <MetricTile value={kpis.accumulatedLateDays} label="Dias de atraso acumulado" icon={Clock} variant="neutral" />
       </div>
     </div>
   )

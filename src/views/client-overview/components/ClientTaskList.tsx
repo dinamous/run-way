@@ -7,7 +7,7 @@ interface ClientTaskListProps {
   loading: boolean
 }
 
-const today = new Date().toISOString().slice(0, 10)
+const _today = new Date().toISOString().slice(0, 10)
 
 function TaskRow({ task, index }: { task: ClientTask; index: number }) {
   const isOpen = !task.concludedAt

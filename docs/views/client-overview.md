@@ -9,9 +9,13 @@ src/views/client-overview/
 ├── index.ts
 ├── ClientOverviewView.tsx
 ├── hooks/
-│   ├── useClientOverviewData.ts       # hook: cache + estado + orquestração
-│   ├── clientOverviewService.ts       # queries Supabase (fetchClientOverviewRaw)
-│   └── clientOverviewTransformers.ts  # funções puras de transformação (testáveis)
+│   ├── useClientOverviewData.ts       # hook legado (ainda usado por invalidateClientOverviewCache)
+│   ├── useClientSection.ts            # hook genérico por seção: loading/error/retry independentes
+│   ├── clientSectionServices.ts       # 4 fetchers independentes por seção visual
+│   ├── clientOverviewService.ts       # fetchClientOverviewRaw (usado internamente)
+│   ├── clientOverviewRawTypes.ts      # interfaces Supabase (RawMember, RawSubtask, RawTask…)
+│   ├── clientOverviewTransformers.ts  # funções de domínio puro (parseSubtask, calcKpis, buildHealth…)
+│   └── clientOverviewWorkload.ts      # lógica de horas/workload (buildTaskList, applyOtherClientWorkload…)
 └── components/
     ├── ClientOverviewHeader.tsx
     ├── ClientHealth.tsx
@@ -47,27 +51,99 @@ Mobile: stacking vertical (1 col).
 
 A view gerencia seu próprio layout interno: background (`oklch(0.955_0.004_250)` / dark `oklch(0.13_0.008_250)`), layer `overview-ambient` e padding (`p-4 md:p-6 lg:p-8`), seguindo o mesmo padrão do `MembersView`. O `ViewShell` é invocado com `noPadding` e cuida apenas do breadcrumb. As classes `overview-card`, `overview-section-label` e `overview-item-enter` seguem disponíveis via `index.css`.
 
+## Arquitetura de carregamento por seção
+
+Cada seção da view tem **ciclo de vida totalmente independente**: loading, erro e retry próprios. Se o fetch da equipe falhar, métricas e tarefas continuam visíveis normalmente.
+
+### `useClientSection<T>` — hook genérico
+
+`src/views/client-overview/hooks/useClientSection.ts`
+
+```ts
+function useClientSection<T>(
+  clientId: string | null,
+  fetcher: (clientId: string, signal: AbortSignal) => Promise<T>,
+): { data: T | null; loading: boolean; error: string | null; retry: () => void }
+```
+
+- Gerencia loading/error/retry por seção
+- Cria `AbortController` por fetch; cancela automaticamente ao desmontar ou trocar `clientId`
+- `retry()` reinicia o fetch da seção sem afetar as demais
+
+### `clientSectionServices.ts` — 4 fetchers independentes
+
+`src/views/client-overview/hooks/clientSectionServices.ts`
+
+| Função | Seção | Dados |
+|---|---|---|
+| `fetchMetricsData` | Métricas | `kpis + health` (inclui tasks concluídas) |
+| `fetchHealthFocusData` | Health + Focus | `health + focusTasks` (só tasks abertas) |
+| `fetchTasksTimelineData` | Tarefas + Timeline | `tasks + timeline` (todas as tasks) |
+| `fetchTeamData` | Equipe | `members + clientHours` (inclui carga cruzada de outros clientes) |
+
+`fetchTeamData` é o mais pesado: faz 2 fetches paralelos + 1 fetch sequencial de outros clientes.
+
+### `CardShell` — wrapper de loading/erro/retry
+
+`src/components/ui/CardShell.tsx` (componente global, exportado via `src/components/ui/index.ts`)
+
+```tsx
+<CardShell
+  loading={section.loading}
+  error={section.error}
+  onRetry={section.retry}
+  skeleton={<MySkeleton />}
+  timeoutMs={5000}   // padrão; após 5s mostra erro "Tempo esgotado"
+>
+  <MyCard data={section.data} />
+</CardShell>
+```
+
+- Enquanto `loading=true`: renderiza o `skeleton`
+- Após `timeoutMs` ms ainda carregando: mostra estado de erro com "Tempo esgotado ao carregar"
+- Se `error` não nulo: mostra `AlertCircle` + mensagem + botão "Tentar novamente" (quando `onRetry` fornecido)
+- Os skeletons de cada seção ficam definidos inline em `ClientOverviewView.tsx`
+
+### Componentes — prop `loading` removida
+
+Os componentes `ClientMetrics`, `ClientHealth`, `ClientFocus`, `ClientTasksByPriority` e `ClientTimeline` **não recebem mais `loading`**. Os skeletons e estados de erro ficam exclusivamente no `CardShell` + `ClientOverviewView`. Os componentes renderizam apenas dados já disponíveis.
+
+---
+
 ## `useClientOverviewData`
 
-**Arquivos:**
-- `src/views/client-overview/hooks/useClientOverviewData.ts` — hook React: gerencia estado, cache e orquestra o fetch
-- `src/views/client-overview/hooks/clientOverviewTransformers.ts` — funções puras de transformação extraídas do hook; sem dependências React, totalmente testáveis com Vitest
+> **Nota:** O hook `useClientOverviewData` não é mais usado na `ClientOverviewView`. Permanece no código pois exporta `invalidateClientOverviewCache` e os tipos principais (`ClientOverviewData`, `ClientTask`, `ClientMember`, etc.) usados pelos services e componentes.
 
-O hook é responsável apenas por estado + cache + fetch. Toda a lógica de parsing e derivação fica nos transformers:
+**Arquivos:**
+- `src/views/client-overview/hooks/useClientOverviewData.ts` — tipos, cache e `invalidateClientOverviewCache`
+- `src/views/client-overview/hooks/clientOverviewRawTypes.ts` — interfaces tipadas das rows Supabase (`RawMember`, `RawSubtaskAssignee`, `RawSubtask`, `RawTask`)
+- `src/views/client-overview/hooks/clientOverviewTransformers.ts` — funções de domínio puro sem dependências React; re-exporta os tipos Raw para retrocompatibilidade
+- `src/views/client-overview/hooks/clientOverviewWorkload.ts` — lógica de horas e workload; depende de `businessDaysBetween` e `WorkloadSegment`
+
+O hook legado era responsável por estado + cache + fetch. Toda a lógica de parsing e derivação fica distribuída entre os dois módulos:
+
+**`clientOverviewTransformers.ts` — domínio puro:**
 
 | Função | Responsabilidade |
 |---|---|
 | `parseSubtask` | Converte `RawSubtask` → `ClientSubtask`; trata `end_date` nulo e `capacity ≤ 0` |
 | `calcAccumulatedLateDays` | Soma dias de atraso por subtarefa |
 | `calcTaskPriority` | Deriva `critical \| important \| backlog` |
+| `buildTimeline` | Filtra subtarefas abertas com `end_date ≤ hoje+7d` |
+| `buildFocusTasks` | Top 5 tasks abertas ordenadas por prioridade e atraso |
+| `calcKpis` | Agrega `ClientOverviewKpis` a partir de `taskList` |
+| `calcHealth` | Regras de limiar para `ClientHealthStatus` |
+| `buildHealth` | Deriva `ClientHealth` (status + contagens) a partir das tasks abertas |
+
+**`clientOverviewWorkload.ts` — horas e workload:**
+
+| Função | Responsabilidade |
+|---|---|
+| `hoursInWindow` | Horas úteis de uma subtarefa dentro de uma janela de datas |
 | `buildTaskList` | Itera tasks do cliente, monta `ClientTask[]`, acumula `memberMap` com `weekHours`/`monthHours`/`weekSegments` |
 | `seedMemberMap` | Insere membros de `user_clients` ainda ausentes no `memberMap` (com zeros); idempotente |
 | `applyOtherClientWorkload` | Adiciona horas de outros clientes ao `memberMap` já existente, marcando segmentos com `isOtherClient: true` |
 | `mergeClientMembers` | Chama `seedMemberMap` internamente e retorna array ordenado por `subtaskCount` decrescente |
-| `buildTimeline` | Filtra subtarefas abertas com `end_date ≤ hoje+7d` |
-| `buildFocusTasks` | Top 5 tasks abertas ordenadas por prioridade e atraso |
-| `calcKpis` | Agrega `ClientOverviewKpis` a partir de `taskList` |
-| `buildHealth` | Deriva `ClientHealth` (status + contagens) a partir das tasks abertas |
 
 Recebe `clientId: string | null`. Busca em paralelo via `Promise.all`:
 
@@ -214,23 +290,23 @@ O campo `clientHours` do `ClientOverviewData` mapeia `memberId → horas` do **c
 Cabeçalho com ícone `Building2` + nome do cliente + label "Visão geral do cliente". Skeleton durante `loading`.
 
 ### `ClientHealth`
-Card de saúde do cliente com três estados: 🟢 Saudável / 🟡 Atenção / 🔴 Em risco. Fundo colorido por estado, ponto animado pulsante, detalhes de contagem (tarefas atrasadas, críticas, vencem em breve). Quando não há pendências, ocupa largura total e é posicionado acima do `ClientFocus` no layout pai.
+Card de saúde do cliente com três estados: 🟢 Saudável / 🟡 Atenção / 🔴 Em risco. Fundo colorido por estado, ponto animado pulsante, detalhes de contagem (tarefas atrasadas, críticas, vencem em breve). Quando não há pendências, ocupa largura total e é posicionado acima do `ClientFocus` no layout pai. **Não recebe `loading`** — skeleton gerenciado pelo `CardShell`.
 
 ### `ClientFocus`
-Lista das top 5 tasks mais críticas ("Foco agora"). Cada item exibe ponto colorido por prioridade, título, dias de atraso acumulado e badge Crítica/Urgente. Oculto quando não há tasks abertas.
+Lista das top 5 tasks mais críticas ("Foco agora"). Cada item exibe ponto colorido por prioridade, título, dias de atraso acumulado e badge Crítica/Urgente. Oculto quando não há tasks abertas. **Não recebe `loading`**.
 
 ### `ClientMetrics`
-Grid 2×2 de KPI tiles:
+Grid 2×2 de KPI tiles. **Não recebe `loading`**:
 - **Demandas abertas** — variant `default`
 - **Com atraso** — variant `urgent`
 - **Concluídas** — variant `positive`
 - **Dias de atraso acumulado** — variant `neutral`
 
 ### `ClientTasksByPriority`
-Lista de tasks abertas agrupadas em seções Críticas / Importantes / Backlog. Cada item mostra ponto colorido, título, contagem de subtarefas atrasadas e badge de prioridade. Empty state com `GitBranch`.
+Lista de tasks abertas agrupadas em seções Críticas / Importantes / Backlog. Cada item mostra ponto colorido, título, contagem de subtarefas atrasadas e badge de prioridade. Empty state com `GitBranch`. **Não recebe `loading`**.
 
 ### `ClientTimeline`
-Subtarefas dos próximos 7 dias (incluindo atrasadas), agrupadas por `daysFromNow`: "Hoje", "Amanhã", "Em N dias", "Nd de atraso". Atrasadas ficam em vermelho. Empty state quando não há entregas no período.
+Subtarefas dos próximos 7 dias (incluindo atrasadas), agrupadas por `daysFromNow`: "Hoje", "Amanhã", "Em N dias", "Nd de atraso". Atrasadas ficam em vermelho. Empty state quando não há entregas no período. **Não recebe `loading`**.
 
 ### `ClientTeam`
 Wrapper fino sobre `CapacityTeam` (componente global em `src/components/workload/CapacityTeam.tsx`). Renderizado dentro de uma `<section>` com label "Carga da equipe" no `ClientOverviewView`, seguindo o mesmo padrão de seções da `OverviewView`.

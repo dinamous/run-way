@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
   CheckCheck,
@@ -31,7 +32,6 @@ interface NotificationBellProps {
   notifications: Notification[];
   unreadCount: number;
   loading?: boolean;
-
   onMarkAsRead: (notificationId: string) => void;
   onMarkAllAsRead: () => void;
   onNotificationClick: (notification: Notification) => void;
@@ -45,10 +45,7 @@ interface NotificationBellProps {
 function formatTime(dateString: string): string {
   try {
     const date = new Date(dateString);
-    return date.toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   } catch {
     return "";
   }
@@ -68,10 +65,7 @@ function formatDate(dateString: string): string {
     if (diffHours < 24) return `${diffHours}h`;
     if (diffDays < 7) return `${diffDays}d`;
 
-    return date.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-    });
+    return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
   } catch {
     return "";
   }
@@ -90,9 +84,7 @@ function getDateGroup(dateString: string): { label: string; key: string } {
   return { label: "Mais antigas", key: "older" };
 }
 
-function groupNotificationsByDate(
-  notifications: Notification[],
-): Map<string, Notification[]> {
+function groupNotificationsByDate(notifications: Notification[]): Map<string, Notification[]> {
   const groups = new Map<string, Notification[]>();
 
   for (const n of notifications) {
@@ -136,67 +128,155 @@ function playNotificationSound() {
   audio.play().catch(() => {});
 }
 
+const prefersReducedMotion =
+  typeof window !== "undefined"
+    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    : false;
+
+// Bell ring animation: swing + damped bounce
+const bellRingVariants = {
+  idle: { rotate: 0 },
+  ring: {
+    rotate: prefersReducedMotion
+      ? 0
+      : [0, -18, 16, -12, 9, -5, 3, -1, 0],
+    transition: {
+      duration: 0.7,
+      ease: "easeOut",
+      times: [0, 0.1, 0.25, 0.4, 0.55, 0.67, 0.77, 0.88, 1],
+    },
+  },
+};
+
+// Ripple pulse for badge
+function BadgeRipple({ count }: { count: number }) {
+  if (prefersReducedMotion) {
+    return (
+      <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-[10px] font-bold bg-primary text-primary-foreground rounded-full flex items-center justify-center z-10">
+        {count > 9 ? "9+" : count}
+      </span>
+    );
+  }
+
+  return (
+    <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center z-10">
+      <motion.span
+        key={count}
+        initial={{ scale: 1.6, opacity: 0.7 }}
+        animate={{ scale: 2.4, opacity: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="absolute w-4 h-4 rounded-full bg-primary"
+      />
+      <motion.span
+        key={`badge-${count}`}
+        initial={{ scale: 0.6, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 500, damping: 25 }}
+        className="relative w-4 h-4 text-[10px] font-bold bg-primary text-primary-foreground rounded-full flex items-center justify-center"
+      >
+        {count > 9 ? "9+" : count}
+      </motion.span>
+    </span>
+  );
+}
+
 function NotificationItem({
   notification,
   onMarkAsRead,
   onClick,
+  index,
+  sweeping,
+  sweepDelay,
 }: {
   notification: Notification;
   onMarkAsRead: (id: string) => void;
   onClick: (n: Notification) => void;
+  index: number;
+  sweeping?: boolean;
+  sweepDelay?: number;
 }) {
   const isPersonal = !!notification.user_id;
+  // optimistically track read state locally; sweepDone handles cascade mark-all
+  const [optimisticRead, setOptimisticRead] = useState(false);
+  const [sweepDone, setSweepDone] = useState(false);
+
+  const isRead = notification.read || optimisticRead || sweepDone;
+
+  // Cascade sweep when "mark all as read" is triggered
+  useEffect(() => {
+    if (!sweeping || isRead) return;
+    const timer = setTimeout(() => setSweepDone(true), sweepDelay ?? 0);
+    return () => clearTimeout(timer);
+  }, [sweeping, isRead, sweepDelay]);
 
   const handleClick = () => {
-    if (!notification.read) onMarkAsRead(notification.id);
+    if (!isRead) {
+      setOptimisticRead(true);
+      onMarkAsRead(notification.id);
+    }
     onClick(notification);
   };
 
   return (
-    <DropdownMenuItem
-      onSelect={(e) => {
-        e.preventDefault();
-        handleClick();
+    <motion.div
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        delay: prefersReducedMotion ? 0 : index * 0.04,
+        duration: 0.22,
+        ease: [0.16, 1, 0.3, 1],
       }}
-      className={`group relative flex items-start gap-3 px-3 py-3 cursor-pointer rounded-md m-1 border border-black/5 dark:border-white/10 transition-colors ${
-        notification.read
-          ? "bg-background hover:bg-muted/40"
-          : "bg-muted/30 hover:bg-muted/50"
-      }`}
     >
-      <div className="mt-0.5 flex-shrink-0 p-1.5 rounded-full bg-muted">
-        {getNotificationTypeIcon(notification.type)}
-      </div>
+      <DropdownMenuItem
+        onSelect={(e) => {
+          e.preventDefault();
+          handleClick();
+        }}
+        className={`group relative flex items-start gap-3 px-3 py-3 cursor-pointer rounded-md m-1 border border-black/5 dark:border-white/10 transition-colors duration-200 ${
+          isRead
+            ? "bg-background hover:bg-muted/40"
+            : "bg-muted/30 hover:bg-muted/50"
+        }`}
+      >
+        <div className="mt-0.5 flex-shrink-0 p-1.5 rounded-full bg-muted">
+          {getNotificationTypeIcon(notification.type)}
+        </div>
 
-      <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-        <div className="flex flex-col items-end text-[10px] text-muted-foreground whitespace-nowrap mt-0.5 flex-shrink-0 leading-tight">
-          <span>{formatDate(notification.created_at)}</span>
-          <span className="opacity-60">
-            {formatTime(notification.created_at)}
+        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+          <div className="flex flex-col items-end text-[10px] text-muted-foreground whitespace-nowrap mt-0.5 flex-shrink-0 leading-tight">
+            <span>{formatDate(notification.created_at)}</span>
+            <span className="opacity-60">{formatTime(notification.created_at)}</span>
+          </div>
+
+          <div className="text-xs text-muted-foreground prose prose-xs dark:prose-invert max-w-none [&_p]:mb-0 [&_strong]:text-foreground [&_em]:text-foreground/80">
+            <ReactMarkdown remarkPlugins={[remarkBreaks]}>
+              {notification.message}
+            </ReactMarkdown>
+          </div>
+
+          <span
+            className={`text-[10px] mt-0.5 font-medium ${
+              isPersonal ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground"
+            }`}
+          >
+            {isPersonal ? "Para você" : "Para todos do cliente"}
           </span>
         </div>
 
-        <div className="text-xs text-muted-foreground prose prose-xs dark:prose-invert max-w-none [&_p]:mb-0 [&_strong]:text-foreground [&_em]:text-foreground/80">
-          <ReactMarkdown remarkPlugins={[remarkBreaks]}>
-            {notification.message}
-          </ReactMarkdown>
-        </div>
-
-        <span
-          className={`text-[10px] mt-0.5 font-medium ${
-            isPersonal
-              ? "text-blue-600 dark:text-blue-400"
-              : "text-muted-foreground"
-          }`}
-        >
-          {isPersonal ? "Para você" : "Para todos do cliente"}
-        </span>
-      </div>
-
-      {!notification.read && (
-        <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0 mt-1.5" />
-      )}
-    </DropdownMenuItem>
+        <AnimatePresence>
+          {!isRead && (
+            <motion.span
+              key="unread-dot"
+              initial={prefersReducedMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={prefersReducedMotion ? { opacity: 0, scale: 1 } : { opacity: 0, scale: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0 mt-1.5"
+            />
+          )}
+        </AnimatePresence>
+      </DropdownMenuItem>
+    </motion.div>
   );
 }
 
@@ -223,19 +303,16 @@ export const NotificationBell = memo(
   }: NotificationBellProps) {
     const [open, setOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<"all" | "current">("all");
+    const [ringing, setRinging] = useState(false);
+    const [sweeping, setSweeping] = useState(false);
     const prevIdsRef = useRef<Set<string>>(new Set());
     const initialOpenDone = useRef(false);
     const hasInitiallyLoaded = useRef(false);
 
     const handleReload = useCallback(() => reload?.(), [reload]);
 
-    useNotificationPolling({
-      enabled: !!reload,
-      interval: 15000,
-      fn: handleReload,
-    });
+    useNotificationPolling({ enabled: !!reload, interval: 15000, fn: handleReload });
 
-    // Reload na primeira abertura
     useEffect(() => {
       if (open && !initialOpenDone.current && reload) {
         initialOpenDone.current = true;
@@ -243,7 +320,6 @@ export const NotificationBell = memo(
       }
     }, [open, reload]);
 
-    // Detecta novas notificações — toca som (toast já está no useNotifications via realtime)
     useEffect(() => {
       if (!hasInitiallyLoaded.current) {
         hasInitiallyLoaded.current = true;
@@ -251,20 +327,31 @@ export const NotificationBell = memo(
         return;
       }
 
-      const newIds = new Set<string>();
       let hasNew = false;
-
+      const newIds = new Set<string>();
       for (const n of notifications) {
         newIds.add(n.id);
-        if (!prevIdsRef.current.has(n.id)) {
-          hasNew = true;
+        if (!prevIdsRef.current.has(n.id)) hasNew = true;
+      }
+
+      if (hasNew) {
+        playNotificationSound();
+        if (!prefersReducedMotion) {
+          setTimeout(() => {
+            setRinging(true);
+            setTimeout(() => setRinging(false), 800);
+          }, 0);
         }
       }
 
-      if (hasNew) playNotificationSound();
-
       prevIdsRef.current = newIds;
     }, [notifications]);
+
+    const handleMarkAllAsRead = useCallback(() => {
+      setSweeping(true);
+      onMarkAllAsRead();
+      setTimeout(() => setSweeping(false), 800);
+    }, [onMarkAllAsRead]);
 
     const filteredNotifications = useMemo(() => {
       if (activeTab === "current" && selectedClientId) {
@@ -280,16 +367,36 @@ export const NotificationBell = memo(
 
     const unreadInTab = filteredNotifications.filter((n) => !n.read).length;
 
+    // Build flat index for stagger delay across groups
+    let globalIndex = 0;
+    const itemIndices = new Map<string, number>();
+    for (const groupKey of GROUP_ORDER) {
+      const items = groupedNotifications.get(groupKey) ?? [];
+      for (const item of items) {
+        itemIndices.set(item.id, globalIndex++);
+      }
+    }
+
+    // Sweep delay per notification (cascade top-to-bottom)
+    const sweepDelayFor = (id: string) => (itemIndices.get(id) ?? 0) * 60;
+
     return (
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
-          <button className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-            <Bell className="w-4 h-4" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-[10px] font-bold bg-primary text-primary-foreground rounded-full flex items-center justify-center">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
+          <button className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
+            <motion.div
+              variants={bellRingVariants}
+              animate={ringing ? "ring" : "idle"}
+              style={{ transformOrigin: "top center" }}
+            >
+              <Bell className="w-4 h-4" />
+            </motion.div>
+
+            <AnimatePresence>
+              {unreadCount > 0 && (
+                <BadgeRipple key={unreadCount} count={unreadCount} />
+              )}
+            </AnimatePresence>
           </button>
         </DropdownMenuTrigger>
 
@@ -301,25 +408,40 @@ export const NotificationBell = memo(
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Notificações</span>
-              {unreadCount > 0 && (
-                <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
-                  {unreadCount}
-                </span>
-              )}
+              <AnimatePresence>
+                {unreadCount > 0 && (
+                  <motion.span
+                    key={unreadCount}
+                    initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.7 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.7 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full"
+                  >
+                    {unreadCount}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </div>
 
-            {unreadInTab > 0 && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  onMarkAllAsRead();
-                }}
-                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
-              >
-                <CheckCheck className="w-3.5 h-3.5" />
-                Marcar como lidas
-              </button>
-            )}
+            <AnimatePresence>
+              {unreadInTab > 0 && (
+                <motion.button
+                  initial={{ opacity: 0, x: 6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 6 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleMarkAllAsRead();
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  Marcar como lidas
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Tabs */}
@@ -350,10 +472,29 @@ export const NotificationBell = memo(
           {/* Lista */}
           <div className="overflow-y-auto max-h-80">
             {filteredNotifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
-                <Bell className="w-6 h-6 opacity-30" />
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground"
+              >
+                <motion.div
+                  animate={prefersReducedMotion ? {} : {
+                    rotate: [0, -8, 8, -4, 4, 0],
+                    transition: {
+                      delay: 0.4,
+                      duration: 1.2,
+                      ease: "easeOut",
+                      repeat: Infinity,
+                      repeatDelay: 4,
+                    },
+                  }}
+                  style={{ transformOrigin: "top center" }}
+                >
+                  <Bell className="w-6 h-6 opacity-30" />
+                </motion.div>
                 <span className="text-sm">Nenhuma notificação</span>
-              </div>
+              </motion.div>
             ) : (
               <div className="py-1">
                 {GROUP_ORDER.map((groupKey) => {
@@ -372,6 +513,9 @@ export const NotificationBell = memo(
                             notification={notification}
                             onMarkAsRead={onMarkAsRead}
                             onClick={onNotificationClick}
+                            index={itemIndices.get(notification.id) ?? 0}
+                            sweeping={sweeping}
+                            sweepDelay={sweepDelayFor(notification.id)}
                           />
                         ))}
                       </div>
@@ -379,28 +523,25 @@ export const NotificationBell = memo(
                   );
                 })}
 
-                {/* Botão "Ver anteriores" — só aparece na aba "Todas" */}
-                {activeTab === "all" &&
-                  (hasMore || loadingOlder) &&
-                  onLoadOlder && (
-                    <div className="flex justify-center py-3">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onLoadOlder();
-                        }}
-                        disabled={loadingOlder}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {loadingOlder ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        )}
-                        {loadingOlder ? "Carregando..." : "Ver anteriores"}
-                      </button>
-                    </div>
-                  )}
+                {activeTab === "all" && (hasMore || loadingOlder) && onLoadOlder && (
+                  <div className="flex justify-center py-3">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onLoadOlder();
+                      }}
+                      disabled={loadingOlder}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {loadingOlder ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      )}
+                      {loadingOlder ? "Carregando..." : "Ver anteriores"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

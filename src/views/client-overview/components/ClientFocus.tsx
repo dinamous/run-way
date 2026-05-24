@@ -4,7 +4,6 @@ import type { ClientTask } from '../hooks/useClientOverviewData'
 
 interface ClientFocusProps {
   tasks: ClientTask[]
-  loading: boolean
 }
 
 function FocusItem({ task, index }: { task: ClientTask; index: number }) {
@@ -53,23 +52,7 @@ function FocusItem({ task, index }: { task: ClientTask; index: number }) {
   )
 }
 
-export function ClientFocus({ tasks, loading }: ClientFocusProps) {
-  if (loading) {
-    return (
-      <div className="overview-card rounded-xl p-6 flex flex-col gap-4">
-        <div className="h-4 w-32 animate-pulse rounded bg-muted/50" />
-        <div className="flex flex-col gap-2.5">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 py-1">
-              <div className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-muted/50" />
-              <div className="h-3.5 w-3/4 animate-pulse rounded bg-muted/50" />
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
+export function ClientFocus({ tasks }: ClientFocusProps) {
   if (tasks.length === 0) return null
 
   return (

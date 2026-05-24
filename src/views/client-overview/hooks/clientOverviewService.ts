@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { RawTask, RawMember } from './clientOverviewTransformers'
+import type { RawTask, RawMember } from './clientOverviewRawTypes'
 
 export interface ClientOverviewRaw {
   client: { id: string; name: string }
