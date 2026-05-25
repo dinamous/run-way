@@ -56,8 +56,10 @@ A busca de dados é modularizada: cada grupo de cards tem o seu próprio hook co
 Busca subtasks e deriva todos os dados necessários para `WelcomeCard`, `PriorityList` e `DayPlannerCard`.
 
 **Fetch:**
-- admin: `fetchAllSubtasks(clientIds)` — parte de `task_subtasks` com join simples `tasks!inner`, filtra por `tasks.client_id IN (clientIds)`; retorna um row por subtask (sem duplicatas). A query anterior partia de `subtask_assignees` com filtro em relação duplamente aninhada (`task_subtasks.tasks.client_id`), que o PostgREST ignora silenciosamente — causava full scan e timeout.
+- admin: `fetchAllSubtasks(clientIds)` — **1 query** a partir de `task_subtasks` com `tasks!inner`, filtrando por `.is('tasks.concluded_at', null)` e `.in('tasks.client_id', clientIds)` via embedded resource filters do PostgREST v12. O planner usa `idx_task_subtasks_task_id` + `idx_tasks_active` (covering, com `INCLUDE (id)`). Zero round-trips extras, sem `IN` de IDs.
 - user: `fetchSubtasks(memberId)` — parte de `subtask_assignees`, filtra por `member_id`; join `task_subtasks!inner → tasks!inner`
+
+**Cache de módulo:** os três hooks (`useKpisData`, `useClientsData`, `useWorkloadData`) mantêm um cache em memória de 2 minutos keyed por `memberId:isAdmin:clientKey`. Ao remontar o componente (ex: navegar home → cliente → home), os dados são servidos do cache sem novo fetch, eliminando o re-load completo. `retry()` invalida a entrada antes de recarregar.
 
 **Derivados memoizados (`useMemo`):**
 - `kpis.open` — tarefas únicas com `concluded_at IS NULL`

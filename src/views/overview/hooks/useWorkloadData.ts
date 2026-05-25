@@ -35,19 +35,44 @@ async function fetchMemberProfile(memberId: string) {
   }
 }
 
+const WORKLOAD_CACHE_TTL_MS = 2 * 60 * 1000
+
+type WorkloadCache = { workload: PersonalWorkload; ts: number }
+const workloadCache = new Map<string, WorkloadCache>()
+
+function getCachedWorkload(key: string): PersonalWorkload | null {
+  const entry = workloadCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.ts > WORKLOAD_CACHE_TTL_MS) {
+    workloadCache.delete(key)
+    return null
+  }
+  return entry.workload
+}
+
 export function useWorkloadData({ memberId, isAdmin }: UseWorkloadDataParams): WorkloadData {
-  const [personalWorkload, setPersonalWorkload] = useState<PersonalWorkload>({ member: null, metrics: null, insights: [] })
-  const [loading, setLoading] = useState(true)
+  const cacheKey = `${memberId}:${isAdmin}`
+
+  const [personalWorkload, setPersonalWorkload] = useState<PersonalWorkload>(
+    () => getCachedWorkload(cacheKey) ?? { member: null, metrics: null, insights: [] }
+  )
+  const [loading, setLoading] = useState(() => getCachedWorkload(cacheKey) === null)
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
+    const cached = getCachedWorkload(cacheKey)
+
+    if (cached) {
+      setPersonalWorkload(cached)
+      setLoading(false)
+      return
+    }
 
     async function load() {
       setLoading(true)
       setError(null)
-      setPersonalWorkload({ member: null, metrics: null, insights: [] })
       try {
         const today = new Date().toISOString().slice(0, 10)
         const since14d = (() => {
@@ -63,7 +88,9 @@ export function useWorkloadData({ memberId, isAdmin }: UseWorkloadDataParams): W
         ])
 
         if (!cancelled) {
-          setPersonalWorkload(buildPersonalWorkload(memberResult, activeTasksResult, concludedTasksResult, today))
+          const result = buildPersonalWorkload(memberResult, activeTasksResult, concludedTasksResult, today)
+          workloadCache.set(cacheKey, { workload: result, ts: Date.now() })
+          setPersonalWorkload(result)
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar carga de trabalho')
@@ -74,12 +101,12 @@ export function useWorkloadData({ memberId, isAdmin }: UseWorkloadDataParams): W
 
     load()
     return () => { cancelled = true }
-  }, [memberId, isAdmin, tick])
+  }, [memberId, isAdmin, cacheKey, tick])
 
   return {
     personalWorkload,
     loading,
     error,
-    retry: () => setTick((t) => t + 1),
+    retry: () => { workloadCache.delete(cacheKey); setTick((t) => t + 1) },
   }
 }

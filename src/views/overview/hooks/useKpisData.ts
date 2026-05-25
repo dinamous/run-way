@@ -102,7 +102,8 @@ async function fetchSubtasks(memberId: string): Promise<SubtaskRow[]> {
     .sort((a, b) => (a.end ?? '').localeCompare(b.end ?? ''))
 }
 
-const SUBTASK_SELECT_ALL = `
+
+const SUBTASK_SELECT_BY_TASKS = `
   id,
   title,
   status,
@@ -113,8 +114,8 @@ const SUBTASK_SELECT_ALL = `
   tasks!inner (
     id,
     title,
-    concluded_at,
     blocked,
+    concluded_at,
     client_id,
     clients (
       id,
@@ -123,77 +124,101 @@ const SUBTASK_SELECT_ALL = `
   )
 `
 
-type RawSubtaskAllRow = {
+type RawSubtaskByTasksRow = {
   id: string
   title: string
   status: string
-  start_date: string
-  end_date: string
+  start_date: string | null
+  end_date: string | null
   active: boolean
   task_id: string
   tasks: {
     id: string
     title: string
-    concluded_at: string | null
     blocked: boolean | null
+    concluded_at: string | null
     client_id: string | null
     clients: { id: string; name: string } | null
   }
 }
 
 async function fetchAllSubtasks(clientIds: string[]): Promise<SubtaskRow[]> {
+  // Single query: task_subtasks joined with tasks!inner, filtered by concluded_at IS NULL
+  // and optionally client_id. PostgREST v12+ (Supabase cloud) supports embedded resource filters.
   let query = supabase
     .from('task_subtasks')
-    .select(SUBTASK_SELECT_ALL)
+    .select(SUBTASK_SELECT_BY_TASKS)
+    .is('tasks.concluded_at', null)
 
   if (clientIds.length > 0) {
     query = query.in('tasks.client_id', clientIds)
   }
 
   const { data, error } = await query
-
   if (error) throw error
   if (!data) return []
 
-  const seen = new Set<string>()
-  const unique: SubtaskRow[] = []
-
-  for (const raw of data as unknown as RawSubtaskAllRow[]) {
-    const task = raw.tasks
-    if (!task) continue
-    if (!seen.has(raw.id)) {
-      seen.add(raw.id)
-      unique.push({
+  return (data as unknown as RawSubtaskByTasksRow[])
+    .map(raw => {
+      const task = raw.tasks
+      if (!task) return null
+      return {
         id: raw.id,
         title: raw.title,
         status: raw.status,
-        start: raw.start_date,
-        end: raw.end_date,
+        start: raw.start_date ?? '',
+        end: raw.end_date ?? '',
         active: raw.active ?? true,
         taskId: task.id,
         taskTitle: task.title,
         taskBlocked: task.blocked ?? false,
         clientId: task.clients?.id ?? task.client_id ?? '',
         clientName: task.clients?.name ?? '',
-        taskConcludedAt: task.concluded_at,
-      })
-    }
-  }
+        taskConcludedAt: null,
+      } satisfies SubtaskRow
+    })
+    .filter((r): r is SubtaskRow => r !== null)
+    .sort((a, b) => (a.end ?? '').localeCompare(b.end ?? ''))
+}
 
-  return unique.sort((a, b) => (a.end ?? '').localeCompare(b.end ?? ''))
+const KPIS_CACHE_TTL_MS = 2 * 60 * 1000
+
+type KpisCache = { rows: SubtaskRow[]; ts: number }
+const kpisCache = new Map<string, KpisCache>()
+
+function getCached(key: string): SubtaskRow[] | null {
+  const entry = kpisCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.ts > KPIS_CACHE_TTL_MS) {
+    kpisCache.delete(key)
+    return null
+  }
+  return entry.rows
+}
+
+function setCached(key: string, rows: SubtaskRow[]) {
+  kpisCache.set(key, { rows, ts: Date.now() })
 }
 
 export function useKpisData({ memberId, isAdmin, clients }: UseKpisDataParams): KpisData {
-  const [subtasks, setSubtasks] = useState<SubtaskRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const clientKey = useMemo(() => clients.map((c) => c.id).sort().join(','), [clients])
+  const cacheKey = `${memberId}:${isAdmin}:${clientKey}`
+
+  const [subtasks, setSubtasks] = useState<SubtaskRow[]>(() => getCached(cacheKey) ?? [])
+  const [loading, setLoading] = useState(() => getCached(cacheKey) === null)
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
-
-  const clientKey = useMemo(() => clients.map((c) => c.id).sort().join(','), [clients])
 
   useEffect(() => {
     let cancelled = false
     const clientIds = clientKey ? clientKey.split(',') : []
+    const cached = getCached(cacheKey)
+
+    if (cached) {
+      setSubtasks(cached)
+      setLoading(false)
+      return
+    }
 
     async function load() {
       setLoading(true)
@@ -203,7 +228,10 @@ export function useKpisData({ memberId, isAdmin, clients }: UseKpisDataParams): 
           ? await fetchAllSubtasks(clientIds)
           : await fetchSubtasks(memberId)
 
-        if (!cancelled) setSubtasks(rows)
+        if (!cancelled) {
+          setCached(cacheKey, rows)
+          setSubtasks(rows)
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar subtarefas')
       } finally {
@@ -213,7 +241,7 @@ export function useKpisData({ memberId, isAdmin, clients }: UseKpisDataParams): 
 
     load()
     return () => { cancelled = true }
-  }, [memberId, isAdmin, clientKey, tick])
+  }, [memberId, isAdmin, clientKey, cacheKey, tick])
 
   const derived = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
@@ -252,6 +280,6 @@ export function useKpisData({ memberId, isAdmin, clients }: UseKpisDataParams): 
     accumulatedDelayDays: derived.accumulatedDelayDays,
     loading,
     error,
-    retry: () => setTick((t) => t + 1),
+    retry: () => { kpisCache.delete(cacheKey); setTick((t) => t + 1) },
   }
 }

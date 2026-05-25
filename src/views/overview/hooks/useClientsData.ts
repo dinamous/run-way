@@ -51,24 +51,50 @@ async function fetchClientSummaries(clientIds: string[], isAdmin: boolean): Prom
   }))
 }
 
+const CLIENTS_CACHE_TTL_MS = 2 * 60 * 1000
+
+type ClientsCache = { clients: ClientSummary[]; ts: number }
+const clientsCache = new Map<string, ClientsCache>()
+
+function getCachedClients(key: string): ClientSummary[] | null {
+  const entry = clientsCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.ts > CLIENTS_CACHE_TTL_MS) {
+    clientsCache.delete(key)
+    return null
+  }
+  return entry.clients
+}
+
 export function useClientsData({ isAdmin, clients, subtasksLateByClient }: UseClientsDataParams): ClientsData {
-  const [rawClients, setRawClients] = useState<ClientSummary[]>([])
-  const [loading, setLoading] = useState(true)
+  const clientKey = useMemo(() => clients.map((c) => c.id).sort().join(','), [clients])
+  const cacheKey = `${isAdmin}:${clientKey}`
+
+  const [rawClients, setRawClients] = useState<ClientSummary[]>(() => getCachedClients(cacheKey) ?? [])
+  const [loading, setLoading] = useState(() => getCachedClients(cacheKey) === null)
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
-
-  const clientKey = useMemo(() => clients.map((c) => c.id).sort().join(','), [clients])
 
   useEffect(() => {
     let cancelled = false
     const clientIds = clientKey ? clientKey.split(',') : []
+    const cached = getCachedClients(cacheKey)
+
+    if (cached) {
+      setRawClients(cached)
+      setLoading(false)
+      return
+    }
 
     async function load() {
       setLoading(true)
       setError(null)
       try {
         const data = await fetchClientSummaries(clientIds, isAdmin)
-        if (!cancelled) setRawClients(data)
+        if (!cancelled) {
+          clientsCache.set(cacheKey, { clients: data, ts: Date.now() })
+          setRawClients(data)
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar clientes')
       } finally {
@@ -78,7 +104,7 @@ export function useClientsData({ isAdmin, clients, subtasksLateByClient }: UseCl
 
     load()
     return () => { cancelled = true }
-  }, [isAdmin, clientKey, tick])
+  }, [isAdmin, clientKey, cacheKey, tick])
 
   const enrichedClients = useMemo<ClientSummary[]>(() => {
     return rawClients.map((c) => {
@@ -92,6 +118,6 @@ export function useClientsData({ isAdmin, clients, subtasksLateByClient }: UseCl
     clients: enrichedClients,
     loading,
     error,
-    retry: () => setTick((t) => t + 1),
+    retry: () => { clientsCache.delete(cacheKey); setTick((t) => t + 1) },
   }
 }
