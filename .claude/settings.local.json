@@ -72,7 +72,8 @@
       "Bash(python3 -c ' *)",
       "Bash(node -e ' *)",
       "Bash(rename \"c:\\\\Users\\\\dinam\\\\Documents\\\\Projetos\\\\run-way\\\\src\\\\views\\\\planning\\\\components\\\\taskSortTypes.ts\" \"tasksSortTypes.ts\")",
-      "Bash(xargs grep -l \"supabase\")"
+      "Bash(xargs grep -l \"supabase\")",
+      "Bash(xargs head -100)"
     ]
   },
   "hooks": {

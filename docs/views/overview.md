@@ -56,7 +56,7 @@ A busca de dados é modularizada: cada grupo de cards tem o seu próprio hook co
 Busca subtasks e deriva todos os dados necessários para `WelcomeCard`, `PriorityList` e `DayPlannerCard`.
 
 **Fetch:**
-- admin: `fetchAllSubtasks(clientIds)` — todas as subtasks, deduplicadas por id, filtradas pelos clientIds do usuário
+- admin: `fetchAllSubtasks(clientIds)` — subtasks filtradas no banco por `client_id IN (clientIds)` via join `task_subtasks.tasks.client_id`; deduplicadas por id em memória
 - user: `fetchSubtasks(memberId)` — apenas as atribuídas ao membro
 
 **Derivados memoizados (`useMemo`):**
@@ -74,8 +74,8 @@ Busca subtasks e deriva todos os dados necessários para `WelcomeCard`, `Priorit
 Busca clientes e enriquece com risco baseado nos `lateByClient` já calculados pelo `useKpisData` (passados como prop `subtasksLateByClient`).
 
 **Fetch (2 queries paralelas):**
-- `clients` — filtrado por ids ou todos se admin
-- `tasks` com `concluded_at IS NULL` — agrupados em memória para evitar N+1
+- `clients` — filtrado por `.in('id', clientIds)` para não-admin; todos se admin
+- `tasks` com `concluded_at IS NULL` — filtrado por `.in('client_id', clientIds)` para não-admin; agrupados em memória para evitar N+1
 
 **Enriquecimento memoizado:**
 - `ClientSummary.lateSubtaskCount` — cruzado com o mapa `subtasksLateByClient`

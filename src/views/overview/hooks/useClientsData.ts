@@ -17,13 +17,17 @@ export interface ClientsData {
 }
 
 async function fetchClientSummaries(clientIds: string[], isAdmin: boolean): Promise<ClientSummary[]> {
-  const clientsQuery = supabase.from('clients').select('id, name').order('name')
-  if (!isAdmin) clientsQuery.in('id', clientIds)
+  let clientsQuery = supabase.from('clients').select('id, name').order('name')
+  if (!isAdmin && clientIds.length > 0) clientsQuery = clientsQuery.in('id', clientIds)
 
-  const tasksQuery = supabase
+  let tasksQuery = supabase
     .from('tasks')
     .select('client_id')
     .is('concluded_at', null)
+
+  if (!isAdmin && clientIds.length > 0) {
+    tasksQuery = tasksQuery.in('client_id', clientIds)
+  }
 
   const [{ data: clientsData }, { data: tasksData }] = await Promise.all([
     clientsQuery,

@@ -103,23 +103,25 @@ async function fetchSubtasks(memberId: string): Promise<SubtaskRow[]> {
 }
 
 async function fetchAllSubtasks(clientIds: string[]): Promise<SubtaskRow[]> {
-  const { data, error } = await supabase
-    .from('subtask_assignees')
-    .select(SUBTASK_SELECT)
+  let query = supabase.from('subtask_assignees').select(SUBTASK_SELECT)
+
+  if (clientIds.length > 0) {
+    query = query.in('task_subtasks.tasks.client_id', clientIds)
+  }
+
+  const { data, error } = await query
 
   if (error) throw error
   if (!data) return []
 
-  const rows = (data as unknown as RawSubtaskRow[])
-    .map(mapSubtaskRow)
-    .filter((r): r is SubtaskRow => r !== null && (clientIds.length === 0 || clientIds.includes(r.clientId)))
-
   const seen = new Set<string>()
   const unique: SubtaskRow[] = []
-  for (const r of rows) {
-    if (!seen.has(r.id)) {
-      seen.add(r.id)
-      unique.push(r)
+
+  for (const raw of data as unknown as RawSubtaskRow[]) {
+    const row = mapSubtaskRow(raw)
+    if (row && !seen.has(row.id)) {
+      seen.add(row.id)
+      unique.push(row)
     }
   }
 

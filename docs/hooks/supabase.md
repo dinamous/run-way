@@ -99,8 +99,8 @@ Além de `fetchTasksFromDb` e `fetchMembersFromDb`, o módulo expõe duas funç�
 
 | Função | Descrição |
 |---|---|
-| `fetchConcludedTasksSince(since, clientIds, isAdmin)` | Busca tasks concluídas a partir de uma data ISO (`since`). `clientIds` é `string[] \| null` — `null` para admin (sem filtro), array com todos os clientes do usuário para não-admin. Retorna `ConcludedTaskRow[]` com `id`, `concludedAt`, `expectedHours`, `clientId` e `memberIds` (union de todos os assignees das subtasks). Usado para calcular `throughput7dHours` / `throughput14dHours`. |
-| `fetchActiveTasksWithHours(clientIds, isAdmin)` | Busca todas as tasks ativas (sem `concluded_at`). `clientIds` é `string[] \| null` — `null` para admin (sem filtro), array com todos os clientes do usuário para não-admin (usa `.in()`). Usa `WORKLOAD_TASK_SELECT` (com join `clients(id, name)`) e `workloadRowToTask`, que popula `Task.clientName`. Retorna `Task[]` com todos os campos de fluxo e `clientName`. |
+| `fetchConcludedTasksSince(since, clientIds, isAdmin)` | Busca tasks concluídas a partir de uma data ISO (`since`). `clientIds` é `string[] \| null` — `null` para admin (sem filtro), array com todos os clientes do usuário para não-admin (filtro `.in('client_id', clientIds)` no banco). Retorna `ConcludedTaskRow[]` com `id`, `concludedAt`, `expectedHours`, `clientId` e `memberIds` (union de todos os assignees das subtasks). Usado para calcular `throughput7dHours` / `throughput14dHours`. Beneficiado pelo índice `idx_tasks_concluded_client`. |
+| `fetchActiveTasksWithHours(clientIds, isAdmin)` | Busca todas as tasks ativas (sem `concluded_at`). `clientIds` é `string[] \| null` — `null` para admin (sem filtro), array com todos os clientes do usuário para não-admin (usa `.in('client_id', clientIds)`). Usa `WORKLOAD_TASK_SELECT` (com join `clients(id, name)`) e `workloadRowToTask`, que popula `Task.clientName`. Retorna `Task[]` com todos os campos de fluxo e `clientName`. Beneficiado pelo índice parcial `idx_tasks_active`. |
 
 ### Campos mapeados por `dbRowToTask`
 
