@@ -16,8 +16,17 @@ src/views/admin/
 │   └── useAdminData.ts        # Hook fino: mutations + bridge para a store
 └── components/
     ├── ClientsPanel.tsx       # Gestão de clientes
-    ├── UsersPanel.tsx         # Gestão de membros e vínculos
+    ├── UsersPanel.tsx         # Orquestrador leve — compõe os subcomponentes de users/
     ├── AuditLogsPanel.tsx     # Log de auditoria com filtros
+    ├── users/                 # Subcomponentes privados do UsersPanel
+    │   ├── types.ts                # Interfaces, enums, constantes (ROLE_SUGGESTIONS, PAGE_SIZE…)
+    │   ├── GoogleSearchInput.tsx   # Input com debounce + dropdown de contas Google
+    │   ├── UsersPanelToolbar.tsx   # Barra: busca, tabs Membros/Pendentes, filtros de status, botão criar
+    │   ├── UserCreateForm.tsx      # Formulário inline animado de criação de membro
+    │   ├── UserMembersList.tsx     # Lista paginada de membros com status dot e ações hover
+    │   ├── PendingUsersList.tsx    # Tab de contas Google pendentes (sem membro vinculado)
+    │   ├── UserEditDrawer.tsx      # Drawer de edição: dados, acesso, clientes, conta Google, deactivate
+    │   └── LinkUserDrawer.tsx      # Drawer de vinculação: associa conta pendente a membro existente
     └── NotificationsPanel/    # Envio e histórico de notificações manuais
         ├── index.ts
         ├── NotificationsPanel.tsx      # Orquestrador
