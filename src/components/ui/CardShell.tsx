@@ -7,7 +7,7 @@ interface CardShellProps {
   onRetry?: () => void
   skeleton: React.ReactNode
   children: React.ReactNode
-  /** ms antes de mostrar erro de timeout; default 5000 */
+  /** ms antes de mostrar erro de timeout; default 12000 */
   timeoutMs?: number
   className?: string
 }
@@ -18,7 +18,7 @@ export function CardShell({
   onRetry,
   skeleton,
   children,
-  timeoutMs = 5000,
+  timeoutMs = 12000,
   className = '',
 }: CardShellProps) {
   // useReducer evita chamar setState diretamente no body do effect

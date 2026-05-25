@@ -99,14 +99,55 @@ async function fetchSubtasks(memberId: string): Promise<SubtaskRow[]> {
   return (data as unknown as RawSubtaskRow[])
     .map(mapSubtaskRow)
     .filter((r): r is SubtaskRow => r !== null)
-    .sort((a, b) => a.end.localeCompare(b.end))
+    .sort((a, b) => (a.end ?? '').localeCompare(b.end ?? ''))
+}
+
+const SUBTASK_SELECT_ALL = `
+  id,
+  title,
+  status,
+  start_date,
+  end_date,
+  active,
+  task_id,
+  tasks!inner (
+    id,
+    title,
+    concluded_at,
+    blocked,
+    client_id,
+    clients (
+      id,
+      name
+    )
+  )
+`
+
+type RawSubtaskAllRow = {
+  id: string
+  title: string
+  status: string
+  start_date: string
+  end_date: string
+  active: boolean
+  task_id: string
+  tasks: {
+    id: string
+    title: string
+    concluded_at: string | null
+    blocked: boolean | null
+    client_id: string | null
+    clients: { id: string; name: string } | null
+  }
 }
 
 async function fetchAllSubtasks(clientIds: string[]): Promise<SubtaskRow[]> {
-  let query = supabase.from('subtask_assignees').select(SUBTASK_SELECT)
+  let query = supabase
+    .from('task_subtasks')
+    .select(SUBTASK_SELECT_ALL)
 
   if (clientIds.length > 0) {
-    query = query.in('task_subtasks.tasks.client_id', clientIds)
+    query = query.in('tasks.client_id', clientIds)
   }
 
   const { data, error } = await query
@@ -117,15 +158,29 @@ async function fetchAllSubtasks(clientIds: string[]): Promise<SubtaskRow[]> {
   const seen = new Set<string>()
   const unique: SubtaskRow[] = []
 
-  for (const raw of data as unknown as RawSubtaskRow[]) {
-    const row = mapSubtaskRow(raw)
-    if (row && !seen.has(row.id)) {
-      seen.add(row.id)
-      unique.push(row)
+  for (const raw of data as unknown as RawSubtaskAllRow[]) {
+    const task = raw.tasks
+    if (!task) continue
+    if (!seen.has(raw.id)) {
+      seen.add(raw.id)
+      unique.push({
+        id: raw.id,
+        title: raw.title,
+        status: raw.status,
+        start: raw.start_date,
+        end: raw.end_date,
+        active: raw.active ?? true,
+        taskId: task.id,
+        taskTitle: task.title,
+        taskBlocked: task.blocked ?? false,
+        clientId: task.clients?.id ?? task.client_id ?? '',
+        clientName: task.clients?.name ?? '',
+        taskConcludedAt: task.concluded_at,
+      })
     }
   }
 
-  return unique.sort((a, b) => a.end.localeCompare(b.end))
+  return unique.sort((a, b) => (a.end ?? '').localeCompare(b.end ?? ''))
 }
 
 export function useKpisData({ memberId, isAdmin, clients }: UseKpisDataParams): KpisData {
@@ -134,11 +189,11 @@ export function useKpisData({ memberId, isAdmin, clients }: UseKpisDataParams): 
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
 
-  const clientIds = clients.map((c) => c.id)
-  const clientKey = clientIds.join(',')
+  const clientKey = useMemo(() => clients.map((c) => c.id).sort().join(','), [clients])
 
   useEffect(() => {
     let cancelled = false
+    const clientIds = clientKey ? clientKey.split(',') : []
 
     async function load() {
       setLoading(true)
@@ -158,7 +213,7 @@ export function useKpisData({ memberId, isAdmin, clients }: UseKpisDataParams): 
 
     load()
     return () => { cancelled = true }
-  }, [memberId, isAdmin, clientKey, tick]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [memberId, isAdmin, clientKey, tick])
 
   const derived = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)

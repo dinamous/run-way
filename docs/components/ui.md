@@ -54,7 +54,7 @@ import { CardShell } from '@/components/ui'
   error={section.error}
   onRetry={section.retry}
   skeleton={<MySkeleton />}
-  timeoutMs={5000}
+  timeoutMs={12000}
 >
   <MyCard data={section.data} />
 </CardShell>
@@ -69,7 +69,7 @@ import { CardShell } from '@/components/ui'
 | `onRetry` | `() => void` | — | Exibe botão "Tentar novamente" quando fornecido |
 | `skeleton` | `ReactNode` | — | Conteúdo exibido durante `loading` |
 | `children` | `ReactNode` | — | Conteúdo exibido quando carregado |
-| `timeoutMs` | `number` | `5000` | ms até mostrar "Tempo esgotado ao carregar" |
+| `timeoutMs` | `number` | `12000` | ms até mostrar "Tempo esgotado ao carregar" |
 | `className` | `string` | `''` | Classes extras para o container de erro |
 
 **Comportamento:**

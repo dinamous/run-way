@@ -58,8 +58,8 @@ export function useWorkloadData({ memberId, isAdmin }: UseWorkloadDataParams): W
 
         const [memberResult, activeTasksResult, concludedTasksResult] = await Promise.all([
           fetchMemberProfile(memberId),
-          fetchActiveTasksWithHours(null, isAdmin),
-          fetchConcludedTasksSince(since14d, null, isAdmin),
+          fetchActiveTasksWithHours(null, isAdmin, isAdmin ? null : memberId),
+          fetchConcludedTasksSince(since14d, null, isAdmin, isAdmin ? null : memberId),
         ])
 
         if (!cancelled) {

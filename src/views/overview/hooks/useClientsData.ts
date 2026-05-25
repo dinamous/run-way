@@ -57,11 +57,11 @@ export function useClientsData({ isAdmin, clients, subtasksLateByClient }: UseCl
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
 
-  const clientIds = clients.map((c) => c.id)
-  const clientKey = clientIds.join(',')
+  const clientKey = useMemo(() => clients.map((c) => c.id).sort().join(','), [clients])
 
   useEffect(() => {
     let cancelled = false
+    const clientIds = clientKey ? clientKey.split(',') : []
 
     async function load() {
       setLoading(true)
@@ -78,7 +78,7 @@ export function useClientsData({ isAdmin, clients, subtasksLateByClient }: UseCl
 
     load()
     return () => { cancelled = true }
-  }, [isAdmin, clientKey, tick]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAdmin, clientKey, tick])
 
   const enrichedClients = useMemo<ClientSummary[]>(() => {
     return rawClients.map((c) => {

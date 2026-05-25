@@ -56,8 +56,8 @@ A busca de dados é modularizada: cada grupo de cards tem o seu próprio hook co
 Busca subtasks e deriva todos os dados necessários para `WelcomeCard`, `PriorityList` e `DayPlannerCard`.
 
 **Fetch:**
-- admin: `fetchAllSubtasks(clientIds)` — subtasks filtradas no banco por `client_id IN (clientIds)` via join `task_subtasks.tasks.client_id`; deduplicadas por id em memória
-- user: `fetchSubtasks(memberId)` — apenas as atribuídas ao membro
+- admin: `fetchAllSubtasks(clientIds)` — parte de `task_subtasks` com join simples `tasks!inner`, filtra por `tasks.client_id IN (clientIds)`; retorna um row por subtask (sem duplicatas). A query anterior partia de `subtask_assignees` com filtro em relação duplamente aninhada (`task_subtasks.tasks.client_id`), que o PostgREST ignora silenciosamente — causava full scan e timeout.
+- user: `fetchSubtasks(memberId)` — parte de `subtask_assignees`, filtra por `member_id`; join `task_subtasks!inner → tasks!inner`
 
 **Derivados memoizados (`useMemo`):**
 - `kpis.open` — tarefas únicas com `concluded_at IS NULL`
@@ -89,8 +89,8 @@ Busca dados de carga do membro logado em paralelo via `Promise.all`.
 
 **Fetch (3 queries paralelas):**
 - `fetchMemberProfile(memberId)` — membro com `capacity`
-- `fetchActiveTasksWithHours(null, isAdmin)`
-- `fetchConcludedTasksSince(since14d, null, isAdmin)`
+- `fetchActiveTasksWithHours(null, isAdmin, isAdmin ? null : memberId)` — para não-admin, usa `memberId` para filtrar via `subtask_assignees` (2 queries: taskIds + tasks)
+- `fetchConcludedTasksSince(since14d, null, isAdmin, isAdmin ? null : memberId)` — idem
 
 Compõe `personalWorkload` via `buildPersonalWorkload` de `overviewWorkload.ts`.
 

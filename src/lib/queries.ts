@@ -180,8 +180,52 @@ export interface ConcludedTaskRow {
 export async function fetchConcludedTasksSince(
   since: string,
   clientIds: string[] | null,
-  isAdmin: boolean
+  isAdmin: boolean,
+  memberId?: string | null
 ): Promise<ConcludedTaskRow[]> {
+  // Non-admin with memberId: get task IDs via subtask_assignees first, then fetch those tasks
+  if (!isAdmin && memberId) {
+    const { data: assigneeData, error: assigneeError } = await supabase
+      .from('subtask_assignees')
+      .select('task_subtasks!inner ( task_id )')
+      .eq('member_id', memberId)
+
+    if (assigneeError) throw new Error(assigneeError.message)
+
+    const taskIds = Array.from(new Set(
+      (assigneeData as unknown as Array<{ task_subtasks: { task_id: string } }> ?? [])
+        .map(r => r.task_subtasks.task_id)
+    ))
+    if (taskIds.length === 0) return []
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .select(CONCLUDED_TASK_SELECT)
+      .not('concluded_at', 'is', null)
+      .gte('concluded_at', since)
+      .in('id', taskIds)
+
+    if (error) throw new Error(error.message)
+
+    type RawRow = {
+      id: string
+      concluded_at: string
+      expected_hours: number | null
+      client_id: string | null
+      task_subtasks: Array<{ subtask_assignees: Array<{ member_id: string }> }>
+    }
+
+    return (data as RawRow[] ?? []).map(row => ({
+      id: row.id,
+      concludedAt: row.concluded_at,
+      expectedHours: row.expected_hours,
+      clientId: row.client_id,
+      memberIds: Array.from(
+        new Set(row.task_subtasks.flatMap(s => s.subtask_assignees.map(a => a.member_id)))
+      ),
+    }))
+  }
+
   if (!isAdmin && (!clientIds || clientIds.length === 0)) return []
 
   let query = supabase
@@ -218,8 +262,34 @@ export async function fetchConcludedTasksSince(
 
 export async function fetchActiveTasksWithHours(
   clientIds: string[] | null,
-  isAdmin: boolean
+  isAdmin: boolean,
+  memberId?: string | null
 ): Promise<Task[]> {
+  // Non-admin with memberId: get task IDs via subtask_assignees first, then fetch those tasks
+  if (!isAdmin && memberId) {
+    const { data: assigneeData, error: assigneeError } = await supabase
+      .from('subtask_assignees')
+      .select('task_subtasks!inner ( task_id )')
+      .eq('member_id', memberId)
+
+    if (assigneeError) throw new Error(assigneeError.message)
+
+    const taskIds = Array.from(new Set(
+      (assigneeData as unknown as Array<{ task_subtasks: { task_id: string } }> ?? [])
+        .map(r => r.task_subtasks.task_id)
+    ))
+    if (taskIds.length === 0) return []
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .select(WORKLOAD_TASK_SELECT)
+      .is('concluded_at', null)
+      .in('id', taskIds)
+
+    if (error) throw new Error(error.message)
+    return (data as unknown as WorkloadTaskRow[] ?? []).map(workloadRowToTask)
+  }
+
   if (!isAdmin && (!clientIds || clientIds.length === 0)) return []
 
   let query = supabase
