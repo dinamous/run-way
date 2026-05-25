@@ -25,12 +25,6 @@ import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
 } from "@/components/ui"
 
 import { canAccessView } from "@/lib/accessControl"
@@ -101,6 +95,121 @@ function getInitials(email?: string) {
   const parts = name.split(/[._-]/)
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
   return name.slice(0, 2).toUpperCase()
+}
+
+interface UserIdentityPanelProps {
+  userEmail?: string
+  userAvatarUrl?: string | null
+  onGoToProfile: () => void
+  onSignOut: () => void
+}
+
+function UserIdentityPanel({ userEmail, userAvatarUrl, onGoToProfile, onSignOut }: UserIdentityPanelProps) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (
+        !triggerRef.current?.contains(e.target as Node) &&
+        !panelRef.current?.contains(e.target as Node)
+      ) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [open])
+
+  const initials = getInitials(userEmail)
+  const displayName = userEmail?.split("@")[0].replace(/[._-]/g, " ") ?? ""
+  const formattedName = displayName
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+
+  return (
+    <div className="relative">
+      <motion.button
+        ref={triggerRef}
+        onClick={() => setOpen((v) => !v)}
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.94 }}
+        transition={{ type: "spring", stiffness: 400, damping: 28 }}
+        className={cn(
+          "w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold overflow-hidden shrink-0 cursor-pointer",
+          "bg-foreground text-background",
+          open && "ring-2 ring-foreground/30 ring-offset-1 ring-offset-[oklch(0.948_0.005_250)] dark:ring-offset-[oklch(0.138_0.009_250)]"
+        )}
+        aria-label="Menu do utilizador"
+        aria-expanded={open}
+      >
+        {userAvatarUrl ? (
+          <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          initials
+        )}
+      </motion.button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            ref={panelRef}
+            initial={{ clipPath: "inset(100% 0% 0% 0%)", opacity: 0 }}
+            animate={{ clipPath: "inset(0% 0% 0% 0%)", opacity: 1 }}
+            exit={{ clipPath: "inset(0% 0% 100% 0%)", opacity: 0 }}
+            transition={{
+              clipPath: { duration: 0.2, ease: [0.4, 0, 1, 1] },
+              opacity: { duration: 0.15 },
+            }}
+            className={cn(
+              "absolute bottom-full left-full mb-0 ml-2 z-[80]",
+              "w-[220px] rounded-xl overflow-hidden",
+              "bg-card border border-border",
+              "shadow-[0_8px_32px_oklch(0_0_0/0.12)]"
+            )}
+          >
+            {/* Identity header */}
+            <div className="p-4 flex items-center gap-3 border-b border-border">
+              <div className="w-10 h-10 rounded-xl bg-foreground text-background flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
+                {userAvatarUrl ? (
+                  <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  initials
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground leading-tight truncate">{formattedName}</p>
+                <p className="text-xs text-muted-foreground truncate mt-0.5">{userEmail}</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-1.5 flex flex-col gap-0.5">
+              {[
+                { icon: UserCircle, label: "Meu Perfil", action: () => { onGoToProfile(); setOpen(false) }, delay: 0.04 },
+                { icon: LogOut, label: "Sair", action: () => { onSignOut(); setOpen(false) }, delay: 0.08 },
+              ].map(({ icon: Icon, label, action, delay }) => (
+                <motion.button
+                  key={label}
+                  onClick={action}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.18, delay, ease: "easeOut" }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors duration-150 cursor-pointer"
+                >
+                  <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+                  {label}
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
 }
 
 function getClientInitials(name: string) {
@@ -615,41 +724,13 @@ export function AppSidebar() {
           <TooltipContent side="right">Ajuda</TooltipContent>
         </Tooltip>
 
-        {/* User avatar */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className={cn(
-                "w-9 h-9 rounded-md flex items-center justify-center text-[11px] font-bold overflow-hidden shrink-0",
-                "bg-foreground text-background",
-                "hover:opacity-80 transition-opacity duration-150",
-                "ring-2 ring-foreground/10 ring-offset-1 ring-offset-[oklch(0.948_0.005_250)] dark:ring-offset-[oklch(0.138_0.009_250)]"
-              )}
-              aria-label="Menu do utilizador"
-            >
-              {userAvatarUrl ? (
-                <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
-              ) : (
-                getInitials(userEmail)
-              )}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="end">
-            <DropdownMenuLabel className="truncate max-w-48 font-normal text-muted-foreground">
-              {userEmail}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onViewChange("profile")}>
-              <UserCircle className="w-4 h-4 mr-2" />
-              Meu Perfil
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onSignOut}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* User avatar — identity panel */}
+        <UserIdentityPanel
+          userEmail={userEmail}
+          userAvatarUrl={userAvatarUrl}
+          onGoToProfile={() => onViewChange("profile")}
+          onSignOut={onSignOut}
+        />
       </div>
     </aside>
   )

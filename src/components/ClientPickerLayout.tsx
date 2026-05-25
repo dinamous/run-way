@@ -70,7 +70,7 @@ export function ClientPickerLayout({
 
       <div className="flex flex-row flex-1 overflow-hidden">
         {/* Mini-sidebar — sempre recolhida */}
-        <aside className="hidden md:flex flex-col border-r bg-card w-[52px]">
+        <aside className="hidden md:flex flex-col border-r bg-card w-[52px] relative z-20">
           <div className="flex-1 flex flex-col items-center pt-4 gap-3">
             <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center opacity-30" />
             <div className="w-6 h-1 rounded bg-muted opacity-20" />

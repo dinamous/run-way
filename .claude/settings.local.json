@@ -85,7 +85,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Verifique se as alterações feitas nesta sessão afetam alguma informação documentada no CLAUDE.md ou nos ficheiros em docs/. Se sim, atualize os ficheiros relevantes para refletir as mudanças (novos componentes, mudanças de arquitetura, novos utilitários, alterações no modelo de dados, etc.). Se nenhuma alteração relevante foi feita, não é necessário atualizar."
+            "prompt": "Se as alterações desta sessão introduziram novos componentes públicos exportados, mudanças de arquitetura, novos hooks/utilitários partilhados, alterações no modelo de dados ou novos padrões de código — atualize os ficheiros relevantes em CLAUDE.md ou docs/. Mudanças puramente visuais (animações, z-index, estilos, refactors internos de componente) não requerem atualização de documentação e esta verificação pode terminar sem acção."
           }
         ]
       }
