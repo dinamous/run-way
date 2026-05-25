@@ -45,16 +45,6 @@ function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function addBusinessDays(n: number): string {
-  const d = new Date(today() + 'T00:00:00')
-  let added = 0
-  while (added < n) {
-    d.setDate(d.getDate() + 1)
-    const dow = d.getDay()
-    if (dow !== 0 && dow !== 6) added++
-  }
-  return d.toISOString().slice(0, 10)
-}
 
 function daysBetween(a: string, b: string): number {
   return Math.round(
@@ -75,7 +65,6 @@ function classify(sub: SubtaskRow): UrgencyTier | null {
   return null
 }
 
-interface GroupKey { clientId: string; clientName: string; taskId: string; taskTitle: string }
 
 function groupKey(sub: SubtaskRow): string {
   return `${sub.clientId}::${sub.taskId}`
@@ -83,7 +72,6 @@ function groupKey(sub: SubtaskRow): string {
 
 export function generateDayPlan(subtasks: SubtaskRow[], blockedTasks: BlockedTask[]): DayPlan {
   const t = today()
-  const in2Days = addBusinessDays(2)
   const endOfWeek = (() => {
     const d = new Date(t + 'T00:00:00')
     const dow = d.getDay() // 0=Sun

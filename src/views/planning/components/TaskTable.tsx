@@ -1,11 +1,11 @@
 import { memo, useMemo, useState } from 'react';
 import { Ban, CheckCircle2, UserPlus, X } from 'lucide-react';
-import { STEP_META, STEP_TYPES_ORDER, SUBTASK_PROGRESS_META, SUBTASK_PROGRESS_STATUS_ORDER, type SubtaskProgressStatus, type SubtaskStatus, type Task } from '@/lib/steps';
+import { STEP_META, STEP_TYPES_ORDER, SUBTASK_PROGRESS_META, SUBTASK_PROGRESS_STATUS_ORDER, type SubtaskProgressStatus, type Task } from '@/lib/steps';
 import type { Member } from '@/hooks/infra/useSupabase';
 import { Button } from '@/components/ui/Button';
 import { TaskTableRow } from './TaskTableRow';
 import { SubtaskRow } from './SubtaskRow';
-import type { GroupBy } from './TasksSortBar';
+import type { GroupBy } from './tasksSortTypes';
 
 interface TaskTableProps {
   tasks: Task[];

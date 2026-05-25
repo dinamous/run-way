@@ -39,7 +39,8 @@ A navegação entre modos é feita via **roteamento global** (`useUIStore`). Cad
 | `src/views/planning/components/MetricsBar.tsx` | Cards de métricas (saúde operacional, em andamento, bloqueadas) |
 | `src/views/planning/components/StepsLegend.tsx` | Legenda de cores das fases |
 | `src/views/planning/components/TasksFilters.tsx` | Barra de filtros do subview `demandas` (busca, status de subtask, responsável com avatares, período, bloqueadas, concluídas). **Não inclui sort/group** — esses ficam em `TasksSortBar`. |
-| `src/views/planning/components/TasksSortBar.tsx` | Barra de ordenação e agrupamento exclusiva do subview `demandas`. Exporta `SortField`, `SortDirection`, `GroupBy`, `SortState`, `EMPTY_SORT_STATE`. Renderizada acima do `TaskTable` em `PlanningView`. |
+| `src/views/planning/components/TasksSortBar.tsx` | Barra de ordenação e agrupamento exclusiva do subview `demandas`. Renderizada acima do `TaskTable` em `PlanningView`. |
+| `src/views/planning/components/tasksSortTypes.ts` | Tipos e constante extraídos de `TasksSortBar`: `SortField`, `SortDirection`, `GroupBy`, `SortState`, `EMPTY_SORT_STATE`. Importar daqui em vez de `TasksSortBar`. |
 | `src/views/planning/components/TaskTable.tsx` | Componente raiz da tabela. Quando `groupBy === 'none'`: itera tasks e delega para `TaskTableRow`; prop `showRank` ativa rank numérico. Quando `groupBy !== 'none'`: achata subtasks, agrupa pelo critério e renderiza `SubtaskRow` diretamente, sem tarefa-mãe. |
 | `src/views/planning/components/TaskTableRow.tsx` | Linha-pai colapsável de uma task com progresso, prazo, avatares e painel de subtasks; prop `rank` exibe número de posição no drag handle |
 | `src/views/planning/components/SubtaskRow.tsx` | Linha-filho de uma subtask com ícone de status, badge de etapa, popover de andamento, `DatesPopover` e `AssigneesPopover`. Prop `taskLabel?: string` opcional — quando presente exibe o nome da demanda acima do título da subtask (usado no modo agrupado). |
@@ -168,7 +169,7 @@ Todos os controles têm `h-9` para altura uniforme.
 O botão **Nova Demanda** fica na row do título (alinhado à direita), não dentro da barra de filtros.
 
 ### TasksSortBar
-Barra de ordenação e agrupamento exclusiva do subview `demandas`. Renderizada acima do `TaskTable`, separada do `TasksFilters`. Interface `SortState`:
+Barra de ordenação e agrupamento exclusiva do subview `demandas`. Renderizada acima do `TaskTable`, separada do `TasksFilters`. Os tipos (`SortField`, `SortDirection`, `GroupBy`, `SortState`) e a constante `EMPTY_SORT_STATE` vivem em `tasksSortTypes.ts` — importar dali, não de `TasksSortBar`. Interface `SortState`:
 
 ```ts
 {

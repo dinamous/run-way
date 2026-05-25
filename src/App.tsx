@@ -20,6 +20,7 @@ export default function App() {
     if (!needsPicker) return
     if (!app.cachedClient) return
     app.navigateTo(app.view, app.cachedClient)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsPicker, app.cachedClient, app.view, app.navigateTo])
 
   if (app.auth.loading) {

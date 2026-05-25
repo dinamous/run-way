@@ -1,5 +1,4 @@
 import { motion } from "framer-motion"
-import { cn } from "@/lib/utils"
 import { AppHeader } from "@/components/AppHeader"
 import { AppSidebar } from "@/components/AppSidebar"
 import { AppRouter } from "@/components/AppRouter"

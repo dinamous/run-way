@@ -70,7 +70,8 @@
       "Bash(Select-Object FullName)",
       "Bash(Format-Table -HideTableHeaders)",
       "Bash(python3 -c ' *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(rename \"c:\\\\Users\\\\dinam\\\\Documents\\\\Projetos\\\\run-way\\\\src\\\\views\\\\planning\\\\components\\\\taskSortTypes.ts\" \"tasksSortTypes.ts\")"
     ]
   },
   "hooks": {

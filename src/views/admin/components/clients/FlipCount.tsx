@@ -8,10 +8,10 @@ export function FlipCount({ value }: { value: number }) {
 
   useEffect(() => {
     if (value === displayed) return
-    if (reduced) { setDisplayed(value); return }
-    setFlip(true)
-    const t = setTimeout(() => { setDisplayed(value); setFlip(false) }, 140)
-    return () => clearTimeout(t)
+    const delay = reduced ? 0 : 140
+    const t1 = reduced ? undefined : setTimeout(() => setFlip(true), 0)
+    const t = setTimeout(() => { setDisplayed(value); if (!reduced) setFlip(false) }, delay)
+    return () => { clearTimeout(t); if (t1 !== undefined) clearTimeout(t1) }
   }, [value, displayed, reduced])
 
   return (

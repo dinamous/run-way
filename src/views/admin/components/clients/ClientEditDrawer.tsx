@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
@@ -51,9 +51,6 @@ function UserRow({ user }: { user: Member }) {
 export function ClientEditDrawer({
   open, client, clientUsers, onClose, onUpdate, onDeleteRequest,
 }: ClientEditDrawerProps) {
-  const clientRef = useRef<DbClientRow | null>(null)
-  clientRef.current = client
-
   const [editName, setEditName] = useState('')
   const [editSlug, setEditSlug] = useState('')
   const [errors, setErrors] = useState<ValidationErrors>({})
@@ -69,7 +66,7 @@ export function ClientEditDrawer({
   }
 
   const handleUpdate = async () => {
-    const c = clientRef.current
+    const c = client
     if (!c) return
     const errs = validateFields(editName, editSlug)
     setErrors(errs)

@@ -9,7 +9,6 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import type { Member } from '@/hooks/infra/useSupabase'
 import type { PendingAuthUser } from '../../hooks/useAdminData'
-import type { GoogleUser } from './types'
 
 interface LinkUserDrawerProps {
   open: boolean

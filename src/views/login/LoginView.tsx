@@ -28,7 +28,8 @@ export default function LoginView({ onSignIn, error }: LoginViewProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
+    const t = setTimeout(() => setMounted(true), 0)
+    return () => clearTimeout(t)
   }, [])
 
   const handleLoginClick = () => {

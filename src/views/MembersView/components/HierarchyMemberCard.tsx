@@ -20,7 +20,7 @@ const cardVariants = {
   },
 };
 
-const HierarchyMemberCard: React.FC<HierarchyMemberCardProps> = ({ member, isAdmin }) => {
+const HierarchyMemberCard: React.FC<HierarchyMemberCardProps> = ({ member, isAdmin: _isAdmin }) => {
   const joinedAt = member.created_at
     ? new Date(member.created_at).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
     : null;
