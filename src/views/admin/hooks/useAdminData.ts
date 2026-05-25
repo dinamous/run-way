@@ -194,9 +194,9 @@ export function useAdminData(options: UseAdminDataOptions = {}) {
     }
   }, [fetchUsers, fetchPendingUsers, reloadAppStores, setError])
 
-  const updateUser = useCallback(async (userId: string, name: string, role: string, email?: string | null) => {
+  const updateUser = useCallback(async (userId: string, name: string, role: string, email?: string | null, capacity?: number | null) => {
     try {
-      await adminUpdateMember(userId, name, role, email)
+      await adminUpdateMember(userId, name, role, email, capacity)
       setError(null)
       await fetchUsers()
       await reloadAppStores()

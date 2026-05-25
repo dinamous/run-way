@@ -50,17 +50,30 @@ export interface TaskStatus {
   blockedAt?: string; // YYYY-MM-DD — the date when blocked was set
 }
 
+export const TASK_COMPLEXITY_VALUES = ['baixa', 'media', 'alta', 'avancada', 'extrema'] as const;
+export type TaskComplexity = typeof TASK_COMPLEXITY_VALUES[number];
+
+export const TASK_TYPE_VALUES = ['feature', 'bug', 'support', 'meeting'] as const;
+export type TaskType = typeof TASK_TYPE_VALUES[number];
+
 export interface Task {
   id: string;
   title: string;
+  description?: string;
   clickupLink?: string;
   clientId?: string;
+  clientName?: string;
   priorityOrder: number;
   status: TaskStatus;
   subtasks: Subtask[];
   createdAt: string;
   concludedAt?: string;
   concludedBy?: string;
+  expectedHours?: number;
+  complexity?: TaskComplexity;
+  taskType?: TaskType;
+  dueDate?: string;
+  startedAt?: string;
 }
 
 export const STEP_META: Record<SubtaskStatus, {
@@ -252,6 +265,7 @@ export function isStepBlocked(task: { status: TaskStatus }, stepStart: string): 
 export interface LegacyTask {
   id?: string;
   title?: string;
+  description?: string;
   clickupLink?: string;
   assignee?: string;
   status?: string | TaskStatus;

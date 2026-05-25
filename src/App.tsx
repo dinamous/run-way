@@ -11,13 +11,16 @@ import { OnboardingView } from "@/views/onboarding";
 export default function App() {
   const app = useAppOrchestrator();
   const isProfileView = app.view === "profile"
-  const needsPicker = !app.effectiveClientId && !isProfileView && !app.auth.loading
+  const isHomeView = app.view === "home" || !app.view
+  const isAdminView = app.view === "admin"
+  const needsPicker = !app.effectiveClientId && !isProfileView && !isHomeView && !isAdminView && !app.auth.loading
 
   // Quando não há cliente na URL mas há um em cache, redireciona preservando a view atual
   useEffect(() => {
     if (!needsPicker) return
     if (!app.cachedClient) return
     app.navigateTo(app.view, app.cachedClient)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsPicker, app.cachedClient, app.view, app.navigateTo])
 
   if (app.auth.loading) {
@@ -106,6 +109,9 @@ export default function App() {
         // router
         effectiveClientId={app.effectiveClientId}
         userName={app.auth.member?.name ?? ""}
+        userId={app.auth.user?.id ?? ""}
+        memberId={app.auth.member?.id ?? ""}
+        notificationsLoading={app.notifications.loading}
         holidays={app.holidays}
         onEditTask={app.taskActions.openEditTask}
         onOpenNewTask={app.taskActions.openNewTask}

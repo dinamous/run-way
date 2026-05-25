@@ -1,8 +1,10 @@
 # AdminView
 
 **Ficheiro:** `src/views/admin/AdminView.tsx`  
-**URL:** `/:clientSlug/admin`  
+**URL:** `/admin` (rota global, sem clientSlug)  
 **Acesso:** exclusivo para `member.access_role === 'admin'` — verificado no componente via `useAuthContext`; não requer cliente selecionado (`requiresClient: false` em `accessControl.ts`)
+
+**Acesso na sidebar:** botão com ícone `Settings` na strip lateral (sidebar-1), acima do botão de Ajuda — visível apenas para admins. O item "Admin" foi removido do nav expandido (`NAV_GROUPS`).
 
 ## Estrutura
 
@@ -14,8 +16,17 @@ src/views/admin/
 │   └── useAdminData.ts        # Hook fino: mutations + bridge para a store
 └── components/
     ├── ClientsPanel.tsx       # Gestão de clientes
-    ├── UsersPanel.tsx         # Gestão de membros e vínculos
+    ├── UsersPanel.tsx         # Orquestrador leve — compõe os subcomponentes de users/
     ├── AuditLogsPanel.tsx     # Log de auditoria com filtros
+    ├── users/                 # Subcomponentes privados do UsersPanel
+    │   ├── types.ts                # Interfaces, enums, constantes (ROLE_SUGGESTIONS, PAGE_SIZE…)
+    │   ├── GoogleSearchInput.tsx   # Input com debounce + dropdown de contas Google
+    │   ├── UsersPanelToolbar.tsx   # Barra: busca, tabs Membros/Pendentes, filtros de status, botão criar
+    │   ├── UserCreateForm.tsx      # Formulário inline animado de criação de membro
+    │   ├── UserMembersList.tsx     # Lista paginada de membros com status dot e ações hover
+    │   ├── PendingUsersList.tsx    # Tab de contas Google pendentes (sem membro vinculado)
+    │   ├── UserEditDrawer.tsx      # Drawer de edição: dados, acesso, clientes, conta Google, deactivate
+    │   └── LinkUserDrawer.tsx      # Drawer de vinculação: associa conta pendente a membro existente
     └── NotificationsPanel/    # Envio e histórico de notificações manuais
         ├── index.ts
         ├── NotificationsPanel.tsx      # Orquestrador
@@ -40,11 +51,26 @@ supabase/functions/
                                # POST actions: linkUser, unlinkUser, setRole
 ```
 
+## ClientsPanel
+
+Lista densa estilo command-palette (sem grid de cards). Cada cliente ocupa uma linha com colunas: nome/slug, contador de usuários, status dot, ações (edit/delete visíveis no hover).
+
+**Criação inline:** o botão "Novo cliente" abre um formulário que desliza diretamente no toolbar via `AnimatePresence` (sem drawer). O slug é auto-gerado a partir do nome (normaliza acentos e caracteres especiais); se o usuário editar o campo slug manualmente, a auto-geração para. Ambos os campos exibem um preview ao vivo: `run-way.app/clients/[slug]`.
+
+**Status dots:**
+- Laranja com `animate-ping`: cliente tem usuários pendentes (sem `auth_user_id`)
+- Verde estático: todos os usuários ativos
+- Cinza: sem usuários vinculados
+
+**Edição:** abre o drawer lateral com os campos nome/slug + preview de URL. O botão "Eliminar" fica no `DrawerFooter` esquerdo.
+
+**Animações:** entrada dos itens com stagger de 25ms via Framer Motion, respeitando `prefers-reduced-motion`. O contador de clientes no toolbar faz um flip animado ao trocar de filtro (`FlipCount` componente local).
+
 ## Abas
 
 | Aba | Componente | O que faz |
 |---|---|---|
-| Clientes | `ClientsPanel` | CRUD de clientes; vínculo usuário ↔ cliente |
+| Clientes | `ClientsPanel` | CRUD de clientes; lista densa com criação inline e slug auto-gerado |
 | Usuários | `UsersPanel` | CRUD de membros; vínculo com conta Google |
 | Audit Log | `AuditLogsPanel` | Histórico de ações com filtros |
 
@@ -56,7 +82,7 @@ Camada client-side que expõe funções tipadas para todas as operações admin,
 
 **Grupos de funções:**
 - `adminFetchClients / adminCreateClient / adminUpdateClient / adminDeleteClient`
-- `adminFetchMembers / adminCreateMember / adminUpdateMember / adminDeactivateMember / adminReactivateMember / adminSetMemberAuthId`
+- `adminFetchMembers / adminCreateMember / adminUpdateMember(id, name, role, email?, capacity?) / adminDeactivateMember / adminReactivateMember / adminSetMemberAuthId`
 - `adminListPendingUsers / adminListAuthUsers / adminFetchUserClientsMap / adminFetchAuditLogs`
 - `adminLinkUserToClient / adminUnlinkUserFromClient / adminSetUserRole`
 - `adminFetchAllNotifications / adminCreateNotification / adminCreateNotificationForAll`
@@ -125,7 +151,7 @@ Hook fino (`src/views/admin/hooks/useAdminData.ts`) que consome `useAdminStore` 
 **Mutations:**
 - `createClient / updateClient / deleteClient`
 - `linkUserToClient / unlinkUserFromClient`
-- `createUser / updateUser / setUserRole / setUserAuthId`
+- `createUser / updateUser(userId, name, role, email?, capacity?) / setUserRole / setUserAuthId`
 - `deactivateUser(userId)` — seta `is_active: false` e `deactivated_at: now()` no member; preserva tasks e steps
 - `reactivateUser(userId)` — seta `is_active: true` e limpa `deactivated_at: null` no member
 - `listGoogleUsers(search?)` — busca na Supabase Auth admin API (retorna até 20 resultados)
@@ -136,7 +162,7 @@ Hook fino (`src/views/admin/hooks/useAdminData.ts`) que consome `useAdminStore` 
 
 O drawer de edição acumula todas as mudanças em estado local e só dispara requests ao clicar em **Guardar**:
 
-- Alterações de nome, cargo e email → `onUpdate`
+- Alterações de nome, cargo, email e capacidade → `onUpdate`
 - Alteração de access role → `onSetRole` (só chamado se o valor mudou)
 - Adição/remoção de clientes → `onLink` / `onUnlink` em sequência
 - Vínculo de conta Google → `onSetAuthId`

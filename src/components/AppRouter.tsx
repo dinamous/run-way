@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { RequireAdmin } from "@/components/RequireAdmin";
 import { NoClientView } from "@/components/NoClientView";
+import { ViewShell } from "@/components/ViewShell";
 import type { ViewType } from "@/store/useUIStore";
 import type { ReportsSubview } from "@/views/reports/ReportsView";
 import { useLayoutContext } from "@/contexts/LayoutContext";
@@ -10,9 +11,10 @@ const MembersView    = lazy(() => import("@/views/MembersView"));
 const ReportsView    = lazy(() => import("@/views/reports"));
 const AdminView      = lazy(() => import("@/views/admin").then(m => ({ default: m.AdminView })));
 const UserClientsView = lazy(() => import("@/views/user/UserClientsView").then(m => ({ default: m.UserClientsView })));
-const HomeView       = lazy(() => import("@/views/home").then(m => ({ default: m.HomeView })));
 const ToolsView      = lazy(() => import("@/views/tools").then(m => ({ default: m.ToolsView })));
 const ProfileView    = lazy(() => import("@/views/profile").then(m => ({ default: m.ProfileView })));
+const OverviewView   = lazy(() => import("@/views/overview").then(m => ({ default: m.OverviewView })));
+const ClientOverviewView = lazy(() => import("@/views/client-overview").then(m => ({ default: m.ClientOverviewView })));
 
 function ViewSkeleton() {
   return (
@@ -40,17 +42,24 @@ const REPORTS_SUBVIEW_MAP: Partial<Record<ViewType, ReportsSubview>> = {
 export function AppRouter() {
   const { view, router: {
     hasClients,
-    effectiveClientId,
     selectedClient,
+    effectiveClientId,
     userName,
     userEmail,
+    userId,
+    memberId,
+    isAdmin,
+    availableClients,
+    notificationsLoading,
     holidays,
     onViewChange,
     onEditTask,
     onOpenNewTask,
     onDeleteTask,
     onUpdateTask,
-  } } = useLayoutContext()
+    onSelectClient,
+    onMarkNotificationAsRead,
+  }, header: { notifications } } = useLayoutContext()
   const goToClients = () => onViewChange("clients");
   const displayName = userName || userEmail || "";
 
@@ -60,49 +69,88 @@ export function AppRouter() {
 
   return (
     <Suspense fallback={<ViewSkeleton />}>
-      {view === "home" && (
-        <HomeView
-          userName={displayName}
-          clientName={selectedClient?.name}
-          hasClient={!!effectiveClientId}
-          onViewChange={onViewChange}
-        />
+      {(view === "home" || !view) && !selectedClient && (
+        <ViewShell viewOverride="home" >
+          <OverviewView
+            userName={displayName}
+            userId={userId}
+            memberId={memberId}
+            isAdmin={isAdmin}
+            clients={availableClients}
+            notifications={notifications}
+            notificationsLoading={notificationsLoading}
+            onMarkNotificationAsRead={(id) => { onMarkNotificationAsRead(id).catch(() => {}) }}
+            onSelectClient={(clientId) => onSelectClient(clientId)}
+            onNavigateToPlanning={() => onViewChange("calendar")}
+          />
+        </ViewShell>
       )}
 
-      {view === "admin" && <RequireAdmin><AdminView /></RequireAdmin>}
+      {view === "home" && selectedClient && (
+        <ViewShell viewOverride="home" >
+          <ClientOverviewView clientId={effectiveClientId ?? null} />
+        </ViewShell>
+      )}
 
-      {(view === "clients") && <UserClientsView client={selectedClient ?? null} />}
+      {view === "client-overview" && (
+        <ViewShell >
+          <ClientOverviewView clientId={effectiveClientId ?? null} />
+        </ViewShell>
+      )}
+
+      {view === "admin" && (
+        <ViewShell>
+          <RequireAdmin><AdminView /></RequireAdmin>
+        </ViewShell>
+      )}
+
+      {view === "clients" && (
+        <ViewShell>
+          <UserClientsView
+            client={selectedClient ?? null}
+            isAdmin={isAdmin}
+            onViewChange={onViewChange}
+          />
+        </ViewShell>
+      )}
 
       {PLANNING_VIEWS.has(view) && (
-        <PlanningView
-          subview={view as PlanningSubview}
-          onViewChange={onViewChange}
-          onEdit={onEditTask}
-          onDelete={onDeleteTask}
-          onUpdateTask={onUpdateTask}
-          onOpenNew={onOpenNewTask}
-          onExport={() => window.print()}
-          holidays={holidays}
-        />
+        <ViewShell>
+          <PlanningView
+            subview={view as PlanningSubview}
+            onViewChange={onViewChange}
+            onEdit={onEditTask}
+            onDelete={onDeleteTask}
+            onUpdateTask={onUpdateTask}
+            onOpenNew={onOpenNewTask}
+            onExport={() => window.print()}
+            holidays={holidays}
+          />
+        </ViewShell>
       )}
 
-      {view === "profile" && <ProfileView />}
+      {view === "profile" && (
+        <ViewShell>
+          <ProfileView />
+        </ViewShell>
+      )}
 
-      {view === "members" && <MembersView />}
+      {view === "members" && (
+        <ViewShell >
+          <MembersView />
+        </ViewShell>
+      )}
 
       {TOOLS_VIEWS.has(view) && (
-        <ToolsView subview={view === "tools" ? undefined : view as ToolsSubview} />
+        <ViewShell>
+          <ToolsView subview={view === "tools" ? undefined : view as ToolsSubview} />
+        </ViewShell>
       )}
 
-      {REPORTS_VIEWS.has(view) && <ReportsView subview={REPORTS_SUBVIEW_MAP[view]} />}
-
-      {!view && (
-        <HomeView
-          userName={displayName}
-          clientName={selectedClient?.name}
-          hasClient={!!effectiveClientId}
-          onViewChange={onViewChange}
-        />
+      {REPORTS_VIEWS.has(view) && (
+        <ViewShell>
+          <ReportsView subview={REPORTS_SUBVIEW_MAP[view]} />
+        </ViewShell>
       )}
     </Suspense>
   );

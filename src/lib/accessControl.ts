@@ -62,6 +62,7 @@ const VIEW_RULES: Record<ViewType, ViewRule> = {
   'tools-export': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
   'tools-integrations': { requiresClient: false, roles: ['admin', 'user'], permission: 'view:tools' },
   profile: { requiresClient: false, roles: ['admin', 'user'], permission: 'view:profile' },
+  'client-overview': { requiresClient: true, roles: ['admin', 'user'], permission: 'view:dashboard' },
 }
 
 export function resolveAccessRole(member: Member | null): AccessRole | null {

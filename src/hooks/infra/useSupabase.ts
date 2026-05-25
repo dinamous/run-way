@@ -13,6 +13,17 @@ const devLog = import.meta.env.DEV
   ? (...args: unknown[]) => console.warn(...args)
   : () => undefined
 
+const DB_TIMEOUT_MS = 12_000
+
+function withTimeout<T>(promise: Promise<T>, ms = DB_TIMEOUT_MS): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), ms)
+    ),
+  ])
+}
+
 export interface Member {
   id: string
   name: string
@@ -25,6 +36,7 @@ export interface Member {
   is_active?: boolean
   created_at?: string | null
   deactivated_at?: string | null
+  capacity?: number | null
 }
 
 interface UseSupabaseOptions {
@@ -36,28 +48,40 @@ interface UseSupabaseOptions {
 async function createAllSubtasks(taskId: string, subtasks: Subtask[]): Promise<boolean> {
   if (subtasks.length === 0) return true
 
-  const { data, error } = await supabase
-    .from('task_subtasks')
-    .insert(
-      subtasks.map(s => ({
-        task_id: taskId,
-        title: s.title,
-        status: s.status,
-        progress_status: s.progressStatus,
-        subtask_order: s.order,
-        active: s.active,
-        start_date: s.start || null,
-        end_date: s.end || null,
-      }))
+  let data: Array<{ id: string; subtask_order: number }> | null = null
+  let error: { message: string } | null = null
+  try {
+    const result = await withTimeout(
+      Promise.resolve(
+        supabase
+          .from('task_subtasks')
+          .insert(
+            subtasks.map(s => ({
+              task_id: taskId,
+              title: s.title,
+              status: s.status,
+              progress_status: s.progressStatus,
+              subtask_order: s.order,
+              active: s.active,
+              start_date: s.start || null,
+              end_date: s.end || null,
+            }))
+          )
+          .select('id,title,status,subtask_order')
+      )
     )
-    .select('id,title,status,subtask_order')
+    data = result.data
+    error = result.error
+  } catch {
+    devLog('[createAllSubtasks] timeout ao inserir subtasks')
+    return false
+  }
 
   if (error || !data) {
     devLog('[createAllSubtasks] Erro ao inserir subtasks:', error?.message)
     return false
   }
 
-  // Map inserted rows back by order (title+status combo can repeat, order is unique per task)
   const idByOrder = new Map(data.map(row => [row.subtask_order, row.id]))
   const assigneeRows = subtasks.flatMap(s => {
     const subtaskId = idByOrder.get(s.order)
@@ -66,9 +90,14 @@ async function createAllSubtasks(taskId: string, subtasks: Subtask[]): Promise<b
   })
 
   if (assigneeRows.length > 0) {
-    const { error: assigneeErr } = await supabase.from('subtask_assignees').insert(assigneeRows)
-    if (assigneeErr) {
-      devLog('[createAllSubtasks] Erro ao inserir assignees:', assigneeErr.message)
+    try {
+      const { error: assigneeErr } = await withTimeout(Promise.resolve(supabase.from('subtask_assignees').insert(assigneeRows)))
+      if (assigneeErr) {
+        devLog('[createAllSubtasks] Erro ao inserir assignees:', assigneeErr.message)
+        return false
+      }
+    } catch {
+      devLog('[createAllSubtasks] timeout ao inserir assignees')
       return false
     }
   }
@@ -81,6 +110,7 @@ function didTaskFieldsChange(prevTask: Task | undefined, nextTask: Task, resolve
 
   return (
     prevTask.title !== nextTask.title
+    || (prevTask.description ?? null) !== (nextTask.description ?? null)
     || (prevTask.clickupLink ?? null) !== (nextTask.clickupLink ?? null)
     || prevTask.priorityOrder !== nextTask.priorityOrder
     || prevTask.status.blocked !== nextTask.status.blocked
@@ -104,29 +134,45 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     const resolvedClientId = taskData.clientId ?? clientId ?? null
     devLog('[createTask] iniciando criação, clientId:', resolvedClientId, 'title:', taskData.title)
 
-    const priorityQuery = supabase
-      .from('tasks')
-      .select('priority_order')
-      .order('priority_order', { ascending: false })
-      .limit(1)
+    const cachedForPriority = queryClient.getQueryData<Task[]>(
+      queryKeys.tasks(resolvedClientId, isAdmin ?? false)
+    ) ?? []
+    const maxCached = cachedForPriority.reduce((max, t) => Math.max(max, t.priorityOrder ?? -1), -1)
+    const priorityOrder = maxCached + 1
+    devLog('[createTask] priority_order calculado do cache:', priorityOrder)
 
-    const { data: lastTask } = resolvedClientId === null
-      ? await priorityQuery.is('client_id', null)
-      : await priorityQuery.eq('client_id', resolvedClientId)
-    const priorityOrder = (lastTask?.[0]?.priority_order ?? -1) + 1
-
-    const { data: taskRow, error: taskErr } = await supabase
-      .from('tasks')
-      .insert({
-        title: taskData.title,
-        clickup_link: taskData.clickupLink ?? null,
-        priority_order: priorityOrder,
-        blocked: taskData.status.blocked,
-        blocked_at: taskData.status.blockedAt ?? null,
-        client_id: resolvedClientId,
-      })
-      .select('id')
-      .single()
+    devLog('[createTask] iniciando insert...')
+    let taskRow: { id: string } | null = null
+    let taskErr: { message: string } | null = null
+    try {
+      const result = await withTimeout(
+        Promise.resolve(
+          supabase
+            .from('tasks')
+            .insert({
+              title: taskData.title,
+              description: taskData.description ?? null,
+              clickup_link: taskData.clickupLink ?? null,
+              priority_order: priorityOrder,
+              blocked: taskData.status.blocked,
+              blocked_at: taskData.status.blockedAt ?? null,
+              concluded_at: taskData.concludedAt ?? null,
+              expected_hours: taskData.expectedHours ?? null,
+              complexity: taskData.complexity ?? null,
+              task_type: taskData.taskType ?? null,
+              due_date: taskData.dueDate ?? null,
+              client_id: resolvedClientId,
+            })
+            .select('id')
+            .single()
+        )
+      )
+      taskRow = result.data
+      taskErr = result.error
+    } catch {
+      toast.error('Tempo esgotado ao criar demanda. Verifique a conexão e tente novamente.')
+      return false
+    }
 
     devLog('[createTask] insert tasks respondeu, taskRow:', taskRow, 'taskErr:', taskErr)
     if (taskErr || !taskRow) {
@@ -155,7 +201,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
 
     invalidateTasks()
     return true
-  }, [clientId, memberId, invalidateTasks])
+  }, [clientId, memberId, isAdmin, invalidateTasks, queryClient])
 
   const updateTask = useCallback(async (taskData: Task): Promise<boolean> => {
     const resolvedClientId = taskData.clientId ?? clientId ?? null
@@ -188,6 +234,7 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
         .from('tasks')
         .update({
           title: taskData.title,
+          description: taskData.description ?? null,
           clickup_link: taskData.clickupLink ?? null,
           priority_order: taskData.priorityOrder,
           blocked: taskData.status.blocked,

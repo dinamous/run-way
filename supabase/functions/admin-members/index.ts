@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') {
     const { data, error } = await db
       .from('members')
-      .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role, is_active, created_at, deactivated_at')
+      .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role, is_active, created_at, deactivated_at, capacity')
       .order('name')
     if (error) return json({ error: error.message }, 500)
     return json(data)
@@ -67,8 +67,10 @@ Deno.serve(async (req) => {
     }
 
     const initials = body.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+    const updatePayload: Record<string, unknown> = { name: body.name, role: body.role, email: body.email ?? null, avatar: initials }
+    if (body.capacity !== undefined) updatePayload.capacity = body.capacity
     const { error } = await db.from('members')
-      .update({ name: body.name, role: body.role, email: body.email ?? null, avatar: initials })
+      .update(updatePayload)
       .eq('id', id)
     if (error) return json({ error: error.message }, 500)
     return json({ ok: true })

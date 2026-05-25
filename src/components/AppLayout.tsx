@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
 import { AppHeader } from "@/components/AppHeader"
 import { AppSidebar } from "@/components/AppSidebar"
 import { AppRouter } from "@/components/AppRouter"
@@ -50,6 +50,9 @@ interface AppLayoutProps {
   urlTaskId: string | null
   onOpenTask: (taskId: string, subview?: "calendar" | "timeline" | "list") => void
   onCloseTask: () => void
+  userId: string
+  memberId: string
+  notificationsLoading: boolean
 }
 
 export function AppLayout(props: AppLayoutProps) {
@@ -66,6 +69,7 @@ export function AppLayout(props: AppLayoutProps) {
     effectiveClientId, userName, holidays,
     onEditTask, onOpenNewTask, onDeleteTask, onUpdateTask,
     urlTaskId, onOpenTask, onCloseTask,
+    userId, memberId, notificationsLoading,
   } = props
 
   return (
@@ -88,28 +92,31 @@ export function AppLayout(props: AppLayoutProps) {
       },
       router: {
         effectiveClientId, selectedClient, userName, userEmail,
+        userId, memberId, isAdmin, availableClients, notificationsLoading,
         holidays, hasClients, onViewChange,
         onEditTask, onOpenNewTask, onDeleteTask, onUpdateTask,
         urlTaskId, onOpenTask, onCloseTask,
+        onSelectClient: (clientId: string) => onSelectClient(clientId),
+        onMarkNotificationAsRead,
       },
     }}>
       <div className="flex flex-col h-screen bg-background text-foreground font-sans">
         <AppHeader />
 
-        <div className="flex flex-row flex-1 overflow-hidden">
+        <div className="flex flex-row flex-1 overflow-hidden relative">
           <AppSidebar />
 
-          <main
+          <motion.main
             key={["calendar","timeline","list","demandas","kanban"].includes(view) ? "planning" : view}
-            className={cn(
-              "flex-1 overflow-auto animate-blur-fade-in",
-              view === "home" ? "p-0" : "px-4 sm:px-6 lg:px-8 py-8",
-            )}
+            initial={{ opacity: 0, filter: "blur(8px)" }}
+            animate={{ opacity: 1, filter: "blur(0px)" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="flex-1 h-full overflow-auto"
           >
             <TooltipProvider>
               <AppRouter />
             </TooltipProvider>
-          </main>
+          </motion.main>
         </div>
       </div>
     </LayoutContext.Provider>

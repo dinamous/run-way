@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -38,19 +38,6 @@ export function useAppOrchestrator() {
     if (effectiveClientId) storeClient(effectiveClientId);
   }, [effectiveClientId, storeClient]);
 
-  useEffect(() => {
-    const shouldRestoreLastClient =
-      !auth.loading &&
-      !nav.currentSlug &&
-      nav.view === "home" &&
-      storedClientId &&
-      isClientBuffValid()
-
-    if (shouldRestoreLastClient) {
-      const lastClient = auth.clients.find((c) => c.id === storedClientId);
-      if (lastClient) nav.navigateToClient(lastClient);
-    }
-  }, [auth.loading, nav.currentSlug, storedClientId, auth.clients, nav]);
 
 
   const { data: members = [] } = useMembersQuery(effectiveClientId);
@@ -63,7 +50,7 @@ export function useAppOrchestrator() {
 
   const { holidays } = useHolidays();
 
-  const allClientIds = auth.clients.map((c) => c.id);
+  const allClientIds = useMemo(() => auth.clients.map((c) => c.id), [auth.clients]);
   const notifications = useNotifications(auth.member?.id, allClientIds);
 
   // Modal state ainda vive no UIStore (não é URL)
@@ -92,16 +79,16 @@ export function useAppOrchestrator() {
     useClientTransition(
       auth.clients,
       effectiveClientId,
-      useCallback((client: ClientOption) => nav.navigateToClient(client, true), [nav])
+      useCallback((client: ClientOption) => nav.navigateToClient(client, true), [nav]),
+      auth.isAdmin,
     );
 
   const selectClient = useCallback(
     (clientId: string | null | undefined) => {
       if (!clientId) return;
-      sidebar.openSidebar();
       selectClientWithTransition(clientId);
     },
-    [selectClientWithTransition, sidebar]
+    [selectClientWithTransition]
   );
 
   const handleViewChange = useCallback(

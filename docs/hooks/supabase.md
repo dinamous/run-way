@@ -45,6 +45,17 @@ Usado por `PlanningView` (subview `demandas`) para alimentar os popovers inline 
 5. Se erro → queryClient.setQueryData(prev) + useTaskStore.clearOptimistic()
 ```
 
+## Campos de fluxo no insert (`createTask`)
+
+`createTask` envia todos os campos de fluxo da migration `20260522000000_task_flow_fields.sql`:
+`concluded_at`, `expected_hours`, `complexity`, `task_type`, `due_date`.
+
+> Antes desta correção, esses campos só eram persistidos em `updateTask`.
+
+## `priority_order` em `createTask`
+
+O `priority_order` da nova tarefa é calculado localmente a partir do cache do React Query — `max(priorityOrder)` das tasks já carregadas para o mesmo `clientId` + 1. Não há SELECT extra ao Supabase antes do INSERT, evitando que a criação trave em caso de timeout ou sessão expirada.
+
 ## Subtasks (`createAllSubtasks` + diff em `updateTask`)
 
 `createAllSubtasks` — função privada chamada em `createTask` e em `updateTask` (para subtasks novas):
@@ -81,3 +92,24 @@ queryKeys.members(clientId)         // ['members', clientId ?? 'all']
 ```
 
 Para invalidar tudo sem saber o clientId exato: `queryClient.invalidateQueries({ queryKey: ['tasks'] })`
+
+## Funções de Fetch (`src/lib/queries.ts`)
+
+Além de `fetchTasksFromDb` e `fetchMembersFromDb`, o módulo expõe duas funções especializadas para o workload engine:
+
+| Função | Descrição |
+|---|---|
+| `fetchConcludedTasksSince(since, clientIds, isAdmin, memberId?)` | Busca tasks concluídas a partir de uma data ISO (`since`). Para não-admin **com `memberId`**: resolve os `task_id` via `subtask_assignees` (1ª query) e depois busca as tasks pelo IDs resultantes (2ª query) — evita filtros aninhados frágeis. Para não-admin **sem `memberId`** (legado): `clientIds` `string[] \| null` com filtro `.in('client_id', clientIds)`. Admin: sem filtro. Retorna `ConcludedTaskRow[]` com `id`, `concludedAt`, `expectedHours`, `clientId` e `memberIds`. |
+| `fetchActiveTasksWithHours(clientIds, isAdmin, memberId?)` | Busca todas as tasks ativas (sem `concluded_at`). Para não-admin **com `memberId`**: resolve `task_id` via `subtask_assignees` (1ª query) e busca tasks por IDs (2ª query). Para não-admin **sem `memberId`** (legado): usa `.in('client_id', clientIds)`. Admin: sem filtro. Usa `WORKLOAD_TASK_SELECT` com join `clients(id, name)` e `workloadRowToTask`, que popula `Task.clientName`. Beneficiado pelo índice parcial `idx_tasks_active`. |
+
+### Campos mapeados por `dbRowToTask`
+
+`TASK_SELECT` e `dbRowToTask` incluem os campos de fluxo adicionados na migration `20260522000000_task_flow_fields.sql`. **Não incluem `clientName`** — apenas `workloadRowToTask` (via `WORKLOAD_TASK_SELECT`) faz o join com `clients`.
+
+| DB | TS |
+|---|---|
+| `expected_hours` | `expectedHours` |
+| `complexity` | `complexity` |
+| `task_type` | `taskType` |
+| `due_date` | `dueDate` |
+| `started_at` | `startedAt` |

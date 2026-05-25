@@ -24,6 +24,15 @@
     --input: oklch(0.87 0 0);
     --ring: oklch(0.145 0 0);
     --radius: 0.5rem;
+    --surface-tinted: oklch(0.955 0.004 250);
+    --surface-tinted-card: oklch(0.995 0 0);
+    --border-tinted: oklch(0.885 0.004 250);
+    --border-strip: oklch(0.87 0.006 250);
+    --text-crumb: oklch(0.48 0.006 250);
+    --text-crumb-hover: oklch(0.22 0.004 250);
+    --text-crumb-current: oklch(0.145 0.004 250);
+    --scrollbar-thumb: #d4d4d8;
+    --scrollbar-thumb-hover: #a1a1aa;
   }
 
   .dark {
@@ -46,13 +55,51 @@
     --border: oklch(0.269 0 0);
     --input: oklch(0.269 0 0);
     --ring: oklch(0.985 0 0);
+    --surface-tinted: oklch(0.155 0.008 250);
+    --surface-tinted-card: oklch(0.20 0.008 250);
+    --border-tinted: oklch(0.28 0.008 250);
+    --border-strip: oklch(0.22 0.008 250);
+    --text-crumb: oklch(0.55 0.008 250);
+    --text-crumb-hover: oklch(0.82 0.006 250);
+    --text-crumb-current: oklch(0.94 0.004 250);
+    --scrollbar-thumb: #27272a;
+    --scrollbar-thumb-hover: #3f3f46;
   }
 }
 
 @layer base {
   * {
     border-color: var(--border);
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+    scrollbar-width: thin;
   }
+
+  button, [role="button"], a, label[for], select, [tabindex]:not([tabindex="-1"]) {
+    cursor: pointer;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
@@ -84,54 +131,149 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-surface-tinted: var(--surface-tinted);
+  --color-surface-tinted-card: var(--surface-tinted-card);
+  --color-border-tinted: var(--border-tinted);
+  --color-border-strip: var(--border-strip);
+  --color-text-crumb: var(--text-crumb);
+  --color-text-crumb-hover: var(--text-crumb-hover);
+  --color-text-crumb-current: var(--text-crumb-current);
 }
 
-@keyframes blur-fade-in {
-  from {
-    opacity: 0;
-    filter: blur(8px);
+/* ── Overview ──────────────────────────────────────────────────── */
+
+/* Single subtle gradient — just a hint of depth, no noise */
+/* absolute/inset-0/pointer-events-none set via Tailwind on the element */
+.overview-ambient {
+  background-image:
+    radial-gradient(ellipse 70% 40% at 15% 0%, oklch(0.88 0.012 255 / 0.5) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 35% at 85% 100%, oklch(0.86 0.010 285 / 0.35) 0%, transparent 65%);
+}
+.dark .overview-ambient {
+  background-image:
+    radial-gradient(ellipse 70% 40% at 15% 0%, oklch(0.22 0.018 255 / 0.6) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 35% at 85% 100%, oklch(0.20 0.015 285 / 0.45) 0%, transparent 65%);
+}
+
+/* Solid surface cards — no blur, no glass */
+/* rounded-xl set via Tailwind on the element */
+.overview-card {
+  background-color: var(--surface-tinted-card);
+  border: 1px solid var(--border-tinted);
+  box-shadow: 0 1px 3px oklch(0.145 0 0 / 0.06), 0 1px 2px oklch(0.145 0 0 / 0.04);
+}
+.dark .overview-card {
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.25), 0 2px 8px oklch(0 0 0 / 0.15);
+}
+
+/* ── AppHeader ──────────────────────────────────────────────────── */
+
+/* Continuous tinted surface — merges visually with the ink strip below */
+.app-header {
+  background-image:
+    radial-gradient(ellipse 100% 200% at 0% 0%, oklch(0.91 0.014 255 / 0.6) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 180% at 100% 50%, oklch(0.89 0.010 285 / 0.3) 0%, transparent 60%);
+}
+
+.dark .app-header {
+  background-image:
+    radial-gradient(ellipse 100% 200% at 0% 0%, oklch(0.22 0.020 255 / 0.55) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 180% at 100% 50%, oklch(0.20 0.015 285 / 0.35) 0%, transparent 60%);
+}
+
+/* Logo icon box — faint halo using the brand hue */
+.app-header-logo-box {
+  box-shadow: 0 0 0 1px oklch(0.75 0.010 250 / 0.35), 0 2px 8px oklch(0.50 0.012 250 / 0.15);
+}
+.dark .app-header-logo-box {
+  box-shadow: 0 0 0 1px oklch(0.35 0.014 250 / 0.5), 0 2px 8px oklch(0 0 0 / 0.35);
+}
+
+
+/* ── ViewShell — Ink Strip + Zoned Background ───────────────────── */
+
+/* The ink strip — ambient surface band that holds the breadcrumb */
+/* sticky/top-0/z-40/isolate set via Tailwind on the element */
+.view-ink-strip {
+  background-image:
+    radial-gradient(ellipse 120% 300% at 0% 50%, oklch(0.88 0.012 255 / 0.45) 0%, transparent 60%);
+}
+
+.dark .view-ink-strip {
+  background-image:
+    radial-gradient(ellipse 120% 300% at 0% 50%, oklch(0.22 0.018 255 / 0.4) 0%, transparent 60%);
+}
+
+/* ── ViewBreadcrumb ──────────────────────────────────────────────── */
+/* font-size/weight/tracking/bg/border/padding/cursor/transition/position set via Tailwind on the element */
+
+.view-breadcrumb-ancestor {
+  color: var(--text-crumb);
+}
+
+.view-breadcrumb-ancestor:hover {
+  color: var(--text-crumb-hover);
+}
+
+/* Underline slide-in on hover — pseudo-element, not possible in Tailwind */
+.view-breadcrumb-ancestor::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: currentColor;
+  transition: width 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.view-breadcrumb-ancestor:hover::after {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-breadcrumb-ancestor::after { transition: none; }
+}
+
+/* Current view — font-weight/font-size/letter-spacing set via Tailwind on the element */
+.view-breadcrumb-current {
+  color: var(--text-crumb-current);
+}
+
+/* ── PlanningView — Ambient + Subview Transitions ───────────────── */
+
+.planning-ambient {
+  background-image:
+    radial-gradient(ellipse 80% 35% at 100% 0%, oklch(0.88 0.010 255 / 0.45) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 0% 100%, oklch(0.86 0.008 285 / 0.25) 0%, transparent 65%);
+}
+.dark .planning-ambient {
+  background-image:
+    radial-gradient(ellipse 80% 35% at 100% 0%, oklch(0.22 0.016 255 / 0.5) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 0% 100%, oklch(0.20 0.012 285 / 0.35) 0%, transparent 65%);
+}
+
+/* View transition for subview content swap */
+::view-transition-old(planning-content) {
+  animation: 120ms ease-out both planning-out;
+}
+::view-transition-new(planning-content) {
+  animation: 180ms ease-out both planning-in;
+}
+
+@keyframes planning-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes planning-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(planning-content),
+  ::view-transition-new(planning-content) {
+    animation: none;
   }
-  to {
-    opacity: 1;
-    filter: blur(0);
-  }
 }
 
-.cal-day-header {
-  background-color: oklch(0.97 0 0);
-}
-.dark .cal-day-header {
-  background-color: oklch(0.22 0 0);
-}
-
-.cal-day-outside {
-  background-color: oklch(0.95 0 0);
-}
-.dark .cal-day-outside {
-  background-color: oklch(0.19 0 0);
-}
-
-.cal-day-weekend {
-  background-color: oklch(0.95 0 0);
-}
-.dark .cal-day-weekend {
-  background-color: oklch(0.19 0 0);
-}
-
-.cal-day-even {
-  background-color: oklch(0.98 0 0);
-}
-.dark .cal-day-even {
-  background-color: oklch(0.24 0 0);
-}
-
-.cal-day-odd {
-  background-color: oklch(1 0 0);
-}
-.dark .cal-day-odd {
-  background-color: oklch(0.18 0 0);
-}
-
-.animate-blur-fade-in {
-  animation: blur-fade-in 300ms ease-out forwards;
-}

@@ -21,6 +21,7 @@ export const DbSubtaskRowSchema = z.object({
 export const DbTaskRowSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
+  description: z.string().nullable().default(null),
   clickup_link: z.string().nullable().transform(v => v === '' ? null : v),
   priority_order: z.number().int().nonnegative().default(0),
   blocked: z.boolean(),
@@ -30,6 +31,11 @@ export const DbTaskRowSchema = z.object({
   concluded_by: z.string().nullable(),
   client_id: z.string().nullable(),
   task_subtasks: z.array(DbSubtaskRowSchema).default([]),
+  expected_hours: z.number().nullable().optional(),
+  complexity: z.enum(['baixa', 'media', 'alta', 'avancada', 'extrema']).nullable().optional(),
+  task_type: z.enum(['feature', 'bug', 'support', 'meeting']).nullable().optional(),
+  due_date: z.string().nullable().optional(),
+  started_at: z.string().nullable().optional(),
 })
 
 export type ValidatedDbTaskRow = z.infer<typeof DbTaskRowSchema>

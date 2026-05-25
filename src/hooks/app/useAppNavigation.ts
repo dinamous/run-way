@@ -13,10 +13,14 @@ export function urlToView(pathname: string): ViewType {
   const first = segments[0]
   if (first === "profile") return "profile"
   if (first === "clients") return "clients"
+  if (first === "admin") return "admin"
+
+  // Rota raiz "/" sem slug
+  if (first === "") return "home"
 
   // /:clientSlug/...
   const rest = segments.slice(1)
-  if (rest.length === 0) return "home"
+  if (rest.length === 0) return "client-overview"
 
   const [section, sub] = rest
 
@@ -60,7 +64,7 @@ export function urlToView(pathname: string): ViewType {
 
 export function viewToPath(view: ViewType, clientSlug: string | null): string {
   if (view === "profile") return "/profile"
-  if (view === "admin") return clientSlug ? `/${clientSlug}/admin` : "/admin"
+  if (view === "admin") return "/admin"
   if (view === "clients") {
     if (!clientSlug) return "/clients"
     return `/${clientSlug}/client-info`
@@ -72,6 +76,7 @@ export function viewToPath(view: ViewType, clientSlug: string | null): string {
 
   const MAP: Partial<Record<ViewType, string>> = {
     home: base,
+    "client-overview": base,
     demandas: `${base}/tasks`,
     calendar: `${base}/tasks/calendar`,
     timeline: `${base}/tasks/timeline`,
@@ -111,7 +116,7 @@ export function useAppNavigation(clients: ClientOption[]) {
   // useParams só funciona dentro de um <Route> declarado — como App.tsx não usa AppRoutes
   // como wrapper, lemos os segmentos diretamente de location.pathname
   const segments = location.pathname.replace(/^\//, "").split("/")
-  const GLOBAL_ROUTES = new Set(["profile", "clients", ""])
+  const GLOBAL_ROUTES = new Set(["profile", "clients", "admin", ""])
   const currentSlug = GLOBAL_ROUTES.has(segments[0]) ? null : (segments[0] || null)
   const currentClient = currentSlug ? slugToClient(currentSlug, clients) : null
   const view = urlToView(location.pathname)

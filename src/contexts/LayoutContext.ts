@@ -47,6 +47,11 @@ interface RouterCtx {
   selectedClient: ClientOption | null
   userName: string
   userEmail?: string
+  userId: string
+  memberId: string
+  isAdmin: boolean
+  availableClients: ClientOption[]
+  notificationsLoading: boolean
   holidays: Holiday[]
   hasClients: boolean
   onViewChange: (view: ViewType) => void
@@ -57,6 +62,8 @@ interface RouterCtx {
   urlTaskId: string | null
   onOpenTask: (taskId: string, subview?: "calendar" | "timeline" | "list") => void
   onCloseTask: () => void
+  onSelectClient: (clientId: string) => void
+  onMarkNotificationAsRead: (id: string) => Promise<void>
 }
 
 interface LayoutCtx {

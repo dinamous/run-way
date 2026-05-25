@@ -54,3 +54,5 @@ export {
   DrawerDescription,
 } from './Drawer';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
+export { MotionItem } from './MotionItem';
+export { CardShell } from './CardShell';

@@ -57,6 +57,7 @@ export interface DbSubtaskRow {
 export interface DbTaskRow {
   id: string;
   title: string;
+  description: string | null;
   clickup_link: string | null;
   priority_order: number;
   blocked: boolean;
@@ -66,6 +67,11 @@ export interface DbTaskRow {
   concluded_by: string | null;
   client_id: string | null;
   task_subtasks: DbSubtaskRow[];
+  expected_hours?: number | null;
+  complexity?: string | null;
+  task_type?: string | null;
+  due_date?: string | null;
+  started_at?: string | null;
 }
 
 // ─── RBAC / Multi-tenant rows ─────────────────────────────────────────────────

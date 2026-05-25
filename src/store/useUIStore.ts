@@ -22,6 +22,7 @@ export type ViewType =
   | 'demandas'
   | 'kanban'
   | 'profile'
+  | 'client-overview'
 export type DashboardMode = 'calendar' | 'timeline'
 
 interface DashboardRedirect {

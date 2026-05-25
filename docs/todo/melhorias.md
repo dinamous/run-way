@@ -1,5 +1,21 @@
 # Melhorias Pendentes
 
+## UserClientsView: Módulos pendentes de schema
+
+A `UserClientsView` exibe cards "Em breve" para módulos que exigem novas tabelas no Supabase. Avaliar e criar migrations antes de implementar:
+
+| Módulo | Tabela sugerida | Colunas principais |
+|---|---|---|
+| Gerente de conta | coluna em `clients` ou `client_managers` | `member_id (fk → members)` |
+| Contatos do cliente | `client_contacts` | `client_id, name, email, phone, role` |
+| Cofre de acessos | `client_credentials` | `client_id, platform, login, encrypted_secret` |
+| Contas de mídia | `client_accounts` | `client_id, platform, external_id, url` |
+| Documentação | `client_files` | `client_id, name, url, size_bytes, uploaded_at, uploaded_by` |
+
+Cada módulo será uma aba/seção dentro de `UserClientsView` após o schema estar pronto.
+
+---
+
 ## UX: Botão "Salvar" inteligente
 - Detectar dirty state (comparar formData vs snapshot original)
 - Proteção contra overclick (submitting state)

@@ -7,18 +7,37 @@ src/
 ├── App.tsx                    # Root: gates de auth + composição declarativa — ~80 linhas
 ├── main.tsx                   # Entry point
 ├── components/
-│   ├── AppRouter.tsx                  # Mapeia view (lida da URL) → componente; guards de cliente
+│   ├── AppRouter.tsx                  # Mapeia view (lida da URL) → componente; guards de cliente; wrappeia cada view com ViewShell (breadcrumb + padding automáticos)
 │   ├── AppRoutes.tsx                  # Árvore de rotas React Router (declarativa, sem renderização)
-│   ├── AppLayout.tsx                  # Shell do layout: AppHeader + AppSidebar + main/AppRouter
+│   ├── AppLayout.tsx                  # Shell do layout: AppHeader + AppSidebar + main/AppRouter; o <main> não define padding (responsabilidade do ViewShell)
 │   ├── ClientPickerLayout.tsx         # Layout leve para "/" sem slug: header + mini-sidebar recolhida + ClientPickerView
 │   ├── AppModals.tsx                  # TaskModal + ConfirmModal + ClientTransitionOverlay agrupados
+│   ├── HelpModal.tsx                  # Modal de ajuda/FAQ: nav lateral por seção (Visão Geral, Planejamento, Membros, Relatórios, Clientes, Ferramentas, Admin, Dicas, Atalhos); accordion por pergunta; aberto pelo botão HelpCircle da AppSidebar
 │   ├── TaskModal.tsx                  # Modal criar/editar demanda
-│   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop)
-│   ├── AppSidebar.tsx                 # Sidebar de navegação; theme toggle no footer mobile
+│   ├── AppHeader.tsx                  # Header: logo, hamburger mobile, NotificationBell, theme toggle (desktop); usa classe CSS global .app-header (fundo --surface-tinted com radial-gradients azul-tonais que se fundem visualmente com o .view-ink-strip abaixo); logo box com .app-header-logo-box (halo ring oklch tonal); wordmark em .app-header-wordmark dentro de .app-header-logo-group (letter-spacing expande no hover do grupo, 150ms ease-out)
+│   ├── AppSidebar.tsx                 # Sidebar de navegação; strip lateral (sidebar-1) com fundo um tom mais escuro que o card (tonal stratification), Home + avatares de clientes (ativo com ring + shadow); sidebar-2 com nav agrupada: workspace, Operações, Sistema; item ativo tem rail vertical 2px à esquerda + bg mais sólido; ícones inativos em 60% opacity com hover 100%; abertura do painel anima itens em stagger (28ms offset); View Transitions nos avatares de cliente ao trocar workspace; spring physics no chevron dos grupos; botão de toggle circular (rounded-full, z-[55] — fica atrás da sidebar) com spring magnético que segue o cursor verticalmente; surgimento com scale 0.6→1 via useTransform(tabOpacity) para entrada orgânica; trava na posição do clique (lockedY) e reseta (tabOpacity→0, lockedY→null) ao fechar por clickout; tooltip com delayDuration=3000 isolado em TooltipProvider próprio; ícone faz morph com AnimatePresence (rotate+scale, 180ms); prefers-reduced-motion respeitado em todos os efeitos
 │   ├── ClientTransitionOverlay.tsx    # Overlay animado exibido ao trocar de cliente
+│   ├── ViewShell.tsx                  # Wrapper de view: flex col h-full + bg-background (ocupa toda a altura do <main>); ink strip (.view-ink-strip — sticky, z-40, h-14, fundo azul-tonal com radial-gradient via CSS global) com ViewBreadcrumb; conteúdo ocupa largura total (sem max-w nem mx-auto) com p-4 md:pl-[70px] md:pr-6 md:py-6 lg:pr-8 lg:py-8 — padding assimétrico que compensa a sidebar fixa de 68px à esquerda; todas as views usam este padding por padrão; prop noPadding existe mas não é usada por nenhuma view; prop subview adiciona crumb extra; prop viewOverride sobrepõe view inferida do LayoutContext. Views não devem definir padding próprio nem wrappers com bg-background ou overview-ambient — o shell já fornece ambos.
+│   ├── ViewBreadcrumb.tsx             # Breadcrumb: clientName como chip com classes Tailwind inline; separadores "/" inline; ancestors via .view-breadcrumb-ancestor (CSS global — necessário para ::after underline slide-in); leaf atual via .view-breadcrumb-current (CSS global — valores oklch precisos); monta crumbs automaticamente percorrendo a cadeia PARENT_VIEW recursivamente (suporta N níveis — ex: kanban → demandas → client-overview); itens clicáveis quando onNavigate é passado
 │   └── ui/                            # Design system (Button, Input, Label, Badge)
 ├── views/
-│   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess (pós-seleção de cliente)
+│   ├── overview/              # OverviewView — dashboard pessoal: KPIs, PriorityList, ActiveClients, InboxCard
+│   │   ├── hooks/
+│   │   │   └── useOverviewData.ts   # Busca subtasks do assignee, contagem de tasks por cliente, KPIs
+│   │   └── components/
+│   │       ├── WelcomeCard.tsx      # Saudação por horário + grid 2×2 de KPIs
+│   │       ├── PriorityList.tsx     # Subtasks ativas paginadas (+15), prazo colorido
+│   │       ├── ActiveClients.tsx    # Grid de até 4 clientes; clique navega para PlanningView
+│   │       └── InboxCard.tsx        # Até 5 notificações não lidas; marca como lida ao clicar
+│   ├── client-overview/       # ClientOverviewView — visão geral de um cliente específico (view="client-overview")
+│   │   ├── hooks/
+│   │   │   └── useClientOverviewData.ts  # Busca info, KPIs, tasks e membros alocados do cliente
+│   │   └── components/
+│   │       ├── ClientOverviewHeader.tsx  # Cabeçalho com nome do cliente
+│   │       ├── ClientKpis.tsx            # Grid 2×2: demandas abertas, com atraso, subtarefas atrasadas, concluídas
+│   │       ├── ClientTaskList.tsx        # Lista de demandas separadas por abertas/concluídas + badge de atraso
+│   │       └── ClientMembersCard.tsx     # Membros alocados nas subtarefas abertas, ordenados por carga
+│   ├── home/                  # HomeView — saudação, SearchLauncher, QuickAccess (mantida, não é mais a home padrão)
 │   ├── client-picker/         # ClientPickerView — boas-vindas + grid de seleção de cliente (rota "/")
 │   │   └── components/
 │   │       └── ClientCard.tsx
@@ -40,7 +59,7 @@ src/
 │   └── useMemberStore.ts      # Stub de compatibilidade (sem fetch — migrado para useMembersQuery)
 ├── hooks/
 │   ├── useAppOrchestrator.ts  # Agrega toda a lógica de orquestração do App (cliente, views, notificações, task actions); expõe cachedClient, navigateTo e navigateToClient para App.tsx coordenar redirects sem estado intermediário
-│   ├── useAppNavigation.ts    # URL ↔ ViewType: urlToView, viewToPath, taskPath; lê clientSlug via location.pathname (não useParams)
+│   ├── useAppNavigation.ts    # URL ↔ ViewType: urlToView, viewToPath, taskPath; lê clientSlug via location.pathname (não useParams); "/" → "home"; "/:slug" (sem subsegmento) → "client-overview"; "/:slug/tasks" → "demandas" etc.
 │   ├── useSupabase.ts         # Mutations CRUD (createTask, updateTask, deleteTask) via TanStack Query
 │   ├── useTasksQuery.ts       # Query hook TanStack Query para tasks
 │   ├── useMembersQuery.ts     # Query hook TanStack Query para members
@@ -60,6 +79,7 @@ src/
 │   ├── validators.ts          # Schemas Zod para rows do banco (DbTaskRowSchema, DbStepRowSchema, DbStepAssigneeSchema)
 │   ├── clientSlug.ts          # clientToSlug, nameToSlug, slugToClient — converte entre ClientOption e slug de URL
 │   ├── steps.ts               # Definição e lógica de steps
+│   ├── workloadEngine.ts      # Engine pura de workload: MemberWorkloadInput/Metrics, computeMemberWorkload — zero imports React/Supabase; calcula pressureScore, throughput, stuck detection, estimatedCompletionDate e insights
 │   └── utils.ts               # Utilitários gerais
 ├── types/
 │   ├── props.ts               # Props de componentes
@@ -76,18 +96,20 @@ AuthContext (AuthProvider)
 App.tsx (gates de auth + composição)
     ├── !session                       → LoginView
     ├── !hasClients                    → OnboardingView
-    ├── !effectiveClientId (sem slug, slug inválido, /clients…) e não é /profile
-    │       ├── cachedClient válido    → useEffect: navigateTo(view, cachedClient) → redirect preservando a view (ex: /clients → /:slug/client-info); renderiza null enquanto navega
+    ├── !effectiveClientId e não é /profile nem /home
+    │       ├── cachedClient válido    → useEffect: navigateTo(view, cachedClient) → redirect preservando a view; renderiza null enquanto navega
     │       └── sem cache             → ClientPickerLayout → ClientPickerView
+    ├── !effectiveClientId e é /home  → OverviewView (dashboard global — não requer cliente)
     └── useAppOrchestrator (toda a lógica de orquestração)
           ├── useClientStore    → selectedClientId (persist)
           ├── useMembersQuery   → members com cache TanStack Query
           ├── useUIStore        → view, isTaskModalOpen
           ├── useSupabase({ memberId, clientId, isAdmin }) → mutations CRUD
           └── QueryClientProvider (main.tsx) → staleTime 5min, gcTime 30min
-    ├── view="home"                    → HomeView
+    ├── view="home" + sem cliente       → OverviewView (dashboard pessoal global)
+    ├── view="home" + cliente selecionado → ClientOverviewView (visão geral do cliente)
+    ├── view="client-overview"         → ClientOverviewView (visão geral do cliente selecionado)
     ├── view="clients"                 → UserClientsView
-    ├── view="overview"                → DashboardView (subview="overview") — métricas e resumo
     ├── view="calendar"                → DashboardView (subview="calendar") — calendário mensal
     ├── view="timeline"                → DashboardView (subview="timeline") — Gantt
     ├── view="list"                    → DashboardView (subview="list") — tabela
@@ -108,10 +130,10 @@ App.tsx (gates de auth + composição)
 Estado de navegação e modal. Não persiste.
 ```ts
 view: ViewType
-// 'home' | 'overview' | 'calendar' | 'timeline' | 'list'
+// 'home' | 'client-overview' | 'calendar' | 'timeline' | 'list'
 // | 'members' | 'reports' | 'admin' | 'clients'
 // | 'tools' | 'tools-briefing-analyzer' | 'tools-import' | 'tools-export' | 'tools-integrations'
-// | 'profile'
+// | 'demandas' | 'kanban' | 'profile'
 setView(view)
 isTaskModalOpen: boolean
 openTaskModal() / closeTaskModal()
@@ -131,7 +153,7 @@ isClientBuffValid()         // true se selectedAt < 4h atrás
 | `null` | Admin vê todos os clientes (sem filtro no fetch) |
 | `string` | Cliente específico selecionado |
 
-O "buff" de 4h (`CLIENT_BUFF_MS = 4 * 60 * 60 * 1000`) é verificado em `useAppOrchestrator` antes de restaurar o cliente automaticamente. Após expirar, o usuário vê o `ClientPickerView` independentemente do valor persistido.
+O "buff" de 4h (`CLIENT_BUFF_MS = 4 * 60 * 60 * 1000`) é verificado em `useAppOrchestrator` antes de usar `cachedClient` para redirect automático. Após expirar, o usuário vê o `ClientPickerView` se tentar acessar uma view que exige cliente (calendar, timeline, etc.); a `home` (OverviewView) nunca exige cliente.
 
 ### `useTaskStore`
 Estado local mínimo para suporte a **update otimista**. O fetch de tasks foi migrado para `useTasksQuery` (TanStack Query).
@@ -145,7 +167,7 @@ clearOptimistic()             // limpa após sucesso ou rollback
 Stub de compatibilidade de imports. O fetch de members foi migrado para `useMembersQuery` (TanStack Query). Pode ser removido quando não houver mais imports.
 
 ### `useTasksQuery` / `useMembersQuery`
-Query hooks baseados em TanStack Query v5. Configuração global: `staleTime: 5min`, `gcTime: 30min`, `retry: 2`.
+Query hooks baseados em TanStack Query v5. Configuração global: `staleTime: 5min`, `gcTime: 30min`, `retry: 2`. Ambos usam `refetchOnMount: 'always'` para garantir dados frescos ao montar após troca de cliente, mesmo que o cache ainda esteja dentro do `staleTime`.
 ```ts
 // src/hooks/useTasksQuery.ts
 const { data: tasks, isLoading, error } = useTasksQuery(clientId, isAdmin)
@@ -202,7 +224,7 @@ Relê o perfil do usuário atual (member + clients) sem reiniciar o ciclo de aut
 4. Cada view ao montar lê tasks/members dos stores (já em loading ou com cache)
 ```
 
-**Chave:** `App.tsx` usa `AuthContext.clients` diretamente (não `useUserClients`). `useUserClients` existe apenas em `UserClientsView` para `linkToClient`/`unlinkFromClient`.
+**Chave:** `App.tsx` usa `AuthContext.clients` diretamente. `UserClientsView` recebe `client`, `isAdmin` e `onViewChange` via props do `AppRouter`, e busca dados do cliente com `useTasksQuery` + `useMembersQuery` diretamente — funciona como dashboard de resumo/navegação, não como lista de clientes.
 
 ## Leitura do clientSlug na URL
 
@@ -225,17 +247,19 @@ A troca de cliente exibe um overlay de transição animado antes de efetivar a m
 
 ```
 selectClient(clientId)
-  → sidebar.openSidebar()               ← garante sidebar expandida ao chegar na HomeView
+  → invalidateClientOverviewCache(clientIdSaindo)    ← limpa cache manual do ClientOverview
+  → invalidateClientOverviewCache(clientIdEntrando)  ← limpa cache manual do ClientOverview
   → setTransitionTarget({ id, name })   ← exibe ClientTransitionOverlay (~3.2s)
-  → após 650ms: queryClient.invalidateQueries(['tasks'])   ← TanStack Query refetch automático
-               queryClient.invalidateQueries(['members']) ← TanStack Query refetch automático
-               navigateToClient(client) → navigate('/:slug') → view="home"
+  → após 650ms: queryClient.invalidateQueries(['tasks', clientId, isAdmin])  ← TanStack Query refetch
+               queryClient.invalidateQueries(['tasks'])   ← invalida todas as tasks
+               queryClient.invalidateQueries(['members']) ← invalida todos os members
+               navigateToClient(client) → navigate('/:slug') → view="client-overview"
       ↓ onComplete (após fade-out do overlay)
   → toast cinza "Trocado para <Cliente>" (sonner, 3s)
   → setTransitionTarget(null)
 ```
 
-> O TanStack Query revalida automaticamente ao mudar as queries keys (clientId muda) — o `invalidateQueries` força refetch imediato mesmo que ainda esteja dentro do `staleTime`.
+> O TanStack Query revalida automaticamente ao mudar as query keys (clientId muda) — o `invalidateQueries` força refetch imediato mesmo que ainda esteja dentro do `staleTime`. O `isAdmin` correto é passado para garantir que a query key exata do admin seja invalidada (admins têm `['tasks', clientId, true]`). O cache manual do `useClientOverviewData` é limpo **antes** do delay de 650ms para evitar que dados stale sejam servidos na remontagem da view.
 
 ### `ClientTransitionOverlay` (`src/components/ClientTransitionOverlay.tsx`)
 
@@ -351,6 +375,7 @@ interface LayoutCtx {
 - **`AppLayout`** cria o `LayoutContext.Provider` com os valores agrupados; não passa props para filhos diretos
 - **`AppHeader`**, **`AppSidebar`** e **`AppRouter`** são zero-props — consomem o contexto via `useLayoutContext()`
 - `useLayoutContext()` lança erro se usado fora do `AppLayout`
+- `RouterCtx` foi estendido com `userId`, `memberId`, `isAdmin`, `availableClients`, `notificationsLoading`, `onSelectClient` e `onMarkNotificationAsRead` para que `OverviewView` acesse esses dados sem prop drilling adicional
 
 ## Decisões
 

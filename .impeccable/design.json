@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-19T00:00:00Z",
+  "title": "Design System: Run/Way",
+  "extensions": {
+    "colorMeta": {
+      "foreground":        { "role": "primary",  "displayName": "Carvão Profundo",    "canonical": "oklch(0.145 0 0)", "tonalRamp": ["oklch(0.10 0 0)", "oklch(0.145 0 0)", "oklch(0.20 0 0)", "oklch(0.30 0 0)", "oklch(0.48 0 0)", "oklch(0.65 0 0)", "oklch(0.80 0 0)", "oklch(0.92 0 0)"] },
+      "background":        { "role": "neutral",  "displayName": "Cinza Página",       "canonical": "oklch(0.96 0 0)",  "tonalRamp": ["oklch(0.85 0 0)", "oklch(0.88 0 0)", "oklch(0.90 0 0)", "oklch(0.92 0 0)", "oklch(0.94 0 0)", "oklch(0.96 0 0)", "oklch(0.98 0 0)", "oklch(1 0 0)"] },
+      "surface":           { "role": "neutral",  "displayName": "Superfície Branca",  "canonical": "oklch(1 0 0)",     "tonalRamp": ["oklch(0.88 0 0)", "oklch(0.90 0 0)", "oklch(0.92 0 0)", "oklch(0.94 0 0)", "oklch(0.96 0 0)", "oklch(0.98 0 0)", "oklch(0.99 0 0)", "oklch(1 0 0)"] },
+      "surface-raised":    { "role": "neutral",  "displayName": "Cinza Secundário",   "canonical": "oklch(0.92 0 0)",  "tonalRamp": ["oklch(0.80 0 0)", "oklch(0.83 0 0)", "oklch(0.86 0 0)", "oklch(0.88 0 0)", "oklch(0.90 0 0)", "oklch(0.92 0 0)", "oklch(0.94 0 0)", "oklch(0.96 0 0)"] },
+      "muted-text":        { "role": "neutral",  "displayName": "Texto Atenuado",     "canonical": "oklch(0.48 0 0)",  "tonalRamp": ["oklch(0.30 0 0)", "oklch(0.35 0 0)", "oklch(0.40 0 0)", "oklch(0.45 0 0)", "oklch(0.48 0 0)", "oklch(0.55 0 0)", "oklch(0.65 0 0)", "oklch(0.75 0 0)"] },
+      "border":            { "role": "neutral",  "displayName": "Borda Estrutural",   "canonical": "oklch(0.87 0 0)",  "tonalRamp": ["oklch(0.70 0 0)", "oklch(0.74 0 0)", "oklch(0.78 0 0)", "oklch(0.82 0 0)", "oklch(0.85 0 0)", "oklch(0.87 0 0)", "oklch(0.90 0 0)", "oklch(0.93 0 0)"] },
+      "destructive":       { "role": "semantic", "displayName": "Vermelho Crítico",   "canonical": "oklch(0.577 0.245 27.325)", "tonalRamp": ["oklch(0.35 0.18 27)", "oklch(0.42 0.20 27)", "oklch(0.48 0.22 27)", "oklch(0.52 0.23 27)", "oklch(0.577 0.245 27)", "oklch(0.65 0.20 27)", "oklch(0.72 0.15 27)", "oklch(0.82 0.08 27)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display / Marca", "purpose": "Exclusivo para o nome 'Run/Way' no AppHeader e LoginView. Proibido em qualquer outro contexto." },
+      "body":    { "displayName": "Body / Interface", "purpose": "Todo o conteúdo de interface: labels, parágrafos, metadados, conteúdo de cards." },
+      "label":   { "displayName": "Label / Metadata", "purpose": "Timestamps, contadores, labels de campo, texto auxiliar compacto." }
+    },
+    "shadows": [
+      { "name": "card-separation",    "value": "0 1px 3px oklch(0 0 0 / 0.08), 0 1px 2px oklch(0 0 0 / 0.06)", "purpose": "Cards de demanda, painéis, modais. Presente em repouso." },
+      { "name": "popover-elevation",  "value": "0 4px 16px oklch(0 0 0 / 0.10)",                                 "purpose": "Dropdowns, tooltips, popovers. Mais presença por estarem acima do conteúdo." }
+    ],
+    "motion": [
+      { "name": "blur-fade-in",    "value": "opacity 0→1 + filter blur(8px)→blur(0), 300ms ease-out", "purpose": "Entrada de conteúdo assíncrono. Definido como @keyframes em index.css." },
+      { "name": "ease-standard",   "value": "cubic-bezier(0.4, 0, 0.2, 1)",                            "purpose": "Transições de estado padrão (hover, focus, disabled)." },
+      { "name": "ease-out-quart",  "value": "cubic-bezier(0.25, 1, 0.5, 1)",                           "purpose": "Animações de entrada e saída de elementos. Mais expressivo que o padrão." }
+    ],
+    "breakpoints": [
+      { "name": "sm",  "value": "640px" },
+      { "name": "md",  "value": "768px" },
+      { "name": "lg",  "value": "1024px" },
+      { "name": "xl",  "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da tela. Usar com parcimônia: máximo um por contexto visível.",
+      "html": "<button class=\"ds-btn-primary\">Salvar demanda</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; background: oklch(0.145 0 0); color: oklch(1 0 0); font-family: 'DM Sans', sans-serif; font-size: 0.875rem; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1), box-shadow 150ms cubic-bezier(0.4,0,0.2,1); outline: none; white-space: nowrap; } .ds-btn-primary:hover { background: oklch(0.25 0 0); } .ds-btn-primary:focus-visible { box-shadow: 0 0 0 3px oklch(0.145 0 0 / 0.5); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ação de suporte. Usa fundo tonal neutro.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; background: oklch(0.92 0 0); color: oklch(0.205 0 0); font-family: 'DM Sans', sans-serif; font-size: 0.875rem; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); outline: none; } .ds-btn-secondary:hover { background: oklch(0.88 0 0); } .ds-btn-secondary:focus-visible { box-shadow: 0 0 0 3px oklch(0.145 0 0 / 0.5); } .ds-btn-secondary:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Ação contextual inline. Sem borda nem fundo em repouso.",
+      "html": "<button class=\"ds-btn-ghost\">Ver detalhes</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; background: transparent; color: oklch(0.145 0 0); font-family: 'DM Sans', sans-serif; font-size: 0.875rem; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); outline: none; } .ds-btn-ghost:hover { background: oklch(0.92 0 0); } .ds-btn-ghost:focus-visible { box-shadow: 0 0 0 3px oklch(0.145 0 0 / 0.5); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de texto padrão. Contido, foco sutil.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Nome da demanda\" />",
+      "css": ".ds-input { display: flex; height: 36px; width: 100%; padding: 0 12px; background: oklch(0.96 0 0); color: oklch(0.145 0 0); font-family: 'DM Sans', sans-serif; font-size: 0.875rem; border: 1px solid oklch(0.87 0 0); border-radius: 6px; transition: border-color 150ms, box-shadow 150ms; outline: none; } .ds-input::placeholder { color: oklch(0.48 0 0); } .ds-input:focus-visible { border-color: oklch(0.145 0 0); box-shadow: 0 0 0 1px oklch(0.145 0 0); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Container de demanda ou conteúdo agrupado. Sombra de separação estrutural.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-title\">Redesign do checkout</p><p class=\"ds-card-meta\">Encerra em 3 dias</p></div>",
+      "css": ".ds-card { background: oklch(1 0 0); border: 1px solid oklch(0.87 0 0); border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px oklch(0 0 0 / 0.08), 0 1px 2px oklch(0 0 0 / 0.06); } .ds-card-title { font-family: 'DM Sans', sans-serif; font-size: 0.875rem; font-weight: 600; color: oklch(0.145 0 0); margin: 0 0 4px; } .ds-card-meta { font-family: 'DM Sans', sans-serif; font-size: 0.75rem; font-weight: 500; color: oklch(0.48 0 0); margin: 0; letter-spacing: 0.01em; }"
+    },
+    {
+      "name": "Badge: Design",
+      "kind": "chip",
+      "refersTo": "badge-design",
+      "description": "Status de fase de design. Cor cromática permitida apenas em badges de fase.",
+      "html": "<span class=\"ds-badge ds-badge-design\">Design</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; border: 1px solid transparent; font-family: 'DM Sans', sans-serif; font-size: 0.75rem; font-weight: 600; } .ds-badge-design { background: #dbeafe; color: #1e40af; }"
+    },
+    {
+      "name": "Badge: QA",
+      "kind": "chip",
+      "refersTo": "badge-qa",
+      "description": "Status de fase de QA.",
+      "html": "<span class=\"ds-badge ds-badge-qa\">QA</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; border: 1px solid transparent; font-family: 'DM Sans', sans-serif; font-size: 0.75rem; font-weight: 600; } .ds-badge-qa { background: #dcfce7; color: #166534; }"
+    },
+    {
+      "name": "Brand Logo",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Identidade visual: ícone + nome. Syne 800 exclusivo aqui.",
+      "html": "<div class=\"ds-logo\"><div class=\"ds-logo-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"7\" height=\"7\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"14\" y=\"14\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"3\" y=\"14\" rx=\"1\"/></svg></div><span class=\"ds-logo-name\">Run/Way</span></div>",
+      "css": ".ds-logo { display: flex; align-items: center; gap: 10px; } .ds-logo-icon { background: oklch(0.145 0 0); color: oklch(1 0 0); border-radius: 10px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; } .ds-logo-name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.25rem; color: oklch(0.145 0 0); line-height: 1; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Pista de Controle",
+    "overview": "O Run/Way não é um dashboard. É um painel operacional, projetado para quem precisa de informação imediata, não de exploração. A metáfora é uma torre de controle: cada elemento tem uma posição fixa, cada cor tem um significado, e a ausência de ruído visual é parte do trabalho. O olhar do usuário deve chegar na informação certa em menos de três segundos.\n\nA paleta é restrita e inteiramente tonal: preto, branco e uma escala de cinzas com chroma zero. Não há cor de acento decorativa. A cor aparece apenas para comunicar estado (fase da subtask, erro, sucesso) e nunca para criar hierarquia visual por si só.\n\nO sistema rejeita explicitamente: o peso visual do Jira e Azure DevOps; a vibração cromática do Monday e Asana; o colapso estrutural do Notion; e a genericidade dos dashboards corporativos com hero-metric e card grids idênticos.",
+    "keyCharacteristics": [
+      "Tonal absoluto: chroma zero em todos os neutros",
+      "Tipografia dual: Syne 800 exclusivo para a marca, DM Sans para tudo mais",
+      "Densidade com respiro: informação compacta, espaçamento variado",
+      "Estado sempre visível sem hover obrigatório",
+      "Flat por disposição, sombra como separação estrutural (não decoração)"
+    ],
+    "rules": [
+      { "name": "A Regra do Tonal Absoluto", "body": "Nenhum acento cromático aparece fora de badges de status. Se a tentação for adicionar 'um toque de cor' para hierarquia visual, a resposta é peso tipográfico ou escala, nunca cor.", "section": "colors" },
+      { "name": "A Regra da Cor com Significado", "body": "Cada cor de status tem um domínio exclusivo. Não reutilizar azul de análise para links, nem verde de QA para sucesso genérico. A escassez mantém o significado.", "section": "colors" },
+      { "name": "A Regra da Fonte Única da Marca", "body": "Syne 800 pertence ao nome 'Run/Way'. Usar Syne em qualquer outro elemento é diluir a identidade. DM Sans é a fonte de trabalho; Syne é o selo.", "section": "typography" },
+      { "name": "A Regra da Sombra Estrutural", "body": "Sombra aparece apenas em superfícies que se separam do fundo (cards, modais, dropdowns). Nunca em texto, ícones, divisores ou bordas. Sombra não é estilo; é hierarquia espacial.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar peso tipográfico (600 vs 400) para criar hierarquia antes de usar cor.",
+      "Do variar padding e espaçamento entre seções para criar ritmo visual.",
+      "Do exibir estados (bloqueado, atrasado, em andamento) sem dependência de hover.",
+      "Do manter bordas finas (1px) e raios consistentes com a escala.",
+      "Do usar a animação blur-fade-in para entradas de conteúdo assíncrono (300ms ease-out).",
+      "Do suportar prefers-reduced-motion: remover animações não essenciais quando ativo.",
+      "Do garantir contraste mínimo 4.5:1 para texto e 3:1 para elementos UI (WCAG 2.1 AA)."
+    ],
+    "donts": [
+      "Don't usar Syne em qualquer elemento que não seja o nome 'Run/Way'.",
+      "Don't adicionar cor cromática fora de badges de status de fase.",
+      "Don't criar grids de cards idênticos com ícone + título + texto repetidos.",
+      "Don't usar border-left maior que 1px como stripe colorida de acento.",
+      "Don't aplicar glassmorphism, blur decorativo ou gradiente de texto.",
+      "Don't construir um hero metric (número grande + label pequeno + stats de suporte).",
+      "Don't usar modal como primeira resposta a uma ação.",
+      "Don't fazer o app parecer o Jira, Monday, Notion ou um BI tool genérico."
+    ]
+  }
+}

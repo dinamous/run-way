@@ -150,10 +150,10 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 
 ## ADR-017: ClientPickerView como tela obrigatória de seleção de cliente
 
-**Status:** Aceito (Abr 2026)
-**Decisão:** qualquer rota sem `effectiveClientId` válido (sem slug, slug inválido, `/clients`, etc.) exibe `ClientPickerView` com cards dos clientes disponíveis — exceto `/profile`, que é genuinamente global; se houver um cliente válido em cache (`cachedClient` de `useClientStore`), o redirect ocorre automaticamente sem exibir a tela de seleção; `App.tsx` renderiza `ClientPickerLayout` quando `!effectiveClientId && !isProfileView`
+**Status:** Aceito (Abr 2026) — parcialmente supersedido por ADR-023
+**Decisão:** qualquer rota sem `effectiveClientId` válido (sem slug, slug inválido, `/clients`, etc.) exibe `ClientPickerView` com cards dos clientes disponíveis — exceto `/profile` e `/home`, que são globais; se houver um cliente válido em cache (`cachedClient` de `useClientStore`), o redirect ocorre automaticamente sem exibir a tela de seleção; `App.tsx` renderiza `ClientPickerLayout` quando `!effectiveClientId && !isProfileView && !isHomeView`
 **Racional:** o guard anterior (`!clientSlug`) só cobria ausência de slug, deixando rotas como `/clients` ou slugs inválidos caírem no `AppLayout` sem cliente, causando estado ambíguo; expandir o guard para `!effectiveClientId` cobre todos os casos estruturalmente; o redirect via `cachedClient` preserva a experiência de retorno sem fricção
-**Consequências:** `/clients` não é mais uma rota global tratada separadamente — redireciona para o cliente em cache preservando a view (ex: `/clients` → `/:slug/client-info`) ou exibe a tela de seleção; `useAppOrchestrator` expõe `cachedClient`, `navigateTo` e `navigateToClient`; o redirect usa `useEffect` para evitar loop de re-render (`selectClient` durante render causava "Too many re-renders"); `isGlobalView` foi simplificado para `isProfileView` em `App.tsx`
+**Consequências:** `/clients` não é mais uma rota global tratada separadamente — redireciona para o cliente em cache preservando a view (ex: `/clients` → `/:slug/client-info`) ou exibe a tela de seleção; `useAppOrchestrator` expõe `cachedClient`, `navigateTo` e `navigateToClient`; o redirect usa `useEffect` para evitar loop de re-render (`selectClient` durante render causava "Too many re-renders"); `isGlobalView` foi simplificado para `isProfileView` em `App.tsx`; ver ADR-023 para a exceção da `home`
 
 ---
 
@@ -184,9 +184,55 @@ Registro de decisões arquiteturais significativas do projeto Run/Way.
 
 ---
 
+## ADR-022: OverviewView substitui HomeView como tela inicial padrão
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** A view `home` passa a renderizar `OverviewView` (dashboard pessoal com KPIs, lista de subtasks do assignee, clientes ativos e inbox de notificações) em vez da `HomeView` anterior (saudação + SearchLauncher + QuickAccess). A `HomeView` é mantida no codebase mas não está mais acessível pela navegação padrão.
+**Racional:** a tela de boas-vindas não agregava valor recorrente; o dashboard pessoal entrega dados contextuais (subtasks atrasadas, vencimentos, notificações) a cada abertura do app, reduzindo o número de cliques para atingir informação relevante.
+**Consequências:** `LayoutContext.RouterCtx` foi estendido com `userId`, `memberId`, `isAdmin`, `availableClients`, `notificationsLoading`, `onSelectClient` e `onMarkNotificationAsRead` para eliminar prop drilling. `useOverviewData` faz fetch próprio de subtasks (`subtask_assignees → task_subtasks → tasks → clients`) e contagem de tasks ativas por cliente — não existe hook global para essas queries. Notificações vêm via prop (reutilizando o `useNotifications` já subscrito no App).
+
+---
+
 ## ADR-021: Status de andamento separado da etapa da subtask
 
 **Status:** Aceito (Mai 2026)
 **Decisão:** `task_subtasks` passa a ter `progress_status`, separado de `status` (que continua representando a etapa/tipo: Design, QA, Publicação etc.). O domínio expõe `Subtask.progressStatus` com os valores `todo`, `ready`, `in-progress`, `in-review`, `waiting`, `blocked`, `needs-changes`, `paused`, `done` e `canceled`.
 **Racional:** o campo `status` já era usado como categoria visual e filtro de etapa; reaproveitá-lo para andamento quebraria calendário, timeline e legenda. Separar andamento permite gerir subtasks esquecidas, bloqueadas ou concluídas sem perder a fase de entrega.
 **Consequências:** a tabela de demandas ganhou uma coluna "Status" com popover de edição inline; o modal de demanda também salva o andamento; o progresso da demanda agora considera subtasks `done` e ignora subtasks `canceled`.
+
+---
+
+## ADR-023: OverviewView como destino pós-login sem exigir seleção de cliente
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** após o login, o usuário é levado diretamente à `OverviewView` (view `home`) sem passar pelo `ClientPickerView`, mesmo que tenha múltiplos clientes. A `home` é tratada como rota global — não exige `effectiveClientId`. O `ClientPickerView` continua disponível apenas para views que requerem um cliente específico (calendar, timeline, list, etc.) sem slug na URL.
+**Racional:** a `OverviewView` já exibe dados agregados de todos os clientes do usuário (`clients` prop passada pelo `AppRouter`); forçar a seleção de cliente antes de acessá-la era fricção desnecessária. O fluxo correto é: login → overview global → usuário navega para uma view específica e seleciona o cliente se necessário.
+**Consequências:** `needsPicker` em `App.tsx` passou a excluir `isHomeView` (`view === "home" || !view`); o `useEffect` de restauração automática de último cliente em `useAppOrchestrator` foi removido (não há mais necessidade de redirecionar `/` para `/:slug` automaticamente); `isProfileView` renomeado conceitualmente para "rotas globais" junto com `isHomeView`; a `OverviewView` permanece sem alterações, pois já suportava múltiplos clientes.
+
+
+---
+
+## ADR-024: AppSidebar filtra itens de nav pelo contexto de cliente
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** quando a view atual é `home` ou não há `selectedClient`, a `AppSidebar` exibe apenas os itens marcados com `homeOnly: true` — atualmente "Início" e "Admin" (restrito a admins). Todos os demais itens (Demandas, Membros, Relatórios, Clientes, Ferramentas) só aparecem após um cliente estar selecionado. O item "Clientes" passa a ter `requiresClient: true` (antes não tinha). O campo `homeOnly` foi adicionado à interface `NavItem`.
+**Racional:** a home é uma rota global sem cliente; exibir links para views client-scoped sem contexto de cliente cria itens de nav que não têm destino válido e gera confusão. Manter apenas "Início" e "Admin" simplifica o estado inicial e reforça o fluxo login → overview → selecionar cliente → trabalhar.
+**Consequências:** a lógica de `filteredItems` em `AppSidebar` passou a checar `isOnHome` (derivado de `view === "home" || !selectedClient`) antes de `requiresClient` e `canAccessView`; itens sem `homeOnly` são suprimidos na home mesmo que o usuário seja admin; "Ferramentas" e "Clientes" receberam `requiresClient: true`.
+
+---
+
+## ADR-026: Modelo de workload orientado a fluxo com estimativas em horas
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** migrar o cálculo de carga de trabalho de contagem simples de subtasks para um modelo baseado em fluxo real. Cinco colunas adicionadas à tabela `tasks`: `expected_hours` (estimativa em horas), `complexity` (enum baixa/media/alta/avancada/extrema), `task_type` (feature/bug/support/meeting), `due_date` (prazo ao cliente) e `started_at` (timestamp da primeira subtask em progresso). Um engine puro (`workloadEngine.ts`) calcula `pressureScore` composto (0–1) combinando load ratio, delay factor, stuck factor e time factor. Planning poker via chips Fibonacci no TaskModal.
+**Racional:** `subtaskCount / capacity` trata uma task de 30min igual a uma travada há semanas. O novo modelo detecta travamento (`ageHours > expectedHours * 1.5`), gera previsão de conclusão via throughput dos últimos 7 dias, e produz insights automáticos por membro. Todos os novos campos são nullable — dados existentes não quebram.
+**Consequências:** `MemberWorkloadMetrics` estendido com `pressureScore`, `stuckTasksCount`, `throughput7dHours`, `estimatedCompletionDate`; `overviewWorkload.ts` reescrito consumindo o engine; `WorkloadMember` estendido com `stuckTasksCount`, `pressureScore`, `status`, `estimatedCompletionDate` (todos opcionais para retrocompatibilidade com `ClientMember`); `getLoadStatus` agora usa `member.status` quando disponível (vindo do engine), com fallback para ratio legado; `CapacityTeam` exibe badge de "travadas" (âmbar) e bloco de previsão de conclusão em ambas as variantes (single e grid); testes unitários obrigatórios para o engine.
+
+---
+
+## ADR-025: AppSidebar — tonal stratification, active rail e motion
+
+**Status:** Aceito (Mai 2026)
+**Decisão:** a `AppSidebar` recebeu três melhorias visuais e de interação: (1) **tonal stratification** — a strip lateral (sidebar-1) usa um fundo um grau mais escuro que o `card` (`oklch(0.975 0 0)` light / `oklch(0.175 0 0)` dark), criando separação visual clara entre os dois níveis sem usar cor; (2) **active indicator rail** — o item ativo na sidebar-2 exibe um rail vertical de 2px em `bg-foreground` à esquerda, substituindo o `bg-foreground/[0.07]` quase invisível anterior; ícones inativos em 60% opacity com transição para 100% no hover; (3) **motion** — View Transitions API nos avatares de cliente ao trocar workspace, entrada staggered dos nav items quando o painel abre (28ms de offset por item), spring physics no chevron dos grupos via `cubic-bezier(0.34, 1.56, 0.64, 1)`; hook `usePrefersReducedMotion` desativa todos os efeitos quando a preferência do sistema está ativa.
+**Racional:** a sidebar anterior era funcionalmente correta mas visualmente flat — os dois níveis eram indistinguíveis, o estado ativo mal se diferenciava do inativo, e não havia feedback de motion para ações estruturais (troca de cliente, abertura do painel). As melhorias seguem o design system tonal do Run/Way sem introduzir cor chromática e respeitam WCAG 2.1 AA.
+**Consequências:** nenhuma mudança de API ou props; `usePrefersReducedMotion` é um hook local em `AppSidebar.tsx`; View Transitions são progressive enhancement (fallback automático em Firefox); o `view-transition-name` nos avatares de cliente usa índice numérico para evitar colisões.

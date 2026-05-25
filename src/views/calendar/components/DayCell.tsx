@@ -18,12 +18,12 @@ const DayCell: React.FC<DayCellProps> = ({ day, today, currentMonth, rowHeight, 
   const bgClass = holidayName
     ? 'bg-amber-50 dark:bg-amber-950/30'
     : !isThisMonth
-    ? 'cal-day-outside'
+    ? 'bg-[oklch(0.95_0_0)] dark:bg-[oklch(0.19_0_0)]'
     : isWeekend
-    ? 'cal-day-weekend'
+    ? 'bg-[oklch(0.95_0_0)] dark:bg-[oklch(0.19_0_0)]'
     : isEvenWeek
-    ? 'cal-day-even'
-    : 'cal-day-odd';
+    ? 'bg-[oklch(0.98_0_0)] dark:bg-[oklch(0.24_0_0)]'
+    : 'bg-white dark:bg-[oklch(0.18_0_0)]';
 
   return (
     <div
