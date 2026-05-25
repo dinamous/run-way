@@ -255,25 +255,18 @@ export async function fetchMembersFromDb(
     }))
   }
 
-  const ucResult = await supabase
+  const { data, error } = await supabase
     .from('user_clients')
-    .select('user_id')
+    .select('members (id, name, role, avatar, avatar_url, email, auth_user_id, access_role)')
     .eq('client_id', clientId)
 
-  if (ucResult.error) throw new Error(ucResult.error.message)
-
-  const allIds = (ucResult.data ?? []).map(uc => uc.user_id)
-  if (allIds.length === 0) return []
-
-  const { data, error } = await supabase
-    .from('members')
-    .select('id, name, role, avatar, avatar_url, email, auth_user_id, access_role')
-    .in('id', allIds)
-    .order('name')
-
   if (error) throw new Error(error.message)
-  return (data ?? []).map(m => ({
-    ...m,
-    access_role: m.access_role as Member['access_role']
-  }))
+
+  const members = (data ?? [])
+    .map(uc => uc.members)
+    .filter((m): m is NonNullable<typeof m> => m !== null)
+
+  return members
+    .map(m => ({ ...m, access_role: m.access_role as Member['access_role'] }))
+    .sort((a, b) => a.name.localeCompare(b.name))
 }

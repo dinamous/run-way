@@ -71,7 +71,8 @@
       "Bash(Format-Table -HideTableHeaders)",
       "Bash(python3 -c ' *)",
       "Bash(node -e ' *)",
-      "Bash(rename \"c:\\\\Users\\\\dinam\\\\Documents\\\\Projetos\\\\run-way\\\\src\\\\views\\\\planning\\\\components\\\\taskSortTypes.ts\" \"tasksSortTypes.ts\")"
+      "Bash(rename \"c:\\\\Users\\\\dinam\\\\Documents\\\\Projetos\\\\run-way\\\\src\\\\views\\\\planning\\\\components\\\\taskSortTypes.ts\" \"tasksSortTypes.ts\")",
+      "Bash(xargs grep -l \"supabase\")"
     ]
   },
   "hooks": {
