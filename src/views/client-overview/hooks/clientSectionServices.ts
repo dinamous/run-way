@@ -61,7 +61,7 @@ export async function fetchMetricsData(clientId: string, _signal: AbortSignal): 
 
   const today = new Date().toISOString().slice(0, 10)
   const in7Days = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-  const { taskList } = buildTaskList((data ?? []) as RawTask[], today, in7Days)
+  const { taskList } = buildTaskList((data ?? []) as unknown as RawTask[], today, in7Days)
   const openTasks = taskList.filter((t) => !t.concludedAt)
   const concludedTasks = taskList.filter((t) => t.concludedAt)
 
@@ -90,7 +90,7 @@ export async function fetchHealthFocusData(clientId: string, _signal: AbortSigna
 
   const today = new Date().toISOString().slice(0, 10)
   const in7Days = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-  const { taskList } = buildTaskList((data ?? []) as RawTask[], today, in7Days)
+  const { taskList } = buildTaskList((data ?? []) as unknown as RawTask[], today, in7Days)
 
   return {
     health: buildHealth(taskList),
@@ -116,7 +116,7 @@ export async function fetchTasksTimelineData(clientId: string, _signal: AbortSig
 
   const today = new Date().toISOString().slice(0, 10)
   const in7Days = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-  const { taskList } = buildTaskList((data ?? []) as RawTask[], today, in7Days)
+  const { taskList } = buildTaskList((data ?? []) as unknown as RawTask[], today, in7Days)
   const openTasks = taskList.filter((t) => !t.concludedAt)
 
   return {
@@ -155,7 +155,7 @@ export async function fetchTeamData(clientId: string, _signal: AbortSignal): Pro
 
   const today = new Date().toISOString().slice(0, 10)
   const in7Days = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-  const { memberMap } = buildTaskList((tasksResult.data ?? []) as RawTask[], today, in7Days)
+  const { memberMap } = buildTaskList((tasksResult.data ?? []) as unknown as RawTask[], today, in7Days)
 
   seedMemberMap(memberMap, members)
 
@@ -174,7 +174,7 @@ export async function fetchTeamData(clientId: string, _signal: AbortSignal): Pro
       .is('concluded_at', null)
       .not('client_id', 'is', null)
     if (otherData) {
-      otherClientTasks = (otherData as RawTaskWithClient[]).filter((t) =>
+      otherClientTasks = (otherData as unknown as RawTaskWithClient[]).filter((t) =>
         (t.task_subtasks ?? []).some((s) =>
           (s.subtask_assignees ?? []).some((a) => memberIds.includes(a.member_id))
         )

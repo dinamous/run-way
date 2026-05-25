@@ -52,6 +52,10 @@ Usado por `PlanningView` (subview `demandas`) para alimentar os popovers inline 
 
 > Antes desta correção, esses campos só eram persistidos em `updateTask`.
 
+## `priority_order` em `createTask`
+
+O `priority_order` da nova tarefa é calculado localmente a partir do cache do React Query — `max(priorityOrder)` das tasks já carregadas para o mesmo `clientId` + 1. Não há SELECT extra ao Supabase antes do INSERT, evitando que a criação trave em caso de timeout ou sessão expirada.
+
 ## Subtasks (`createAllSubtasks` + diff em `updateTask`)
 
 `createAllSubtasks` — função privada chamada em `createTask` e em `updateTask` (para subtasks novas):

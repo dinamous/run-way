@@ -25,12 +25,13 @@ async function fetchMemberProfile(memberId: string) {
   if (error) throw error
   if (!data) return null
 
+  const row = data as unknown as { id: string; name: string; role: string; avatar_url: string | null; capacity: number | null }
   return {
-    id: data.id,
-    name: data.name,
-    role: data.role,
-    avatarUrl: data.avatar_url,
-    capacity: Math.max(1, data.capacity ?? 6),
+    id: row.id,
+    name: row.name,
+    role: row.role,
+    avatarUrl: row.avatar_url,
+    capacity: Math.max(1, row.capacity ?? 6),
   }
 }
 

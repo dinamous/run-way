@@ -142,7 +142,7 @@ const bellRingVariants = {
       : [0, -18, 16, -12, 9, -5, 3, -1, 0],
     transition: {
       duration: 0.7,
-      ease: "easeOut",
+      ease: "easeOut" as const,
       times: [0, 0.1, 0.25, 0.4, 0.55, 0.67, 0.77, 0.88, 1],
     },
   },

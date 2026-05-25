@@ -77,7 +77,7 @@ export async function fetchClientOverviewRaw(clientId: string): Promise<ClientOv
       .not('client_id', 'is', null)
     if (otherTasksData) {
       // Keep only tasks that have at least one assignee in our member list
-      otherClientTasks = (otherTasksData as RawTaskWithClient[]).filter((t) =>
+      otherClientTasks = (otherTasksData as unknown as RawTaskWithClient[]).filter((t) =>
         (t.task_subtasks ?? []).some((s) =>
           (s.subtask_assignees ?? []).some((a) => memberIds.includes(a.member_id))
         )
@@ -87,7 +87,7 @@ export async function fetchClientOverviewRaw(clientId: string): Promise<ClientOv
 
   return {
     client: { id: clientResult.data.id, name: clientResult.data.name },
-    tasks: (tasksResult.data ?? []) as RawTask[],
+    tasks: (tasksResult.data ?? []) as unknown as RawTask[],
     otherClientTasks,
     members,
   }
