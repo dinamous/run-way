@@ -34,12 +34,17 @@ Deno.serve(async (req) => {
 
     if (action === 'listPending') {
       const allowedDomain = Deno.env.get('ALLOWED_DOMAIN')
-      const { data, error } = await db.auth.admin.listUsers()
-      if (error || !data) return json({ error: error?.message ?? 'Failed' }, 500)
-      const { data: members } = await db.from('members').select('auth_user_id')
-      const linked = new Set((members ?? []).map((m) => m.auth_user_id).filter(Boolean))
+
+      const [{ data: members }, { data: authData, error }] = await Promise.all([
+        db.from('members').select('auth_user_id'),
+        db.auth.admin.listUsers({ perPage: 1000, page: 1 }),
+      ])
+
+      if (error || !authData) return json({ error: error?.message ?? 'Failed' }, 500)
+
+      const linked = new Set((members ?? []).map((m: { auth_user_id: string | null }) => m.auth_user_id).filter(Boolean))
       const pending = []
-      for (const u of data.users) {
+      for (const u of authData.users) {
         if (!u.email) continue
         const domain = u.email.split('@')[1]
         if (allowedDomain && domain !== allowedDomain) continue
