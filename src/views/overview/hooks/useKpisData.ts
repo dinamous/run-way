@@ -158,25 +158,25 @@ async function fetchAllSubtasks(clientIds: string[]): Promise<SubtaskRow[]> {
   if (error) throw error
   if (!data) return []
 
-  return (data as unknown as RawSubtaskByTasksRow[])
-    .map(raw => {
-      const task = raw.tasks
-      if (!task) return null
-      return {
-        id: raw.id,
-        title: raw.title,
-        status: raw.status,
-        start: raw.start_date ?? '',
-        end: raw.end_date ?? '',
-        active: raw.active ?? true,
-        taskId: task.id,
-        taskTitle: task.title,
-        taskBlocked: task.blocked ?? false,
-        clientId: task.clients?.id ?? task.client_id ?? '',
-        clientName: task.clients?.name ?? '',
-        taskConcludedAt: null,
-      } satisfies SubtaskRow
-    })
+  const rows: (SubtaskRow | null)[] = (data as unknown as RawSubtaskByTasksRow[]).map(raw => {
+    const task = raw.tasks
+    if (!task) return null
+    return {
+      id: raw.id,
+      title: raw.title,
+      status: raw.status,
+      start: raw.start_date ?? '',
+      end: raw.end_date ?? '',
+      active: raw.active ?? true,
+      taskId: task.id,
+      taskTitle: task.title,
+      taskBlocked: task.blocked ?? false,
+      clientId: task.clients?.id ?? task.client_id ?? '',
+      clientName: task.clients?.name ?? '',
+      taskConcludedAt: task.concluded_at,
+    }
+  })
+  return rows
     .filter((r): r is SubtaskRow => r !== null)
     .sort((a, b) => (a.end ?? '').localeCompare(b.end ?? ''))
 }

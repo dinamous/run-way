@@ -52,21 +52,23 @@ async function createAllSubtasks(taskId: string, subtasks: Subtask[]): Promise<b
   let error: { message: string } | null = null
   try {
     const result = await withTimeout(
-      supabase
-        .from('task_subtasks')
-        .insert(
-          subtasks.map(s => ({
-            task_id: taskId,
-            title: s.title,
-            status: s.status,
-            progress_status: s.progressStatus,
-            subtask_order: s.order,
-            active: s.active,
-            start_date: s.start || null,
-            end_date: s.end || null,
-          }))
-        )
-        .select('id,title,status,subtask_order')
+      Promise.resolve(
+        supabase
+          .from('task_subtasks')
+          .insert(
+            subtasks.map(s => ({
+              task_id: taskId,
+              title: s.title,
+              status: s.status,
+              progress_status: s.progressStatus,
+              subtask_order: s.order,
+              active: s.active,
+              start_date: s.start || null,
+              end_date: s.end || null,
+            }))
+          )
+          .select('id,title,status,subtask_order')
+      )
     )
     data = result.data
     error = result.error
@@ -89,7 +91,7 @@ async function createAllSubtasks(taskId: string, subtasks: Subtask[]): Promise<b
 
   if (assigneeRows.length > 0) {
     try {
-      const { error: assigneeErr } = await withTimeout(supabase.from('subtask_assignees').insert(assigneeRows))
+      const { error: assigneeErr } = await withTimeout(Promise.resolve(supabase.from('subtask_assignees').insert(assigneeRows)))
       if (assigneeErr) {
         devLog('[createAllSubtasks] Erro ao inserir assignees:', assigneeErr.message)
         return false
@@ -144,24 +146,26 @@ export function useSupabase(options: UseSupabaseOptions = {}) {
     let taskErr: { message: string } | null = null
     try {
       const result = await withTimeout(
-        supabase
-          .from('tasks')
-          .insert({
-            title: taskData.title,
-            description: taskData.description ?? null,
-            clickup_link: taskData.clickupLink ?? null,
-            priority_order: priorityOrder,
-            blocked: taskData.status.blocked,
-            blocked_at: taskData.status.blockedAt ?? null,
-            concluded_at: taskData.concludedAt ?? null,
-            expected_hours: taskData.expectedHours ?? null,
-            complexity: taskData.complexity ?? null,
-            task_type: taskData.taskType ?? null,
-            due_date: taskData.dueDate ?? null,
-            client_id: resolvedClientId,
-          })
-          .select('id')
-          .single()
+        Promise.resolve(
+          supabase
+            .from('tasks')
+            .insert({
+              title: taskData.title,
+              description: taskData.description ?? null,
+              clickup_link: taskData.clickupLink ?? null,
+              priority_order: priorityOrder,
+              blocked: taskData.status.blocked,
+              blocked_at: taskData.status.blockedAt ?? null,
+              concluded_at: taskData.concludedAt ?? null,
+              expected_hours: taskData.expectedHours ?? null,
+              complexity: taskData.complexity ?? null,
+              task_type: taskData.taskType ?? null,
+              due_date: taskData.dueDate ?? null,
+              client_id: resolvedClientId,
+            })
+            .select('id')
+            .single()
+        )
       )
       taskRow = result.data
       taskErr = result.error
