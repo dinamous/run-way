@@ -11,8 +11,19 @@ interface PreferencesSectionProps {
   onUpdate: (prefs: Partial<Pick<UserPreferences, 'theme' | 'language' | 'notifications_enabled' | 'default_view' | 'client_order' | 'notification_step_overdue' | 'notification_task_stalled' | 'notification_member_overloaded' | 'stalled_days_threshold' | 'overload_threshold'>>) => Promise<boolean>
 }
 
+function SectionRow({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8">
+      <div>
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{description}</p>
+      </div>
+      <div>{children}</div>
+    </div>
+  )
+}
+
 export function PreferencesSection({ preferences, savingPrefs, clients, onUpdate }: PreferencesSectionProps) {
-  // Build ordered client list: first clients in client_order, then the rest
   const orderedClientIds: string[] = (() => {
     const known = new Set(clients.map((c) => c.id))
     const saved = (preferences.client_order ?? []).filter((id) => known.has(id))
@@ -45,78 +56,67 @@ export function PreferencesSection({ preferences, savingPrefs, clients, onUpdate
   }
 
   return (
-    <section className="space-y-8">
-      <div>
-        <h2 className="text-lg font-semibold">Preferências</h2>
-        <p className="text-sm text-muted-foreground mt-1">Configure sua experiência na plataforma.</p>
-      </div>
+    <section className="space-y-10">
 
-      {/* Aparência */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Aparência</h3>
+      <SectionRow title="Aparência" description="Tema e idioma da interface.">
+        <div className="space-y-5">
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              <Palette className="w-3.5 h-3.5" />
+              Tema
+            </Label>
+            <Select
+              value={preferences.theme}
+              onValueChange={(v) => onUpdate({ theme: v as UserPreferences['theme'] })}
+              disabled={savingPrefs}
+            >
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="system">Sistema (automático)</SelectItem>
+                <SelectItem value="light">Claro</SelectItem>
+                <SelectItem value="dark">Escuro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="space-y-1.5">
-          <Label className="flex items-center gap-1.5">
-            <Palette className="w-3.5 h-3.5" />
-            Tema
-          </Label>
-          <Select
-            value={preferences.theme}
-            onValueChange={(v) => onUpdate({ theme: v as UserPreferences['theme'] })}
-            disabled={savingPrefs}
-          >
-            <SelectTrigger className="w-full sm:w-60">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="system">Sistema (automático)</SelectItem>
-              <SelectItem value="light">Claro</SelectItem>
-              <SelectItem value="dark">Escuro</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5" />
+              Idioma
+            </Label>
+            <Select
+              value={preferences.language}
+              onValueChange={(v) => onUpdate({ language: v as UserPreferences['language'] })}
+              disabled={savingPrefs}
+            >
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pt-BR">Português (Brasil)</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
+      </SectionRow>
 
-      {/* Regional */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Regional</h3>
+      <div className="border-t border-border" />
 
-        <div className="space-y-1.5">
-          <Label className="flex items-center gap-1.5">
-            <Globe className="w-3.5 h-3.5" />
-            Idioma
-          </Label>
-          <Select
-            value={preferences.language}
-            onValueChange={(v) => onUpdate({ language: v as UserPreferences['language'] })}
-            disabled={savingPrefs}
-          >
-            <SelectTrigger className="w-full sm:w-60">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pt-BR">Português (Brasil)</SelectItem>
-              <SelectItem value="en">English</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Navegação */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Navegação</h3>
-
+      <SectionRow title="Navegação" description="View exibida ao entrar no app.">
         <div className="space-y-1.5">
           <Label className="flex items-center gap-1.5">
             <LayoutDashboard className="w-3.5 h-3.5" />
-            View inicial ao entrar
+            View inicial
           </Label>
           <Select
             value={preferences.default_view}
             onValueChange={(v) => onUpdate({ default_view: v as UserPreferences['default_view'] })}
             disabled={savingPrefs}
           >
-            <SelectTrigger className="w-full sm:w-60">
+            <SelectTrigger className="w-full sm:w-64">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -127,17 +127,13 @@ export function PreferencesSection({ preferences, savingPrefs, clients, onUpdate
             </SelectContent>
           </Select>
         </div>
-      </div>
+      </SectionRow>
 
-      {/* Ordem de clientes */}
       {clients.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Clientes</h3>
+        <>
+          <div className="border-t border-border" />
 
-          <div>
-            <p className="text-sm text-muted-foreground mb-3">
-              Arraste para reordenar a exibição dos clientes na barra lateral.
-            </p>
+          <SectionRow title="Clientes" description="Arraste para reordenar a exibição na barra lateral.">
             <ul className="space-y-1.5">
               {orderedClientIds.map((clientId, index) => {
                 const client = clientById[clientId]
@@ -163,14 +159,13 @@ export function PreferencesSection({ preferences, savingPrefs, clients, onUpdate
                 )
               })}
             </ul>
-          </div>
-        </div>
+          </SectionRow>
+        </>
       )}
 
-      {/* Notificações */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Notificações</h3>
+      <div className="border-t border-border" />
 
+      <SectionRow title="Notificações" description="Ativar ou desativar alertas do sistema.">
         <div className="flex items-start gap-3">
           <Checkbox
             id="notifications_enabled"
@@ -187,7 +182,7 @@ export function PreferencesSection({ preferences, savingPrefs, clients, onUpdate
             <p className="text-xs text-muted-foreground mt-0.5">Receber notificações sobre demandas e atualizações.</p>
           </div>
         </div>
-      </div>
+      </SectionRow>
 
       {savingPrefs && <p className="text-xs text-muted-foreground">Salvando…</p>}
     </section>
