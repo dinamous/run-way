@@ -130,7 +130,12 @@ export const useAdminStore = create<AdminStore>()(
         set({ loadingInitial: true, error: null })
         try {
           const { fetchClients, fetchUsers, fetchUserClientsMap, fetchPendingUsers } = get()
-          await Promise.all([fetchClients(), fetchUsers(), fetchUserClientsMap(), fetchPendingUsers()])
+          await Promise.all([
+            fetchClients(),
+            fetchUsers(),
+            fetchUserClientsMap(),
+            fetchPendingUsers().catch(() => undefined),
+          ])
           set({ initialized: true })
         } catch (err) {
           set({ error: toSafeUiErrorMessage(err instanceof Error ? err.message : null) })

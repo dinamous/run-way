@@ -51,6 +51,18 @@ function SwitchRow({ id, label, description, icon, checked, disabled, onChange }
   )
 }
 
+function SectionRow({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8">
+      <div>
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{description}</p>
+      </div>
+      <div>{children}</div>
+    </div>
+  )
+}
+
 export function NotificationsSection({ preferences, isAdmin, savingPrefs, onUpdate }: NotificationsSectionProps) {
   const handleStalledDays = (value: string) => {
     const n = parseInt(value, 10)
@@ -67,18 +79,9 @@ export function NotificationsSection({ preferences, isAdmin, savingPrefs, onUpda
   }
 
   return (
-    <section className="space-y-8">
-      <div>
-        <h2 className="text-lg font-semibold">Notificações</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Escolha quais alertas automáticos você deseja receber.
-        </p>
-      </div>
+    <section className="space-y-10">
 
-      {/* Alertas */}
-      <div className="space-y-1">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">Alertas</h3>
-
+      <SectionRow title="Alertas" description="Escolha quais notificações automáticas receber.">
         <div className="divide-y divide-border">
           <SwitchRow
             id="notification_step_overdue"
@@ -110,54 +113,52 @@ export function NotificationsSection({ preferences, isAdmin, savingPrefs, onUpda
             />
           )}
         </div>
-      </div>
+      </SectionRow>
 
-      {/* Thresholds — só admins */}
       {isAdmin && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Limites</h3>
-          <p className="text-xs text-muted-foreground -mt-2">
-            Estes valores se aplicam a todos os membros dos seus clientes.
-          </p>
+        <>
+          <div className="border-t border-border" />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label htmlFor="stalled_days_threshold" className="text-sm font-medium flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground" />
-                Dias sem atividade
-              </label>
-              <p className="text-xs text-muted-foreground">Para considerar uma demanda parada (1–30 dias).</p>
-              <Input
-                id="stalled_days_threshold"
-                type="number"
-                min={1}
-                max={30}
-                defaultValue={preferences.stalled_days_threshold}
-                disabled={savingPrefs}
-                className="w-24"
-                onBlur={(e) => handleStalledDays(e.target.value)}
-              />
-            </div>
+          <SectionRow title="Limites" description="Aplicados a todos os membros dos seus clientes.">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-1.5">
+                <label htmlFor="stalled_days_threshold" className="text-sm font-medium flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground" />
+                  Dias sem atividade
+                </label>
+                <p className="text-xs text-muted-foreground">Para considerar uma demanda parada (1–30 dias).</p>
+                <Input
+                  id="stalled_days_threshold"
+                  type="number"
+                  min={1}
+                  max={30}
+                  defaultValue={preferences.stalled_days_threshold}
+                  disabled={savingPrefs}
+                  className="w-24"
+                  onBlur={(e) => handleStalledDays(e.target.value)}
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="overload_threshold" className="text-sm font-medium flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                Limite de sobrecarga
-              </label>
-              <p className="text-xs text-muted-foreground">Nº de demandas simultâneas para alertar (1–20).</p>
-              <Input
-                id="overload_threshold"
-                type="number"
-                min={1}
-                max={20}
-                defaultValue={preferences.overload_threshold}
-                disabled={savingPrefs}
-                className="w-24"
-                onBlur={(e) => handleOverloadThreshold(e.target.value)}
-              />
+              <div className="space-y-1.5">
+                <label htmlFor="overload_threshold" className="text-sm font-medium flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                  Limite de sobrecarga
+                </label>
+                <p className="text-xs text-muted-foreground">Nº de demandas simultâneas para alertar (1–20).</p>
+                <Input
+                  id="overload_threshold"
+                  type="number"
+                  min={1}
+                  max={20}
+                  defaultValue={preferences.overload_threshold}
+                  disabled={savingPrefs}
+                  className="w-24"
+                  onBlur={(e) => handleOverloadThreshold(e.target.value)}
+                />
+              </div>
             </div>
-          </div>
-        </div>
+          </SectionRow>
+        </>
       )}
 
       {savingPrefs && <p className="text-xs text-muted-foreground">Salvando…</p>}
