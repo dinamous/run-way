@@ -627,12 +627,12 @@ export function AppSidebar() {
             onClick={() => navigate("/")}
             className={cn(
               "w-9 h-9 flex items-center justify-center rounded-md transition-all duration-200 mb-3 shrink-0",
-              !selectedClient
+              view === "home"
                 ? "bg-foreground text-background shadow-sm"
                 : "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.12] hover:text-foreground"
             )}
             aria-label="Ir para o início"
-            style={!selectedClient ? { viewTransitionName: "home-btn" } : undefined}
+            style={view === "home" ? { viewTransitionName: "home-btn" } : undefined}
           >
             <Home className="w-[17px] h-[17px]" />
           </button>
